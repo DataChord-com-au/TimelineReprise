@@ -1,0 +1,14 @@
+# OS/Editor artifacts
+thumbs.db
+desktop.ini
+*.swp
+*.tmp
+*.bak
+
+# Testing Framework
+/node_modules/
+/coverage/
+/.tmp-build/
+/.agents/
+
+/scratch.md

@@ -14,3 +14,4 @@ This folder contains the original SIMILE Timeline 2.3.1 release artifacts used a
 
 - `timeline-2.3.1.zip` - original source archive
 
+<!-- EOF -->
