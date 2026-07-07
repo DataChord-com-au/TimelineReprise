@@ -20,6 +20,9 @@ The intended shape is progressive: pages can load only the original library, add
 - `timeline-reprise/timeline-reprise.js` - reprise library loader.
 - `timeline-reprise/timeline-reprise-core.js` - shared reprise behavior.
 - `timeline-reprise/timeline-reprise-overview.js` - extended theme support for overview bands.
+- `timeline-reprise/timeline-reprise-cardinal-axis.js` - adds support for a bounded cardinal axis.
+- `timeline-reprise/timeline-reprise-scaled-zones.js` - adds support for scaled zones within a timeline band.
+
 
 ## Browser Widget Usage
 
@@ -34,12 +37,16 @@ Load the base library first, then the custom layer:
 ## Reference
 ### [Reprise Core](timeline-reprise-core.md)
 ### [Reprise Overview](timeline-reprise-overview.md)
+### [Reprise Cardinal Axis](timeline-reprise-cardinal-axis.md)
+### [Reprise Scaled Zones](timeline-reprise-scaled-zones.md)
+
 
 ## Examples
 ### [simile-baseline.html](../examples/simile-baseline.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html)
 ### [timeline-dark-mode.html](../examples/timeline-dark-mode.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html)
 ### [timeline-reprise-colors.html](../examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html)
 ### [timeline-reprise-overview.html](../examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html)
+### [timeline-reprise-scales.html](../examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html)
 
 ---
 [Back to top](#timeline-reprise)

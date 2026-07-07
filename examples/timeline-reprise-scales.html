@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Scales</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <script src="../timeline-reprise/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    #timeline {
+      height: 180px;
+      border-width: 1px;
+      border-style: solid;
+      border-color: #5f6368;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Scales</h1>
+  <p>
+    This example shows scaling effects.
+  </p>
+  <ul>
+    <li>the main band still places events by date</li>
+    <li>the scale band labels months as counts from 15 February 2020 for 10 months</li>
+    <li>the week around 15 July 2020 is expanded to show daily detail</li>
+  </ul>
+  
+  <div id="timeline"></div>
+
+<script>
+  var eventSource = new Timeline.DefaultEventSource();
+  var scaleEventSource = new Timeline.DefaultEventSource();
+
+  var theme = Timeline.ClassicTheme.create();
+
+  var startDate = new Date("2020-02-15T00:00:00Z");
+  var endDate = new Date("2020-12-15T00:00:00Z");
+  var centerDate = new Date("2020-07-15T00:00:00Z");
+
+  var zones = [
+    {
+      start: "2020-07-12",
+      end: "2020-07-18T00:01:00Z",
+      magnify: 20,
+      unit: Timeline.DateTime.DAY,
+      multiple: 1
+    }
+  ];
+
+  var bandInfos = [
+    Timeline.createScaledZoneBand({
+      eventSource: eventSource,
+      date: centerDate,
+      width: "75%",
+      intervalUnit: Timeline.DateTime.MONTH,
+      intervalPixels: 100,
+      zones: zones,
+      theme: theme
+    }),
+    Timeline.createScaledZoneBand({
+      eventSource: scaleEventSource,
+      date: centerDate,
+      width: "25%",
+      intervalUnit: Timeline.DateTime.MONTH,
+      intervalPixels: 100,
+      zones: zones,
+      theme: theme
+    })
+  ];
+
+  bandInfos[1].etherPainter = new Timeline.CardinalAxis({
+    theme: theme,
+    startDate: startDate,
+    endDate: endDate,
+    unit: Timeline.DateTime.MONTH,
+    multiple: 1,
+    labelForIndex: function (index) {
+      return String(index);
+    }
+  });
+
+  bandInfos[1].syncWith = 0;
+  bandInfos[1].highlight = true;
+
+  var timeline = Timeline.create(
+    document.getElementById("timeline"),
+    bandInfos
+  );
+
+  eventSource.loadJSON({
+    dateTimeFormat: "iso8601",
+    events: [
+      {
+        start: "2020-02-15T00:00Z",
+        title: "Month 0",
+        description: ""
+      },
+      {
+        start: "2020-07-12T00:00Z",
+        title: "Expanded zone starts",
+        description: ""
+      },
+      {
+        start: "2020-07-15T00:00Z",
+        title: "Centre date",
+        description: ""
+      },
+      {
+        start: "2020-07-18T00:00Z",
+        title: "Expanded zone ends",
+        description: ""
+      },
+      {
+        start: "2020-12-15T00:00Z",
+        title: "Month 10",
+        description: ""
+      }
+    ]
+  }, document.location.href);
+</script>
+</body>
+</html>

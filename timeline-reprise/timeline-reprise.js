@@ -3,7 +3,9 @@
     const manifest = [
         { type: 'css', path: 'dark-mode/dark-mode.css' },
         { type: 'js', path: 'timeline-reprise-core.js' },
-        { type: 'js', path: 'timeline-reprise-overview.js' }
+        { type: 'js', path: 'timeline-reprise-overview.js' },
+        { type: 'js', path: 'timeline-reprise-cardinal-axis.js' },
+        { type: 'js', path: 'timeline-reprise-scaled-zones.js' }
     ];
     
     const currentScript = document.currentScript ||
