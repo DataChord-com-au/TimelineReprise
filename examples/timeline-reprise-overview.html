@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Overview</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <script src="../timeline-reprise/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    #timeline {
+      height: 180px;
+      border-width: 1px;
+      border-style: solid;
+      border-color: #5f6368;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Overview</h1>
+  <p>
+    This example shows overview band styling using a theme.
+  </p>
+  <ul>
+    <li>the theme sets the overview track offset</li>
+    <li>the theme sets default colours for event ticks and duration tapes</li>
+    <li>individual events can still override the overview colour</li>
+  </ul>
+  
+  <div id="timeline"></div>
+
+  <script>
+    var eventSource = new Timeline.DefaultEventSource();
+
+    var theme = Timeline.ClassicTheme.create();
+
+    theme.eventTheme = {
+      track: {
+        horizontal: {
+          offset: 20,
+          gap: 4
+        }
+      },
+      instant: {
+        width: 8,
+        iconColor: "orange"
+      },
+      range: {
+        width: 3,
+        iconColor: "green"
+      }
+    };
+
+    var bandInfos = [
+      Timeline.createBandInfo({
+        eventSource: eventSource,
+        date: "Jan 1 2020",
+        width: "70%",
+        intervalUnit: Timeline.DateTime.MONTH,
+        intervalPixels: 100
+      }),
+      Timeline.createBandInfo({
+        eventSource: eventSource,
+        date: "Jan 1 2020",
+        width: "30%",
+        intervalUnit: Timeline.DateTime.YEAR,
+        intervalPixels: 200,
+        overview: true,
+        theme: theme
+      })
+    ];
+
+    bandInfos[1].syncWith = 0;
+    bandInfos[1].highlight = true;
+
+    var timeline = Timeline.create(
+      document.getElementById("timeline"),
+      bandInfos
+    );
+
+    eventSource.loadJSON({
+      dateTimeFormat: "iso8601",
+      events: [
+        {
+          start: "2020-01-01",
+          title: "Local library loaded",
+          description: "SIMILE Timeline is running from local files."
+        },
+        {
+          start: "2020-06-01",
+          end: "2020-09-01",
+          title: "Range event",
+          description: ""
+        },
+        {
+          start: "2020-07-01",
+          end: "2020-10-15",
+          title: "Second Range event",
+          description: "",
+          overviewColor: "purple"
+        }
+      ]
+    }, document.location.href);
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
-# TimelineReprise
+# Timeline Reprise
 
-TimelineReprise is an experimental reprise of the SIMILE Timeline 2.3.1 browser widget.
+Timeline Reprise is an experimental reprise of the SIMILE Timeline 2.3.1 browser widget.
 
 It keeps a self-contained static copy of the original SIMILE Timeline library and applies custom features as a separate addon layer.
 
@@ -33,10 +33,11 @@ Load the base library first, then the custom layer:
 
 ## Examples
 
-| <!-- --> | <!-- --> | <!-- --> |
-|----------|----------|----------|
-| [simile-baseline.html](examples/simile-baseline.html) | Loads the original SIMILE Timeline library unpatched. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) |
-| [timeline-dark-mode.html](examples/timeline-dark-mode.html) | Loads the original SIMILE Timeline library with CSS supporting dark mode styles. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html) |
-| [timeline-reprise-colors.html](examples/timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html) |
+| <!-- --> | <!-- --> |
+|----------|----------|
+| [simile-baseline.html](examples/simile-baseline.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) | Loads the original SIMILE Timeline library unpatched. |
+| [timeline-dark-mode.html](examples/timeline-dark-mode.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html) | Loads the original SIMILE Timeline library with CSS supporting dark mode styles. |
+| [timeline-reprise-colors.html](examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. |
+| [timeline-reprise-overview.html](examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html) | Reprise Overview extends theme support for overview bands. |
 
 <!-- EOF -->
