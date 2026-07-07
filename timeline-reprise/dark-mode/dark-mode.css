@@ -2,12 +2,6 @@
 
 @media (prefers-color-scheme: dark) {
 
-  #timeline {
-    border-width: 1px;
-    border-style: solid;
-    border-color: #5f6368;
-  }
-
 /*------------------- Bands ----------------*/
 
   .timeline-band-0 .timeline-ether-bg{background-color:#555555}

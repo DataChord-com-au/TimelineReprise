@@ -37,5 +37,6 @@ Load the base library first, then the custom layer:
 |----------|----------|----------|
 | [simile-baseline.html](examples/simile-baseline.html) | Loads the original SIMILE Timeline library unpatched. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) |
 | [timeline-dark-mode.html](examples/timeline-dark-mode.html) | Loads the original SIMILE Timeline library with CSS supporting dark mode styles. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html) |
+| [timeline-reprise-colors.html](examples/timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html) |
 
 <!-- EOF -->

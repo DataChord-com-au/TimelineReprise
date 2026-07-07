@@ -2,11 +2,11 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SIMILE Timeline Dark Mode Test</title>
+  <title>SIMILE Timeline Reprise: Colors</title>
 
   <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
   <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
-  <link rel="stylesheet" href="../timeline-reprise/dark-mode/dark-mode.css">
+  <script src="../timeline-reprise/timeline-reprise.js"></script>
 
   <style>
     body {
@@ -15,12 +15,12 @@
     }
 
     #timeline {
-      height: 260px;
+      height: 420px;
       border-width: 1px;
       border-style: solid;
       border-color: #5f6368;
     }
-
+    
     @media (prefers-color-scheme: dark) {
       body {
         background: #202124;
@@ -30,7 +30,17 @@
   </style>
 </head>
 <body>
-  <h1>SIMILE Timeline Dark Mode Test</h1>
+  <h1>SIMILE Timeline Reprise: Colors</h1>
+  <p>
+    This example shows a timeline with a little more visual language:
+  </p>
+  <ul>
+    <li>named colors can be reused for event markers and duration tapes</li>
+    <li>labels can be re-colored or inherit the style color</li>
+    <li>the main band can expand while the overview band keeps a predictable size</li>
+    <li>the page follows the browser's light or dark color preference</li>
+  </ul>
+  
   <div id="timeline"></div>
 
   <script>
@@ -40,7 +50,7 @@
       Timeline.createBandInfo({
         eventSource: eventSource,
         date: "Jan 1 2020",
-        width: "70%",
+        width: "*",
         intervalUnit: Timeline.DateTime.MONTH,
         intervalPixels: 100
       }),
@@ -68,13 +78,23 @@
         {
           start: "2020-01-01",
           title: "Local library loaded",
-          description: "SIMILE Timeline is running from local files."
+          description: "SIMILE Timeline is running from local files.",
+          icon: Timeline.ThemeIcons.get("orange")
         },
         {
           start: "2020-06-01",
           end: "2020-09-01",
           title: "Range event",
-          description: ""
+          description: "",
+          color: Timeline.ThemeIcons.getCssColor("green"),
+          textColor: "inherit"
+        },
+        {
+          start: "2020-07-01",
+          end: "2020-10-15",
+          title: "Second Range event",
+          description: "Range with colored label",
+          color: Timeline.ThemeIcons.getCssColor("purple")
         }
       ]
     }, document.location.href);
