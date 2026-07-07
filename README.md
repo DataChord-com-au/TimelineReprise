@@ -35,6 +35,7 @@ Load the base library first, then the custom layer:
 
 | <!-- --> | <!-- --> | <!-- --> |
 |----------|----------|----------|
-| [simile-baseline.html](examples/simile-baseline.html) | Loads the original SIMILE library unpatched. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) |
+| [simile-baseline.html](examples/simile-baseline.html) | Loads the original SIMILE Timeline library unpatched. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) |
+| [timeline-dark-mode.html](examples/timeline-dark-mode.html) | Loads the original SIMILE Timeline library with CSS supporting dark mode styles. | [Preview](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html) |
 
 <!-- EOF -->

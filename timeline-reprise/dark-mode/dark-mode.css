@@ -1,0 +1,109 @@
+/*------------------- Dark Mode Styles ----------------*/
+
+@media (prefers-color-scheme: dark) {
+
+  #timeline {
+    border-width: 1px;
+    border-style: solid;
+    border-color: #5f6368;
+  }
+
+/*------------------- Bands ----------------*/
+
+  .timeline-band-0 .timeline-ether-bg{background-color:#555555}
+  .timeline-band-1 .timeline-ether-bg{background-color:#444444}
+  .timeline-band-2 .timeline-ether-bg{background-color:#303030}
+  .timeline-band-3 .timeline-ether-bg{background-color:#2a2a2a}
+  .timeline-band-4 .timeline-ether-bg{background-color:#1e1e1e}
+          
+  .timeline-ether-highlight {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .timeline-highlight-decorator {
+    background-color: rgba(255, 153, 0, 0.25);
+  }
+
+/*------------------- Labels ----------------*/
+
+  .timeline-date-label,
+  .timeline-ether-label,
+  .timeline-band-label,
+  .timeline-event-label,
+  .timeline-highlight-label-start,
+  .timeline-highlight-label-end {
+    color: #ccc;
+    text-shadow: 0 1px 4px #000;
+  }
+
+/*------------------- Bubbles --------------*/
+
+  .timeline-event-bubble-title,
+  .timeline-event-bubble-time,
+  .timeline-event-bubble-body {
+    color: #ccc;
+    text-shadow: 0 1px 4px #000;
+  }
+  
+  .timeline-event-bubble-title a:hover {
+    text-decoration: underline;
+  }
+
+  .timeline-event-bubble-title a {
+    color: #8ab4f8;
+    text-decoration: none;
+  }
+  
+  .simileAjax-bubble-contentContainer {
+    background: #3c3c3c !important;
+  }
+
+  div.simileAjax-bubble-border-left-pngTranslucent {
+    background: url(images/bubble-left.png) top right repeat-y;
+  }
+
+  div.simileAjax-bubble-border-right-pngTranslucent {
+    background: url(images/bubble-right.png) top left repeat-y;
+  }
+
+  div.simileAjax-bubble-border-top-pngTranslucent {
+    background: url(images/bubble-top.png) bottom left repeat-x;
+  }
+
+  div.simileAjax-bubble-border-bottom-pngTranslucent {
+    background: url(images/bubble-bottom.png) top left repeat-x;
+  }
+
+  div.simileAjax-bubble-border-top-left-pngTranslucent {
+    background: url(images/bubble-top-left.png) bottom right no-repeat;
+  }
+
+  div.simileAjax-bubble-border-top-right-pngTranslucent {
+    background: url(images/bubble-top-right.png) bottom left no-repeat;
+  }
+
+  div.simileAjax-bubble-border-bottom-left-pngTranslucent {
+    background: url(images/bubble-bottom-left.png) top right no-repeat;
+  }
+
+  div.simileAjax-bubble-border-bottom-right-pngTranslucent {
+    background: url(images/bubble-bottom-right.png) top left no-repeat;
+  }
+
+  div.simileAjax-bubble-arrow-point-left-pngTranslucent {
+    background: url(images/bubble-arrow-point-left.png) center right no-repeat;
+  }
+
+  div.simileAjax-bubble-arrow-point-right-pngTranslucent {
+    background: url(images/bubble-arrow-point-right.png) center left no-repeat;
+  }
+
+  div.simileAjax-bubble-arrow-point-up-pngTranslucent {
+    background: url(images/bubble-arrow-point-up.png) bottom center no-repeat;
+  }
+
+  div.simileAjax-bubble-arrow-point-down-pngTranslucent {
+    background: url(images/bubble-arrow-point-down.png) bottom center no-repeat;
+  }
+
+}
