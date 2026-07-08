@@ -12,6 +12,10 @@ theme.eventTheme = {
         horizontal: {
             offset: 20,
             gap: 4
+        },
+        vertical: {
+            offset: 20,
+            gap: 4
         }
     },
     instant: {
@@ -56,21 +60,21 @@ track: {
 ```
 
 ### `eventTheme.track.horizontal.offset`
-Sets the overview track offset for horizontal timelines.
+Sets the outer offset before overview content for horizontal timelines.
 
 ### `eventTheme.track.horizontal.gap`
-Sets spacing between overview tracks for horizontal timelines.
+Sets spacing between instant ticks and the first range tape, and between range tape tracks, for horizontal timelines.
 
 ### `eventTheme.track.vertical.offset`
-Sets the overview track offset for vertical timelines.
+Sets the outer offset before overview content for vertical timelines.
 
 ### `eventTheme.track.vertical.gap`
-Sets spacing between overview tracks for vertical timelines.
+Sets spacing between instant ticks and the first range tape, and between range tape tracks, for vertical timelines.
 
 ## Instant Events
 
 ### `eventTheme.instant.width`
-Sets the overview tick size for instant events.
+Sets the overview tick thickness for instant events.
 
 ```js
 instant: {
@@ -89,10 +93,13 @@ instant: {
 
 Named colours are resolved through `Timeline.ThemeIcons` when available.
 
+Overview reads `width` and `iconColor` directly from `instant`.
+Orientation branches under `instant` are ignored by the overview painter.
+
 ## Range Events
 
 ### `eventTheme.range.width`
-Sets the overview tape size for range events.
+Sets the overview tape thickness for range events.
 
 ```js
 range: {
@@ -110,6 +117,9 @@ range: {
 ```
 
 Named colours are resolved through `Timeline.ThemeIcons` when available.
+
+Overview reads `width` and `iconColor` directly from `range`.
+Orientation branches under `range` are ignored by the overview painter.
 
 ## Event Overrides
 
@@ -130,6 +140,9 @@ Sets the overview colour for one event.
 ## Notes
 
 This module adapts reprise theme data onto SIMILE's native overview painter. It does not replace the overview layout algorithm.
+
+For overview bands, `offset` and `gap` belong under `track`.
+`width` belongs under `instant` and `range`.
 
 ---
 [Back to top](#reprise-overview)<br>

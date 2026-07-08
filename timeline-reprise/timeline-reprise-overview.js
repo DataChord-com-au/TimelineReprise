@@ -75,9 +75,16 @@
         const eventTheme = ensureNativeEventTheme(theme);
         const track = getTrackSpec(authoredTheme, timeline);
 
+        const tickHeight = toFiniteNumber(authoredTheme.instant?.width);
+        const trackOffset = toFiniteNumber(track?.offset);
+
         if (isObject(track)) {
-            setNumber(eventTheme.overviewTrack, "offset", track.offset);
             setNumber(eventTheme.overviewTrack, "gap", track.gap);
+
+            if (trackOffset != null) {
+                eventTheme.overviewTrack.offset = trackOffset +
+                    (tickHeight ?? eventTheme.overviewTrack.tickHeight ?? 0);
+            }
         }
 
         if (isObject(authoredTheme.instant)) {
@@ -139,18 +146,6 @@
             data.elmt.style.height = theme.event.overviewTrack.tickHeight + "px";
         }
 
-        const gap = theme?.event?.overviewTrack?.gap || 0;
-
-        if (data?.elmt && gap) {
-            if (this._timeline?.isVertical?.()) {
-                data.left -= gap;
-                data.elmt.style.left = data.left + "px";
-            } else {
-                data.top -= gap;
-                data.elmt.style.top = data.top + "px";
-            }
-        }
-
         return data;
     };
 
@@ -158,8 +153,7 @@
         evt, track, left, right, color, opacity, metrics, theme, klassName
     ) {
         const eventColor = getEventOverviewColor(evt);
-
-        return originalPaintEventTape.call(
+        const data = originalPaintEventTape.call(
             this,
             evt,
             track,
@@ -171,6 +165,19 @@
             theme,
             klassName
         );
+        const gap = theme?.event?.overviewTrack?.gap || 0;
+
+        if (data?.elmt && gap) {
+            if (this._timeline?.isVertical?.()) {
+                data.left += gap;
+                data.elmt.style.left = data.left + "px";
+            } else {
+                data.top += gap;
+                data.elmt.style.top = data.top + "px";
+            }
+        }
+
+        return data;
     };
 
     Timeline.OverviewThemeShim = Timeline.OverviewThemeShim || {};
