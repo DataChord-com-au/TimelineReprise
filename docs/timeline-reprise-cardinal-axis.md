@@ -1,4 +1,6 @@
-# Reprise Cardinal Axis
+# Cardinal Axis
+
+## `timeline-reprise-cardinal-axis`
 
 A bounded numeric axis for Timeline Reprise.
 
@@ -134,6 +136,6 @@ bandInfos[1].etherPainter = new Timeline.CardinalAxis({
 ```
 
 ---
-[Back to top](#reprise-cardinal-axis)<br>
+[Back to top](#cardinal-axis)<br>
 [Back to main](TimelineReprise.md)
 <!-- EOF -->

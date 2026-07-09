@@ -5,7 +5,8 @@
         { type: 'js', path: 'timeline-reprise-core.js' },
         { type: 'js', path: 'timeline-reprise-overview.js' },
         { type: 'js', path: 'timeline-reprise-cardinal-axis.js' },
-        { type: 'js', path: 'timeline-reprise-scaled-zones.js' }
+        { type: 'js', path: 'timeline-reprise-scaled-zones.js' },
+        { type: 'js', path: 'timeline-reprise-event-layout.js' }
     ];
     
     const currentScript = document.currentScript ||

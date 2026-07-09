@@ -1,0 +1,259 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Event Layout</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <script src="../timeline-reprise/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    .example-section {
+      margin-top: 28px;
+    }
+
+    .example-section h2 {
+      margin-bottom: 8px;
+    }
+
+    .timeline-frame {
+      border-width: 1px;
+      border-style: solid;
+      border-color: #5f6368;
+    }
+
+    #timeline-horizontal {
+      height: 360px;
+    }
+
+    #timeline-vertical {
+      width: 800px;
+      max-width: 100%;
+      height: 560px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Event Layout</h1>
+  <p>
+    This example shows event layout changes on horizontal and vertical timelines.
+  </p>
+
+  <section class="example-section">
+    <h2>Horizontal Timeline</h2>
+    <ul>
+      <li>duration labels are routed away from crowded event tracks</li>
+      <li>short duration events remain visible without taking over the layout</li>
+      <li>sticky range labels slide at both viewport edges while their tapes remain visible</li>
+      <li>the overview band uses theme settings from the same timeline</li>
+    </ul>
+    <div id="timeline-horizontal" class="timeline-frame"></div>
+  </section>
+
+  <section class="example-section">
+    <h2>Vertical Timeline</h2>
+    <ul>
+      <li>duration and point events use the same data as the horizontal timeline</li>
+      <li>labels are orthogonal to the time direction, so layout pressure moves sideways</li>
+      <li>the overview band sits beside the main band instead of below it</li>
+    </ul>
+    <div id="timeline-vertical" class="timeline-frame"></div>
+  </section>
+
+  <script>
+    var eventData = {
+      dateTimeFormat: "iso8601",
+      events: [
+        {
+          start: "2020-01-10",
+          title: "Project starts",
+          description: "",
+          icon: Timeline.ThemeIcons.get("orange")
+        },
+        {
+          start: "2020-02-01",
+          end: "2020-03-20",
+          title: "Research phase",
+          description: "",
+          color: Timeline.ThemeIcons.getCssColor("green"),
+          textColor: "inherit"
+        },
+        {
+          start: "2020-02-12",
+          end: "2020-02-20",
+          title: "Short review window",
+          description: "",
+          color: Timeline.ThemeIcons.getCssColor("purple"),
+          textColor: "inherit"
+        },
+        {
+          start: "2020-02-18",
+          title: "Decision point",
+          description: "",
+          icon: Timeline.ThemeIcons.get("blue")
+        },
+        {
+          start: "2020-03-01",
+          end: "2020-04-15",
+          title: "Build phase",
+          description: "",
+          color: Timeline.ThemeIcons.getCssColor("red"),
+          textColor: "inherit"
+        },
+        {
+          start: "2020-03-10",
+          end: "2020-03-28",
+          title: "Parallel documentation",
+          description: "",
+          color: Timeline.ThemeIcons.getCssColor("yellow"),
+          textColor: "inherit"
+        },
+        {
+          start: "2020-03-16",
+          title: "Milestone review",
+          description: "",
+          icon: Timeline.ThemeIcons.get("orange")
+        },
+        {
+          start: "2020-04-05",
+          title: "Release candidate",
+          description: "",
+          icon: Timeline.ThemeIcons.get("green")
+        }
+      ]
+    };
+
+    function createEventLayoutTheme() {
+      var theme = Timeline.ClassicTheme.create();
+
+      theme.eventTheme = {
+        track: {
+          horizontal: {
+            offset: 12,
+            gap: 5
+          },
+          vertical: {
+            offset: 12,
+            gap: 5
+          }
+        },
+        instant: {
+          width: 6,
+          iconColor: "orange"
+        },
+        range: {
+          width: 4,
+          iconColor: "green",
+          short: {
+            toLabelGap: 3,
+            minDisplayLength: 12
+          },
+          horizontal: {
+            eventRoutingThreshold: 36,
+            toLabelGap: 8,
+            labelHorizontalGap: 8,
+            labelTrackCount: 3,
+            labelTrackHeight: 18,
+            sparklineStagger: 8,
+            stickyLeftInset: 4
+          },
+          vertical: {
+            eventRoutingThreshold: 36,
+            toLabelGap: 8,
+            labelTrackCount: 3,
+            stickyTopInset: 4,
+            stickyLabelGap: 5,
+            toEventGap: 12
+          }
+        }
+      };
+
+      return theme;
+    }
+
+    function createHorizontalBands(eventSource, theme) {
+      var bandInfos = [
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Mar 1 2020",
+          width: "80%",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 110,
+          theme: theme
+        }),
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Mar 1 2020",
+          width: "20%",
+          intervalUnit: Timeline.DateTime.YEAR,
+          intervalPixels: 220,
+          overview: true,
+          theme: theme
+        })
+      ];
+
+      bandInfos[1].syncWith = 0;
+      bandInfos[1].highlight = true;
+
+      return bandInfos;
+    }
+
+    function createVerticalBands(eventSource, theme) {
+      var bandInfos = [
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Mar 1 2020",
+          width: "*",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 90,
+          theme: theme
+        }),
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Mar 1 2020",
+          width: "100",
+          intervalUnit: Timeline.DateTime.YEAR,
+          intervalPixels: 180,
+          overview: true,
+          theme: theme
+        })
+      ];
+
+      bandInfos[1].syncWith = 0;
+      bandInfos[1].highlight = true;
+
+      return bandInfos;
+    }
+
+    var horizontalEventSource = new Timeline.DefaultEventSource();
+    var verticalEventSource = new Timeline.DefaultEventSource();
+
+    Timeline.create(
+      document.getElementById("timeline-horizontal"),
+      createHorizontalBands(horizontalEventSource, createEventLayoutTheme())
+    );
+
+    Timeline.create(
+      document.getElementById("timeline-vertical"),
+      createVerticalBands(verticalEventSource, createEventLayoutTheme()),
+      Timeline.VERTICAL
+    );
+
+    horizontalEventSource.loadJSON(eventData, document.location.href);
+    verticalEventSource.loadJSON(eventData, document.location.href);
+  </script>
+</body>
+</html>

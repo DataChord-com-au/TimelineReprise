@@ -123,6 +123,31 @@
             : color;
     }
 
+    function isVertical(painter) {
+        return painter._timeline?.isVertical?.() === true;
+    }
+
+    function transposeVerticalPaintedRect(data, { swapSize = false } = {}) {
+        const left = data.left;
+        const top = data.top;
+        const width = data.width;
+        const height = data.height;
+
+        data.left = top;
+        data.top = left;
+        data.elmt.style.left = top + "px";
+        data.elmt.style.top = left + "px";
+
+        if (swapSize) {
+            data.width = height;
+            data.height = width;
+            data.elmt.style.width = height + "px";
+            data.elmt.style.height = width + "px";
+        }
+
+        return data;
+    }
+
     proto.initialize = function (band, timeline) {
         applyEventThemeToPainterParams(this._params, null, timeline);
         const result = originalInitialize.apply(this, arguments);
@@ -143,7 +168,12 @@
         }
 
         if (data?.elmt && theme?.event?.overviewTrack?.tickHeight) {
+            data.height = theme.event.overviewTrack.tickHeight;
             data.elmt.style.height = theme.event.overviewTrack.tickHeight + "px";
+        }
+
+        if (isVertical(this) && data?.elmt) {
+            return transposeVerticalPaintedRect(data, { swapSize: true });
         }
 
         return data;
@@ -168,13 +198,12 @@
         const gap = theme?.event?.overviewTrack?.gap || 0;
 
         if (data?.elmt && gap) {
-            if (this._timeline?.isVertical?.()) {
-                data.left += gap;
-                data.elmt.style.left = data.left + "px";
-            } else {
-                data.top += gap;
-                data.elmt.style.top = data.top + "px";
-            }
+            data.top += gap;
+            data.elmt.style.top = data.top + "px";
+        }
+
+        if (isVertical(this) && data?.elmt) {
+            return transposeVerticalPaintedRect(data, { swapSize: true });
         }
 
         return data;

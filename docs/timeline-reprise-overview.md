@@ -1,4 +1,6 @@
-# Reprise Overview
+# Overview
+
+## `timeline-reprise-overview`
 
 Overview band styling for Timeline Reprise.
 
@@ -145,6 +147,6 @@ For overview bands, `offset` and `gap` belong under `track`.
 `width` belongs under `instant` and `range`.
 
 ---
-[Back to top](#reprise-overview)<br>
+[Back to top](#overview)<br>
 [Back to main](TimelineReprise.md)
 <!-- EOF -->

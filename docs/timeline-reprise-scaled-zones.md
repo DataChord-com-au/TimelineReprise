@@ -1,4 +1,6 @@
-# Reprise Scaled Zones
+# Scaled Zones
+
+## `timeline-reprise-scaled-zones`
 
 Scaled time ranges for Timeline Reprise.
 
@@ -102,6 +104,6 @@ var bandInfo = Timeline.createScaledZoneBand({
 ```
 
 ---
-[Back to top](#reprise-scaled-zones)<br>
+[Back to top](#scaled-zones)<br>
 [Back to main](TimelineReprise.md)
 <!-- EOF -->

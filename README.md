@@ -31,6 +31,10 @@ Load the base library first, then the custom layer:
 <script src="./timeline-reprise/timeline-reprise.js"></script>
 ```
 
+## Documentation
+
+See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes.
+
 ## Examples
 
 | <!-- --> | <!-- --> |
@@ -40,5 +44,6 @@ Load the base library first, then the custom layer:
 | [timeline-reprise-colors.html](examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. |
 | [timeline-reprise-overview.html](examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html) | Reprise Overview extends theme support for overview bands. |
 | [timeline-reprise-scales.html](examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html) | Reprise Cardinal Axis adds a bounded numeric axis.<br>Reprise Scaled Zones expands selected date ranges within a band. |
+| [timeline-reprise-event-layout.html](examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |
 
 <!-- EOF -->

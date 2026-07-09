@@ -1,4 +1,6 @@
-# Reprise Core
+# Core
+
+## `timeline-reprise-core`
 
 Shared behaviour patches for Timeline Reprise.
 
@@ -65,6 +67,6 @@ Event source URL handling accepts already-absolute URI schemes, including `data:
 This supports generated SVG marker icons without SIMILE treating them as relative file paths.
 
 ---
-[Back to top](#reprise-core)<br>
+[Back to top](#core)<br>
 [Back to main](TimelineReprise.md)
 <!-- EOF -->
