@@ -6,7 +6,8 @@
 
   <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
   <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
-  <script src="../timeline-reprise/timeline-reprise.js"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
 
   <style>
     body {
@@ -190,27 +191,6 @@
       theme.eventTheme = {
         track: {
           horizontal: {
-            offset: 12,
-            gap: 8
-          },
-          vertical: {
-            offset: 12,
-            gap: 8
-          }
-        },
-        instant: {
-          width: 6,
-          iconColor: "blue"
-        },
-        range: {
-          width: 5,
-          iconColor: "green"
-        }
-      };
-
-      theme.narrativeTheme = {
-        track: {
-          horizontal: {
             count: 2,
             offset: 12,
             size: 22,
@@ -223,19 +203,22 @@
             gap: 6
           }
         },
+        instant: {
+          width: 4,
+          iconColor: "blue",
+          colors: [
+            "#7b1fa2"
+          ]
+        },
         range: {
+          width: 5,
+          iconColor: "green",
           offset: 0,
           colors: [
             "rgba(76, 175, 80, 1)",
             "rgba(66, 133, 244, 1)",
             "rgba(251, 188, 5, 1)",
             "rgba(217, 48, 37, 1)"
-          ]
-        },
-        instant: {
-          width: 2,
-          colors: [
-            "#7b1fa2"
           ]
         },
         label: {

@@ -1,6 +1,6 @@
 # Timeline Reprise
 
-Version: `v1.0.0`  
+Version: `v1.1.0`
 Base library: SIMILE Timeline `2.3.1`
 
 Timeline Reprise is an experimental reprise of the SIMILE Timeline 2.3.1 browser widget.
@@ -29,16 +29,45 @@ No source rebuild was performed for the initial baseline.
 For npm/git consumers:
 
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.0.0"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.1.0"
 ```
 
-Load the base library first, then the custom layer:
+For normal usage, load the SIMILE base library first, then the Reprise
+stylesheet and the single combined Reprise JavaScript file:
 
 ```html
 <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
 <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
-<script src="./timeline-reprise/timeline-reprise.js"></script>
+<link rel="stylesheet" href="./dist/timeline-reprise.css">
+<script src="./dist/timeline-reprise.js"></script>
 ```
+
+The distribution JavaScript contains the complete Reprise feature set. Its
+stylesheet is loaded explicitly and keeps media under `dist/images/`.
+
+For source development, `timeline-reprise/timeline-reprise.js` remains available
+as a loader for the uncombined build inputs and their stylesheet.
+
+## Distribution Build
+
+Generate the combined distribution with:
+
+```sh
+npm run build
+```
+
+This writes one combined JavaScript file, one combined CSS file, and the CSS
+media assets:
+
+```text
+dist/
+  timeline-reprise.js
+  timeline-reprise.css
+  images/
+```
+
+The combined distribution JavaScript does not load its stylesheet; use the
+explicit CSS and JavaScript tags shown in Usage above.
 
 ## Documentation
 

@@ -1,10 +1,6 @@
 # Core
 
-## `timeline-reprise-core`
-
 Shared behaviour patches for Timeline Reprise.
-
-Load after the original SIMILE Timeline scripts.
 
 ## Timeline.EmptyEtherPainter
 

@@ -106,14 +106,9 @@
         return toFiniteNumber(value);
     }
 
-    function getNarrativeTheme(params, bandTheme) {
-        if (isObject(params?.narrativeTheme)) return params.narrativeTheme;
-
+    function getEventTheme(params, bandTheme) {
         const theme = isObject(params?.theme) ? params.theme : bandTheme;
-        if (isObject(theme?.narrativeTheme)) return theme.narrativeTheme;
-        if (isObject(theme?.narrative)) return theme.narrative;
-
-        return {};
+        return isObject(theme?.eventTheme) ? theme.eventTheme : {};
     }
 
     function getOrientation(timeline) {
@@ -201,56 +196,56 @@
 
     Timeline.NarrativeDecorator.prototype._configureTheme = function () {
         const params = this._params;
-        const narrativeTheme = getNarrativeTheme(params, this._band?._theme);
+        const eventTheme = getEventTheme(params, this._band?._theme);
         const paramTrackTheme = getOrientedObject(params.track, this._timeline);
-        const trackTheme = getOrientedObject(narrativeTheme.track, this._timeline);
-        const rangeTheme = isObject(params.range) ? params.range : narrativeTheme.range;
-        const instantTheme = isObject(params.instant) ? params.instant : narrativeTheme.instant;
-        const labelTheme = isObject(params.label) ? params.label : narrativeTheme.label;
-        const bubbleTheme = isObject(params.bubble) ? params.bubble : narrativeTheme.bubble;
-        const layerTheme = isObject(params.layer) ? params.layer : narrativeTheme.layer;
+        const trackTheme = getOrientedObject(eventTheme.track, this._timeline);
+        const rangeTheme = isObject(params.range) ? params.range : eventTheme.range;
+        const instantTheme = isObject(params.instant) ? params.instant : eventTheme.instant;
+        const labelTheme = isObject(params.label) ? params.label : eventTheme.label;
+        const bubbleTheme = isObject(params.bubble) ? params.bubble : eventTheme.bubble;
+        const layerTheme = isObject(params.layer) ? params.layer : eventTheme.layer;
 
-        this._trackCount = Math.max(1, themedFinite(params, [paramTrackTheme, trackTheme, narrativeTheme], ["count", "trackCount"], 1, "trackCount"));
-        this._trackOffset = themedFinite(params, [paramTrackTheme, trackTheme, narrativeTheme], ["offset", "trackOffset"], 0, "trackOffset");
-        this._trackEndPadding = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, narrativeTheme], ["endPadding", "trackEndPadding"], "trackEndPadding");
-        this._trackSize = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, narrativeTheme], ["size", "trackSize"], "trackSize");
-        this._trackGap = themedFinite(params, [paramTrackTheme, trackTheme, narrativeTheme], ["gap", "trackGap"], 4, "trackGap");
-        this._trackAlign = normalizeTrackAlign(themedValue(params, [paramTrackTheme, trackTheme, narrativeTheme], ["align", "trackAlign"], "start", "trackAlign"));
+        this._trackCount = Math.max(1, themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["count", "trackCount"], 1, "trackCount"));
+        this._trackOffset = themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["offset", "trackOffset"], 0, "trackOffset");
+        this._trackEndPadding = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], ["endPadding", "trackEndPadding"], "trackEndPadding");
+        this._trackSize = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], ["size", "trackSize"], "trackSize");
+        this._trackGap = themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["gap", "trackGap"], 4, "trackGap");
+        this._trackAlign = normalizeTrackAlign(themedValue(params, [paramTrackTheme, trackTheme, eventTheme], ["align", "trackAlign"], "start", "trackAlign"));
 
-        this._spanOffset = themedFinite(params, [rangeTheme, narrativeTheme], ["offset", "spanOffset"], 0, "spanOffset");
-        this._spanSize = themedFiniteOrNull(params, [rangeTheme, narrativeTheme], ["size", "spanSize"], "spanSize");
-        this._dividerWidth = themedFinite(params, [instantTheme, narrativeTheme], ["width", "dividerWidth"], 1, "dividerWidth");
+        this._spanOffset = themedFinite(params, [rangeTheme, eventTheme], ["offset", "spanOffset"], 0, "spanOffset");
+        this._spanSize = themedFiniteOrNull(params, [rangeTheme, eventTheme], ["size", "spanSize"], "spanSize");
+        this._dividerWidth = themedFinite(params, [instantTheme, eventTheme], ["width", "dividerWidth"], 1, "dividerWidth");
 
-        this._stickyInset = themedFinite(params, [labelTheme, narrativeTheme], "stickyInset", 2);
-        this._stickyGap = themedFinite(params, [labelTheme, narrativeTheme], "stickyGap", 4);
-        this._labelOffset = themedFinite(params, [labelTheme, narrativeTheme], ["offset", "labelOffset"], 0, "labelOffset");
-        this._labelWidth = themedFiniteOrNull(params, [labelTheme, narrativeTheme], ["width", "labelWidth"], "labelWidth");
-        this._zIndex = themedFinite(params, [layerTheme, narrativeTheme], "zIndex", 113);
-        this._labelZIndex = themedFinite(params, [layerTheme, narrativeTheme], "labelZIndex", 116);
+        this._stickyInset = themedFinite(params, [labelTheme, eventTheme], "stickyInset", 2);
+        this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
+        this._labelOffset = themedFinite(params, [labelTheme, eventTheme], ["offset", "labelOffset"], 0, "labelOffset");
+        this._labelWidth = themedFiniteOrNull(params, [labelTheme, eventTheme], ["width", "labelWidth"], "labelWidth");
+        this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 113);
+        this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 116);
 
-        this._spanColors = themedValue(params, [rangeTheme, narrativeTheme], ["colors", "spanColors"], null, "spanColors");
-        this._dividerColors = themedValue(params, [instantTheme, narrativeTheme], ["colors", "dividerColors"], null, "dividerColors");
+        this._spanColors = themedValue(params, [rangeTheme, eventTheme], ["colors", "spanColors"], null, "spanColors");
+        this._dividerColors = themedValue(params, [instantTheme, eventTheme], ["colors", "dividerColors"], null, "dividerColors");
 
-        this._spanCssClass = themedValue(params, [rangeTheme, narrativeTheme], ["cssClass", "spanCssClass"], "", "spanCssClass");
-        this._spanLabelCssClass = themedValue(params, [rangeTheme, narrativeTheme], ["labelCssClass", "spanLabelCssClass"], "", "spanLabelCssClass");
-        this._dividerCssClass = themedValue(params, [instantTheme, narrativeTheme], ["cssClass", "dividerCssClass"], "", "dividerCssClass");
-        this._dividerLabelCssClass = themedValue(params, [instantTheme, narrativeTheme], ["labelCssClass", "dividerLabelCssClass"], "", "dividerLabelCssClass");
-        this._themeId = themedValue(params, [labelTheme, narrativeTheme], ["themeId", "id"], narrativeTheme.id ?? null, "themeId");
+        this._spanCssClass = themedValue(params, [rangeTheme, eventTheme], ["cssClass", "spanCssClass"], "", "spanCssClass");
+        this._spanLabelCssClass = themedValue(params, [rangeTheme, eventTheme], ["labelCssClass", "spanLabelCssClass"], "", "spanLabelCssClass");
+        this._dividerCssClass = themedValue(params, [instantTheme, eventTheme], ["cssClass", "dividerCssClass"], "", "dividerCssClass");
+        this._dividerLabelCssClass = themedValue(params, [instantTheme, eventTheme], ["labelCssClass", "dividerLabelCssClass"], "", "dividerLabelCssClass");
+        this._themeId = themedValue(params, [labelTheme, eventTheme], ["themeId", "id"], eventTheme.id ?? null, "themeId");
         this._themeCssPrefix = typeof this._themeId === "string" && this._themeId.trim() !== ""
             ? "timeline-narrative-" + this._themeId.trim()
             : null;
 
         const labelsValue = hasDefinedOwn(params, "labels")
             ? params.labels
-            : hasDefinedOwn(narrativeTheme, "labels")
-                ? narrativeTheme.labels
+            : hasDefinedOwn(eventTheme, "labels")
+                ? eventTheme.labels
                 : hasDefinedOwn(labelTheme, "labels")
                     ? labelTheme.labels
                     : true;
         const bubblesValue = hasDefinedOwn(params, "bubbles")
             ? params.bubbles
-            : hasDefinedOwn(narrativeTheme, "bubbles")
-                ? narrativeTheme.bubbles
+            : hasDefinedOwn(eventTheme, "bubbles")
+                ? eventTheme.bubbles
                 : hasDefinedOwn(bubbleTheme, "enabled")
                     ? bubbleTheme.enabled
                     : hasDefinedOwn(bubbleTheme, "bubbles")
@@ -258,28 +253,28 @@
                         : false;
 
         this._spans = enabledValue(
-            hasDefinedOwn(narrativeTheme, "spans") ? narrativeTheme.spans : true,
+            hasDefinedOwn(eventTheme, "spans") ? eventTheme.spans : true,
             true
         );
         this._dividers = enabledValue(
-            hasDefinedOwn(narrativeTheme, "dividers") ? narrativeTheme.dividers : true,
+            hasDefinedOwn(eventTheme, "dividers") ? eventTheme.dividers : true,
             true
         );
         this._labels = enabledValue(labelsValue, true);
         this._bubbles = enabledValue(bubblesValue, false);
         this._eventColorScope = normalizeEventColorScope(
-            themedValue(params, narrativeTheme, "eventColorScope", "both", "eventColorScope"),
+            themedValue(params, eventTheme, "eventColorScope", "both", "eventColorScope"),
             "both"
         );
         this._useEmphasis = enabledValue(
-            hasDefinedOwn(narrativeTheme, "useEmphasis") ? narrativeTheme.useEmphasis : false,
+            hasDefinedOwn(eventTheme, "useEmphasis") ? eventTheme.useEmphasis : false,
             false
         );
-        this._emphasisSpecs = isObject(narrativeTheme.emphasis)
-            ? narrativeTheme.emphasis
+        this._emphasisSpecs = isObject(eventTheme.emphasis)
+            ? eventTheme.emphasis
             : {};
-        this._bubbleWidth = themedFinite(params, [bubbleTheme, narrativeTheme], ["width", "bubbleWidth"], 320, "bubbleWidth");
-        this._bubbleMaxHeight = themedValue(params, [bubbleTheme, narrativeTheme], ["maxHeight", "bubbleMaxHeight"], null, "bubbleMaxHeight");
+        this._bubbleWidth = themedFinite(params, [bubbleTheme, eventTheme], ["width", "bubbleWidth"], 320, "bubbleWidth");
+        this._bubbleMaxHeight = themedValue(params, [bubbleTheme, eventTheme], ["maxHeight", "bubbleMaxHeight"], null, "bubbleMaxHeight");
     };
 
     Timeline.NarrativeDecorator.prototype._themeCssClass = function (suffix) {

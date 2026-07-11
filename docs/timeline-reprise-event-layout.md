@@ -1,12 +1,11 @@
 # Event Layout
 
-## `timeline-reprise-event-layout`
-
 Event layout routing for Timeline Reprise.
 
-Load after the original SIMILE Timeline scripts and `timeline-reprise-core`.
-
-The properties belong on the SIMILE theme object passed to each band:
+The properties belong on the SIMILE theme object passed to each band. Event
+layout and Narrative consume the same `theme.eventTheme` object. Properties
+used only by Narrative remain in that object and are ignored by event layout;
+see the [Narrative theme reference](timeline-reprise-narrative.md#theme).
 
 ```js
 var theme = Timeline.ClassicTheme.create();
@@ -93,7 +92,8 @@ Set to `false` to hide event labels on the band.
 Set to `false` to stop event bubble popups.
 
 ### `eventTheme.eventColorScope`
-Controls where the event `color` is applied.
+Controls whether an authored item `color` is applied to its label, graphic,
+both, or neither. Event layout and Narrative use the same values and meaning.
 
 Values:
 
@@ -152,7 +152,8 @@ Optional native SIMILE track height.
 ## `eventTheme.instant`
 
 ### `eventTheme.instant.width`
-Sets instant icon width.
+Sets the width of instant graphics. Event layout uses it for instant icons and
+Narrative uses the same value for instant divider lines.
 
 ### `eventTheme.instant.height`
 Optional instant icon height. Defaults to `width`.
@@ -222,7 +223,7 @@ Gap between long-range tape lanes.
 Gap from the tape block to the vertical range-label column.
 
 ### `eventTheme.range.vertical.labelWidth`
-Width of vertical event labels. If omitted, the module derives a width from the band width.
+Width of vertical event labels. If omitted, event layout derives a width from the band width.
 
 ### `eventTheme.range.vertical.labelTrackCount`
 Initial number of point/short-duration event lanes. Extra lanes are added if the configured lanes are full.

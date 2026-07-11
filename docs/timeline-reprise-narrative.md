@@ -1,10 +1,8 @@
 # Narrative
 
-## `timeline-reprise-narrative`
-
 Adds narrative span and divider decorators to a timeline band.
 
-Load through `timeline-reprise.js`, then attach a decorator to a band:
+Attach a decorator to a band:
 
 ```js
 bandInfo.decorators = [
@@ -107,10 +105,12 @@ Optional:
 
 ## Theme
 
-Narrative options belong on the band theme:
+Narrative and event-layout options belong to the same `eventTheme` object on the
+band theme. Each feature reads the shared properties and the feature-specific
+properties it understands, ignoring the rest:
 
 ```js
-theme.narrativeTheme = {
+theme.eventTheme = {
     spans: true,
     dividers: true,
     labels: true,
@@ -164,23 +164,23 @@ theme.narrativeTheme = {
 };
 ```
 
-### `narrativeTheme.spans`
+### `eventTheme.spans`
 Set to `false` to stop range span decorators being drawn.
 
-### `narrativeTheme.dividers`
+### `eventTheme.dividers`
 Set to `false` to stop instant divider decorators being drawn.
 
 `spans` and `dividers` are painter/theme controls only. Item-level fields with those names are ignored.
 
-### `narrativeTheme.labels`
+### `eventTheme.labels`
 Set to `false` to hide narrative labels.
 
-### `narrativeTheme.bubbles`
+### `eventTheme.bubbles`
 Set to `false` to stop narrative bubble popups.
 
-`narrativeTheme.bubble.enabled` can also enable or disable bubbles.
+`eventTheme.bubble.enabled` can also enable or disable bubbles.
 
-### `narrativeTheme.eventColorScope`
+### `eventTheme.eventColorScope`
 Controls where an item `color` is applied.
 
 Values:
@@ -194,19 +194,19 @@ Default: `both`.
 
 Without active emphasis, explicit item colours such as `labelColor`, `spanColor`, or `lineColor` override this scope.
 
-### `narrativeTheme.useEmphasis`
+### `eventTheme.useEmphasis`
 Set to `true` to allow narrative items to reference reusable emphasis specs.
 
 Default: `false`.
 
-### `narrativeTheme.emphasis`
+### `eventTheme.emphasis`
 Map of named emphasis specs.
 
 An emphasis spec is applied only when all three are true:
 
-- `narrativeTheme.useEmphasis` is `true`
+- `eventTheme.useEmphasis` is `true`
 - the range or instant has `emphasis: "key"`
-- `narrativeTheme.emphasis.key` exists
+- `eventTheme.emphasis.key` exists
 
 When active, the emphasis spec overrides item-level style fields for the supported properties.
 
@@ -223,8 +223,8 @@ Supported emphasis properties:
 
 ## Track Theme
 
-`narrativeTheme.track.horizontal` is used on horizontal timelines.
-`narrativeTheme.track.vertical` is used on vertical timelines.
+`eventTheme.track.horizontal` is used on horizontal timelines.
+`eventTheme.track.vertical` is used on vertical timelines.
 
 ### `track.count`
 Initial number of label tracks. Extra tracks can be used if routed labels need more space.
@@ -246,70 +246,71 @@ Vertical-only track alignment. Use `start` or `end`.
 
 ## Range Theme
 
-### `narrativeTheme.range.offset`
+### `eventTheme.range.offset`
 Cross-band offset for range spans.
 
-### `narrativeTheme.range.size`
+### `eventTheme.range.size`
 Optional cross-band size for range spans. If omitted, spans fill the available narrative band space from `range.offset`.
 
-### `narrativeTheme.range.colors`
+### `eventTheme.range.colors`
 Array of fallback span colours, cycled by range index.
 
-### `narrativeTheme.range.cssClass`
+### `eventTheme.range.cssClass`
 Extra class added to range span elements.
 
-### `narrativeTheme.range.labelCssClass`
+### `eventTheme.range.labelCssClass`
 Extra class added to range label elements.
 
 ## Instant Theme
 
-### `narrativeTheme.instant.width`
-Divider-line width.
+### `eventTheme.instant.width`
+Width of instant graphics. Narrative uses it as the divider-line width; event
+layout uses the same value as the instant icon width.
 
-### `narrativeTheme.instant.colors`
+### `eventTheme.instant.colors`
 Array of fallback divider colours, cycled by instant index.
 
-### `narrativeTheme.instant.cssClass`
+### `eventTheme.instant.cssClass`
 Extra class added to instant divider-line elements.
 
-### `narrativeTheme.instant.labelCssClass`
+### `eventTheme.instant.labelCssClass`
 Extra class added to instant label elements.
 
 ## Label Theme
 
-### `narrativeTheme.label.offset`
+### `eventTheme.label.offset`
 Offset applied along the timeline axis when placing labels.
 
-### `narrativeTheme.label.width`
+### `eventTheme.label.width`
 Optional fixed width for vertical narrative labels.
 
 When set, labels wrap to that width. Vertical label columns are spaced with `max(track.size, label.width)`, so columns line up with the actual label boxes.
 
 If omitted, labels use their natural width.
 
-### `narrativeTheme.label.stickyInset`
+### `eventTheme.label.stickyInset`
 Inset from the visible viewport edge used by sticky range labels.
 
-### `narrativeTheme.label.stickyGap`
+### `eventTheme.label.stickyGap`
 Minimum gap used between routed labels.
 
 ## Bubble Theme
 
-### `narrativeTheme.bubble.enabled`
+### `eventTheme.bubble.enabled`
 Enables or disables narrative bubble popups.
 
-### `narrativeTheme.bubble.width`
+### `eventTheme.bubble.width`
 Bubble popup width.
 
-### `narrativeTheme.bubble.maxHeight`
+### `eventTheme.bubble.maxHeight`
 Optional maximum bubble popup height.
 
 ## Layer Theme
 
-### `narrativeTheme.layer.zIndex`
+### `eventTheme.layer.zIndex`
 Z-index for span and divider graphics.
 
-### `narrativeTheme.layer.labelZIndex`
+### `eventTheme.layer.labelZIndex`
 Z-index for narrative labels.
 
 ## Routing
@@ -328,7 +329,7 @@ Base classes:
 - `timeline-narrative-instant-line`
 - `timeline-narrative-instant-label`
 
-Set `narrativeTheme.id` to add generated theme classes:
+Set `eventTheme.id` to add generated theme classes:
 
 - `timeline-narrative-{id}-span`
 - `timeline-narrative-{id}-label`
@@ -347,10 +348,10 @@ Set to `false` on one range or instant to hide only that label.
 Set to `false` on one range or instant to stop only that bubble popup.
 
 ### `eventColorScope`
-Overrides `narrativeTheme.eventColorScope` for one range or instant.
+Overrides `eventTheme.eventColorScope` for one range or instant.
 
 ### `emphasis`
-References a named spec from `narrativeTheme.emphasis` when `narrativeTheme.useEmphasis` is `true`.
+References a named spec from `eventTheme.emphasis` when `eventTheme.useEmphasis` is `true`.
 
 ### `labelColor`
 Sets one narrative label colour.

@@ -1,10 +1,6 @@
 # Cardinal Axis
 
-## `timeline-reprise-cardinal-axis`
-
 A bounded numeric axis for Timeline Reprise.
-
-Load after the original SIMILE Timeline scripts and `timeline-reprise-core`.
 
 ## Timeline.CardinalAxis
 

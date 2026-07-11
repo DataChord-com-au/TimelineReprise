@@ -1,10 +1,6 @@
 # Scaled Zones
 
-## `timeline-reprise-scaled-zones`
-
 Scaled time ranges for Timeline Reprise.
-
-Load after the original SIMILE Timeline scripts and `timeline-reprise-core`.
 
 ## Timeline.createScaledZoneBand
 

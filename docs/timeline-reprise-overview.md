@@ -1,10 +1,6 @@
 # Overview
 
-## `timeline-reprise-overview`
-
 Overview band styling for Timeline Reprise.
-
-Load after the original SIMILE Timeline scripts and `timeline-reprise-core`.
 
 ## Overview Theme
 
@@ -141,7 +137,7 @@ Sets the overview colour for one event.
 
 ## Notes
 
-This module adapts reprise theme data onto SIMILE's native overview painter. It does not replace the overview layout algorithm.
+Overview support adapts Reprise theme data onto SIMILE's native overview painter. It does not replace the overview layout algorithm.
 
 For overview bands, `offset` and `gap` belong under `track`.
 `width` belongs under `instant` and `range`.
