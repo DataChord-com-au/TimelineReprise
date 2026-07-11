@@ -1,0 +1,24 @@
+{
+  "name": "timeline-reprise",
+  "version": "1.0.0",
+  "description": "Extension layer for the SIMILE Timeline 2.3.1 browser widget.",
+  "private": true,
+  "files": [
+    "timeline-reprise/",
+    "vendor/",
+    "docs/",
+    "examples/",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DataChord-com-au/TimelineReprise.git"
+  },
+  "keywords": [
+    "simile",
+    "timeline",
+    "timeline-reprise"
+  ],
+  "author": "DataChord",
+  "license": "UNLICENSED"
+}

@@ -1,5 +1,8 @@
 # Timeline Reprise
 
+Version: `v1.0.0`  
+Base library: SIMILE Timeline `2.3.1`
+
 Timeline Reprise is an experimental reprise of the SIMILE Timeline 2.3.1 browser widget.
 
 It keeps a self-contained static copy of the original SIMILE Timeline library and applies custom features as a separate addon layer.
@@ -22,6 +25,12 @@ The preserved layout is important because the original SIMILE loaders resolve sc
 No source rebuild was performed for the initial baseline.
 
 ## Usage
+
+For npm/git consumers:
+
+```json
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.0.0"
+```
 
 Load the base library first, then the custom layer:
 
