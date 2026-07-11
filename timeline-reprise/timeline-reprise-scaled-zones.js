@@ -41,7 +41,7 @@
             return Timeline.createHotZoneBandInfo(params);
         };
     }
-    
+
     if (proto._timelineUtilsHotZoneBoundaryPatch) return;
 
     proto.paint = function () {

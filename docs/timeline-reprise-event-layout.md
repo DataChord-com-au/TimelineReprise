@@ -12,6 +12,17 @@ The properties belong on the SIMILE theme object passed to each band:
 var theme = Timeline.ClassicTheme.create();
 
 theme.eventTheme = {
+    labels: true,
+    bubbles: true,
+    eventColorScope: "graphic",
+    useEmphasis: false,
+    emphasis: {
+        critical: {
+            labelColor: "red",
+            tapeColor: "red",
+            eventColorScope: "both"
+        }
+    },
     track: {
         horizontal: {
             offset: 12,
@@ -72,6 +83,54 @@ Timeline.createBandInfo({
 ```
 
 Create a fresh theme object for each timeline when a page shows horizontal and vertical timelines together.
+
+## Event Display Controls
+
+### `eventTheme.labels`
+Set to `false` to hide event labels on the band.
+
+### `eventTheme.bubbles`
+Set to `false` to stop event bubble popups.
+
+### `eventTheme.eventColorScope`
+Controls where the event `color` is applied.
+
+Values:
+
+- `none`
+- `label`
+- `graphic`
+- `both`
+
+Default: `graphic`.
+
+Without active emphasis, explicit event colours such as `labelColor`, `textColor`, or `tapeColor` override this scope.
+
+### `eventTheme.useEmphasis`
+Set to `true` to allow events to reference reusable emphasis specs.
+
+Default: `false`.
+
+### `eventTheme.emphasis`
+Map of named emphasis specs.
+
+An emphasis spec is applied only when all three are true:
+
+- `eventTheme.useEmphasis` is `true`
+- the event has `emphasis: "key"`
+- `eventTheme.emphasis.key` exists
+
+When active, the emphasis spec overrides event-level style fields for the supported properties.
+
+Supported emphasis properties:
+
+- `labels`
+- `bubbles`
+- `eventColorScope`
+- `color`
+- `labelColor`
+- `textColor`
+- `tapeColor`
 
 ## `eventTheme.track`
 
@@ -182,6 +241,21 @@ Gap from the vertical range-label column to point/short-duration event lanes.
 
 ## Event Overrides
 
+### `labels`
+Set to `false` on one event to hide only that event label.
+
+### `bubbles`
+Set to `false` on one event to stop only that event bubble popup.
+
+### `eventColorScope`
+Overrides `eventTheme.eventColorScope` for one event.
+
+### `emphasis`
+References a named spec from `eventTheme.emphasis` when `eventTheme.useEmphasis` is `true`.
+
+### `labelColor`
+Sets one event label colour.
+
 ### `tapeColor`
 Sets the tape and sparkline colour for one range event.
 
@@ -190,6 +264,8 @@ Sets the tape and sparkline colour for one range event.
     start: "2020-03-01",
     end: "2020-04-15",
     title: "Build phase",
+    eventColorScope: "graphic",
+    labelColor: "inherit",
     tapeColor: "red"
 }
 ```

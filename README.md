@@ -45,5 +45,6 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [timeline-reprise-overview.html](examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html) | Reprise Overview extends theme support for overview bands. |
 | [timeline-reprise-scales.html](examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html) | Reprise Cardinal Axis adds a bounded numeric axis.<br>Reprise Scaled Zones expands selected date ranges within a band. |
 | [timeline-reprise-event-layout.html](examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |
+| [timeline-reprise-narrative.html](examples/timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-narrative.html) | Reprise Narrative adds labelled spans and dividers above the event layer. |
 
 <!-- EOF -->

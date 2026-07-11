@@ -1,0 +1,344 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Narrative</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <script src="../timeline-reprise/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    .example-section {
+      margin-top: 28px;
+    }
+
+    .example-section h2 {
+      margin-bottom: 8px;
+    }
+
+    .timeline-frame {
+      border-width: 1px;
+      border-style: solid;
+      border-color: #5f6368;
+    }
+
+    #timeline-horizontal {
+      height: 360px;
+    }
+
+    #timeline-vertical {
+      width: 800px;
+      max-width: 100%;
+      height: 560px;
+    }
+
+    .timeline-narrative-span {
+      opacity: 0.2;
+      border-left: 1px solid rgba(0, 0, 0, 0.35);
+      border-radius: 3px;
+    }
+
+    .timeline-narrative-label {
+      padding: 2px 6px;
+      font-size: 13px;
+      line-height: 1.25;
+      color: #1f1f1f;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+      white-space: nowrap;
+    }
+
+    .timeline-narrative-instant-line {
+      opacity: 0.8;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+
+      .timeline-narrative-span {
+        border-left-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .timeline-narrative-label {
+        color: #f1f3f4;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Narrative</h1>
+  <p>
+    This example uses a narrative band beside the normal event band.
+  </p>
+
+  <section class="example-section">
+    <h2>Horizontal Timeline</h2>
+    <ul>
+      <li>the main band shows normal timeline events and ranges</li>
+      <li>the lower band uses chapter spans as decorator data</li>
+    </ul>
+    <div id="timeline-horizontal" class="timeline-frame"></div>
+  </section>
+
+  <section class="example-section">
+    <h2>Vertical Timeline</h2>
+    <ul>
+      <li>the same main events and narrative data are shown vertically</li>
+      <li>the narrative band is still a separate decorator band</li>
+      <li>labels route independently from normal event labels</li>
+    </ul>
+    <div id="timeline-vertical" class="timeline-frame"></div>
+  </section>
+
+  <script>
+    var narrativeData = {
+      ranges: [
+        {
+          startDate: "2020-01-15",
+          endDate: "2020-02-01",
+          title: "Chapter 1: Frame",
+          caption: "Set the question and map the source material.",
+          track: 0
+        },
+        {
+          startDate: "2020-02-01",
+          endDate: "2020-03-15",
+          title: "Chapter 2: Build",
+          caption: "Turn the source material into a working timeline.",
+          track: 0
+        },
+        {
+          startDate: "2020-03-15",
+          endDate: "2020-04-25",
+          title: "Chapter 3: Test",
+          caption: "Review the sequence and tune the presentation.",
+          track: 0
+        },
+        {
+          startDate: "2020-04-25",
+          endDate: "2020-05-25",
+          title: "Chapter 4: Publish",
+          caption: "Prepare the final narrative view.",
+          track: 0
+        }
+      ],
+      instants: [
+        {
+          date: "2020-03-02",
+          title: "Narrative turn",
+          caption: "A single event-line decorator inside the chapter flow.",
+          track: 1
+        }
+      ]
+    };
+
+    var mainEventData = {
+      dateTimeFormat: "iso8601",
+      events: [
+        {
+          start: "2020-01-10",
+          title: "Source pack received",
+          description: "",
+          icon: Timeline.ThemeIcons.get("blue")
+        },
+        {
+          start: "2020-02-18",
+          title: "Prototype review",
+          description: "",
+          icon: Timeline.ThemeIcons.get("orange")
+        },
+        {
+          start: "2020-02-20",
+          end: "2020-03-24",
+          title: "Build phase",
+          description: "",
+          color: Timeline.ThemeIcons.getCssColor("green"),
+          textColor: "inherit"
+        },
+        {
+          start: "2020-03-28",
+          title: "Editorial pass",
+          description: "",
+          icon: Timeline.ThemeIcons.get("red")
+        },
+        {
+          start: "2020-05-08",
+          title: "Release",
+          description: "",
+          icon: Timeline.ThemeIcons.get("green")
+        }
+      ]
+    };
+
+    var emptyEventData = {
+      dateTimeFormat: "iso8601",
+      events: []
+    };
+
+    function createNarrativeTheme() {
+      var theme = Timeline.ClassicTheme.create();
+
+      theme.eventTheme = {
+        track: {
+          horizontal: {
+            offset: 12,
+            gap: 8
+          },
+          vertical: {
+            offset: 12,
+            gap: 8
+          }
+        },
+        instant: {
+          width: 6,
+          iconColor: "blue"
+        },
+        range: {
+          width: 5,
+          iconColor: "green"
+        }
+      };
+
+      theme.narrativeTheme = {
+        track: {
+          horizontal: {
+            count: 2,
+            offset: 12,
+            size: 22,
+            gap: 4
+          },
+          vertical: {
+            count: 2,
+            offset: 10,
+            size: 52,
+            gap: 6
+          }
+        },
+        range: {
+          offset: 0,
+          colors: [
+            "rgba(76, 175, 80, 1)",
+            "rgba(66, 133, 244, 1)",
+            "rgba(251, 188, 5, 1)",
+            "rgba(217, 48, 37, 1)"
+          ]
+        },
+        instant: {
+          width: 2,
+          colors: [
+            "#7b1fa2"
+          ]
+        },
+        label: {
+          offset: 2,
+          width: 104,
+          stickyInset: 6,
+          stickyGap: 4
+        },
+        bubble: {
+          enabled: true,
+          width: 300
+        },
+        layer: {
+          zIndex: 108,
+          labelZIndex: 118
+        }
+      };
+
+      return theme;
+    }
+
+    function createHorizontalBands(mainEventSource, narrativeEventSource, theme) {
+      var bandInfos = [
+        Timeline.createBandInfo({
+        eventSource: mainEventSource,
+        date: "Mar 1 2020",
+        width: "70%",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 200,
+          theme: theme
+        }),
+        Timeline.createBandInfo({
+        eventSource: narrativeEventSource,
+        date: "Mar 1 2020",
+        width: "30%",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 100,
+          theme: theme
+        })
+      ];
+
+      bandInfos[1].decorators = [new Timeline.NarrativeDecorator(narrativeData)];
+      bandInfos[1].syncWith = 0;
+      bandInfos[1].highlight = true;
+
+      return bandInfos;
+    }
+
+    function createVerticalBands(mainEventSource, narrativeEventSource, theme) {
+      var bandInfos = [
+        Timeline.createBandInfo({
+          eventSource: mainEventSource,
+          date: "Mar 1 2020",
+          width: "*",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 200,
+          theme: theme
+        }),
+        Timeline.createBandInfo({
+          eventSource: narrativeEventSource,
+          date: "Mar 1 2020",
+          width: "240",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 100,
+          theme: theme
+        })
+      ];
+
+      bandInfos[1].decorators = [new Timeline.NarrativeDecorator(narrativeData)];
+      bandInfos[1].syncWith = 0;
+      bandInfos[1].highlight = true;
+
+      return bandInfos;
+    }
+
+    var horizontalMainEventSource = new Timeline.DefaultEventSource();
+    var horizontalNarrativeEventSource = new Timeline.DefaultEventSource();
+    var verticalMainEventSource = new Timeline.DefaultEventSource();
+    var verticalNarrativeEventSource = new Timeline.DefaultEventSource();
+
+    Timeline.create(
+      document.getElementById("timeline-horizontal"),
+      createHorizontalBands(
+        horizontalMainEventSource,
+        horizontalNarrativeEventSource,
+        createNarrativeTheme()
+      )
+    );
+
+    Timeline.create(
+      document.getElementById("timeline-vertical"),
+      createVerticalBands(
+        verticalMainEventSource,
+        verticalNarrativeEventSource,
+        createNarrativeTheme()
+      ),
+      Timeline.VERTICAL
+    );
+
+    horizontalMainEventSource.loadJSON(mainEventData, document.location.href);
+    horizontalNarrativeEventSource.loadJSON(emptyEventData, document.location.href);
+    verticalMainEventSource.loadJSON(mainEventData, document.location.href);
+    verticalNarrativeEventSource.loadJSON(emptyEventData, document.location.href);
+  </script>
+</body>
+</html>

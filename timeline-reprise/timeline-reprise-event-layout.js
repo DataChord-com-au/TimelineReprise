@@ -45,9 +45,210 @@
     function setColor(target, key, value) {
         if (typeof value !== "string" || value.trim() === "") return;
 
-        target[key] = Timeline.ThemeIcons?.getCssColor
+        target[key] = resolveCssColor(value);
+    }
+
+    function resolveCssColor(value) {
+        if (typeof value !== "string" || value.trim() === "") return null;
+
+        return Timeline.ThemeIcons?.getCssColor
             ? Timeline.ThemeIcons.getCssColor(value)
             : value;
+    }
+
+    function hasDefinedOwn(source, name) {
+        return source != null &&
+            Object.prototype.hasOwnProperty.call(source, name) &&
+            source[name] !== undefined;
+    }
+
+    function isFalseValue(value) {
+        return value === false ||
+            (typeof value === "string" && value.trim().toLowerCase() === "false");
+    }
+
+    function isTrueValue(value) {
+        return value === true ||
+            (typeof value === "string" && value.trim().toLowerCase() === "true");
+    }
+
+    function enabledValue(value, fallback) {
+        if (isFalseValue(value)) return false;
+        if (isTrueValue(value)) return true;
+        return fallback;
+    }
+
+    function stringValue(value) {
+        return typeof value === "string" && value.trim() !== ""
+            ? value
+            : null;
+    }
+
+    function objectValue(source, names) {
+        const list = Array.isArray(names) ? names : [names];
+
+        for (const name of list) {
+            if (hasDefinedOwn(source, name)) {
+                return { found: true, value: source[name] };
+            }
+        }
+
+        return { found: false, value: undefined };
+    }
+
+    function getEventProperty(evt, names) {
+        const list = Array.isArray(names) ? names : [names];
+
+        for (const name of list) {
+            const value = evt?.getProperty?.(name);
+            if (value != null && value !== "") return value;
+        }
+
+        return null;
+    }
+
+    function getEventEmphasisSpec(evt, theme) {
+        const authoredTheme = theme?.eventTheme;
+        const nativeEventTheme = theme?.event;
+        const useEmphasis = hasDefinedOwn(authoredTheme, "useEmphasis")
+            ? authoredTheme.useEmphasis
+            : hasDefinedOwn(nativeEventTheme, "useEmphasis")
+                ? nativeEventTheme.useEmphasis
+                : false;
+
+        if (!enabledValue(useEmphasis, false)) return null;
+
+        const key = stringValue(getEventProperty(evt, "emphasis"));
+        if (key == null) return null;
+
+        const specs = isObject(authoredTheme?.emphasis)
+            ? authoredTheme.emphasis
+            : isObject(nativeEventTheme?.emphasis)
+                ? nativeEventTheme.emphasis
+                : null;
+        const spec = specs?.[key];
+
+        return isObject(spec) ? spec : null;
+    }
+
+    function getEmphasisValue(evt, theme, names) {
+        return objectValue(getEventEmphasisSpec(evt, theme), names);
+    }
+
+    function getThemeControl(theme, name, fallback) {
+        const authoredTheme = theme?.eventTheme;
+        if (hasDefinedOwn(authoredTheme, name)) return authoredTheme[name];
+
+        if (name === "bubbles" &&
+            isObject(authoredTheme?.bubble) &&
+            hasDefinedOwn(authoredTheme.bubble, "enabled")) {
+            return authoredTheme.bubble.enabled;
+        }
+
+        const nativeEventTheme = theme?.event;
+        if (hasDefinedOwn(nativeEventTheme, name)) return nativeEventTheme[name];
+
+        if (name === "bubbles" &&
+            isObject(nativeEventTheme?.bubble) &&
+            hasDefinedOwn(nativeEventTheme.bubble, "enabled")) {
+            return nativeEventTheme.bubble.enabled;
+        }
+
+        return fallback;
+    }
+
+    function labelsEnabled(evt, theme) {
+        const emphasisValue = getEmphasisValue(evt, theme, "labels");
+        if (emphasisValue.found) return enabledValue(emphasisValue.value, true);
+
+        const eventValue = getEventProperty(evt, "labels");
+        if (eventValue != null) return enabledValue(eventValue, true);
+
+        return enabledValue(getThemeControl(theme, "labels", true), true);
+    }
+
+    function bubblesEnabled(evt, theme) {
+        const emphasisValue = getEmphasisValue(evt, theme, "bubbles");
+        if (emphasisValue.found) return enabledValue(emphasisValue.value, true);
+
+        const eventValue = getEventProperty(evt, "bubbles");
+        if (eventValue != null) return enabledValue(eventValue, true);
+
+        return enabledValue(getThemeControl(theme, "bubbles", true), true);
+    }
+
+    function normalizeEventColorScope(value, fallback) {
+        const scope = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return scope === "none" ||
+            scope === "label" ||
+            scope === "graphic" ||
+            scope === "both"
+            ? scope
+            : fallback;
+    }
+
+    function getEventColorScope(evt, theme, fallback) {
+        const emphasisValue = getEmphasisValue(evt, theme, "eventColorScope");
+
+        return normalizeEventColorScope(
+            (emphasisValue.found ? emphasisValue.value : null) ??
+                getEventProperty(evt, "eventColorScope") ??
+                getThemeControl(theme, "eventColorScope", fallback),
+            fallback
+        );
+    }
+
+    function getEventColor(evt, theme) {
+        const emphasisValue = getEmphasisValue(evt, theme, "color");
+        if (emphasisValue.found) {
+            const color = stringValue(emphasisValue.value);
+            if (color != null) return color;
+        }
+
+        return stringValue(evt?.getColor?.());
+    }
+
+    function getExplicitLabelColor(evt, theme) {
+        const emphasisValue = getEmphasisValue(evt, theme, ["labelColor", "textColor"]);
+        if (emphasisValue.found) {
+            const color = stringValue(emphasisValue.value);
+            if (color != null) return color;
+        }
+
+        return stringValue(getEventProperty(evt, "labelColor")) ||
+            stringValue(evt?.getTextColor?.()) ||
+            stringValue(getEventProperty(evt, "textColor"));
+    }
+
+    function getEventLabelColor(evt, theme) {
+        const explicit = getExplicitLabelColor(evt, theme);
+        if (explicit != null) return resolveCssColor(explicit) || explicit;
+
+        const scope = getEventColorScope(evt, theme, "graphic");
+        const eventColor = getEventColor(evt, theme);
+
+        return (scope === "label" || scope === "both") && eventColor != null
+            ? resolveCssColor(eventColor) || eventColor
+            : null;
+    }
+
+    function getDefaultGraphicColor(evt, theme, fallback) {
+        if (evt?.isInstant?.()) {
+            return theme?.event?.instant?.impreciseColor || fallback;
+        }
+
+        return theme?.event?.duration?.color || fallback;
+    }
+
+    function hidePaintedLabel(data) {
+        if (!data?.elmt) return;
+
+        data.elmt.style.display = "none";
+        data.elmt.style.pointerEvents = "none";
+        data.elmt.setAttribute("aria-hidden", "true");
     }
 
     function getOrientation(timeline) {
@@ -102,6 +303,28 @@
         const instant = getOrientationSpec(authoredTheme.instant, timeline);
         const range = getOrientationSpec(authoredTheme.range, timeline);
         const label = getOrientationSpec(authoredTheme.label, timeline);
+
+        if (hasDefinedOwn(authoredTheme, "labels")) {
+            eventTheme.labels = authoredTheme.labels;
+        }
+
+        if (hasDefinedOwn(authoredTheme, "bubbles")) {
+            eventTheme.bubbles = authoredTheme.bubbles;
+        } else if (isObject(authoredTheme.bubble) && hasDefinedOwn(authoredTheme.bubble, "enabled")) {
+            eventTheme.bubbles = authoredTheme.bubble.enabled;
+        }
+
+        if (hasDefinedOwn(authoredTheme, "eventColorScope")) {
+            eventTheme.eventColorScope = authoredTheme.eventColorScope;
+        }
+
+        if (hasDefinedOwn(authoredTheme, "useEmphasis")) {
+            eventTheme.useEmphasis = authoredTheme.useEmphasis;
+        }
+
+        if (isObject(authoredTheme.emphasis)) {
+            eventTheme.emphasis = authoredTheme.emphasis;
+        }
 
         if (isObject(track)) {
             setNumber(eventTheme.track, "offset", track.offset);
@@ -656,14 +879,26 @@
         }
     }
 
-    function getEventTapeColor(evt, fallback) {
-        const tapeColor = evt?.getProperty?.("tapeColor");
-        if (typeof tapeColor === "string" && tapeColor.trim() !== "") return tapeColor;
+    function getEventTapeColor(evt, fallback, theme) {
+        const emphasisValue = getEmphasisValue(evt, theme, "tapeColor");
+        if (emphasisValue.found) {
+            const emphasisColor = stringValue(emphasisValue.value);
+            if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
+        }
 
-        const eventColor = evt?.getColor?.();
-        if (typeof eventColor === "string" && eventColor.trim() !== "") return eventColor;
+        const tapeColor = stringValue(getEventProperty(evt, "tapeColor"));
+        if (tapeColor != null) return resolveCssColor(tapeColor) || tapeColor;
 
-        return fallback;
+        const scope = getEventColorScope(evt, theme, "graphic");
+        const eventColor = getEventColor(evt, theme);
+
+        if ((scope === "graphic" || scope === "both") && eventColor != null) {
+            return resolveCssColor(eventColor) || eventColor;
+        }
+
+        return eventColor != null && fallback === eventColor
+            ? getDefaultGraphicColor(evt, theme, fallback)
+            : fallback;
     }
 
     function createTapeSparkLine(painter) {
@@ -1330,6 +1565,7 @@
     const originalPaintIcon = proto._paintEventIcon;
     const originalPaintTape = proto._paintEventTape;
     const originalPaintLabel = proto._paintEventLabel;
+    const originalShowBubble = proto._showBubble;
     const originalPaint = proto.paint;
     const originalSoftPaint = proto.softPaint;
 
@@ -1484,7 +1720,7 @@
         evt, iconTrack, startPixel, endPixel, color, opacity, metrics, theme, tapeIndex
     ) {
         this._repriseMetrics = metrics;
-        const tapeColor = getEventTapeColor(evt, color);
+        const tapeColor = getEventTapeColor(evt, color, theme);
         const data = originalPaintTape.call(
             this,
             evt,
@@ -1563,6 +1799,17 @@
         evt, text, left, top, width, height, theme, labelDivClassName, highlightIndex
     ) {
         const data = originalPaintLabel.apply(this, arguments);
+
+        if (data?.elmt) {
+            const labelColor = getEventLabelColor(evt, theme);
+            data.elmt.style.color = labelColor || "";
+
+            if (!labelsEnabled(evt, theme)) {
+                hidePaintedLabel(data);
+                return data;
+            }
+        }
+
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data);
 
@@ -1580,7 +1827,7 @@
                     naturalTop: verticalData.top,
                     startPixel: Math.min(startPixel, endPixel),
                     endPixel: Math.max(startPixel, endPixel),
-                    tapeColor: getEventTapeColor(evt, theme.event.duration.color),
+                    tapeColor: getEventTapeColor(evt, theme.event.duration.color, theme),
                     spark
                 });
 
@@ -1622,7 +1869,7 @@
                 naturalLeft: left,
                 startPixel: Math.min(startPixel, endPixel),
                 endPixel: Math.max(startPixel, endPixel),
-                tapeColor: getEventTapeColor(evt, theme.event.duration.color),
+                tapeColor: getEventTapeColor(evt, theme.event.duration.color, theme),
                 spark
             });
 
@@ -1645,6 +1892,12 @@
         }
         alignInstantLabelToIcon(this, item, metrics, theme);
         return data;
+    };
+
+    proto._showBubble = function (x, y, evt) {
+        if (!bubblesEnabled(evt, this._params?.theme)) return;
+
+        return originalShowBubble.apply(this, arguments);
     };
 
     proto.paint = function () {

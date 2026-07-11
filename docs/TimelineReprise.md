@@ -21,6 +21,7 @@ The intended shape is progressive: pages can load only the original library, add
 - `timeline-reprise/timeline-reprise-cardinal-axis.js` - adds support for a bounded cardinal axis.
 - `timeline-reprise/timeline-reprise-scaled-zones.js` - adds support for scaled zones within a timeline band.
 - `timeline-reprise/timeline-reprise-event-layout.js` - adds horizontal and vertical event layout routing.
+- `timeline-reprise/timeline-reprise-narrative.js` - adds labelled narrative spans and dividers.
 
 
 ## Browser Widget Usage
@@ -39,6 +40,7 @@ Load the base library first, then the custom layer:
 ### [Cardinal Axis](timeline-reprise-cardinal-axis.md)
 ### [Scaled Zones](timeline-reprise-scaled-zones.md)
 ### [Event Layout](timeline-reprise-event-layout.md)
+### [Narrative](timeline-reprise-narrative.md)
 
 
 ## Examples
@@ -48,6 +50,7 @@ Load the base library first, then the custom layer:
 ### [timeline-reprise-overview.html](../examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html)
 ### [timeline-reprise-scales.html](../examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html)
 ### [timeline-reprise-event-layout.html](../examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html)
+### [timeline-reprise-narrative.html](../examples/timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-narrative.html)
 
 
 ---
