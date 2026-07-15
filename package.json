@@ -9,7 +9,9 @@
   },
   "files": [
     "dist/",
-    "vendor/"
+    "vendor/",
+    "docs/",
+    "README.md"
   ],
   "repository": {
     "type": "git",
