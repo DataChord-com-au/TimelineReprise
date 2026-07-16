@@ -1,6 +1,8 @@
 # Timeline Reprise
 
-Version: `v1.1.0`
+<!-- timeline-reprise-version:start -->
+Version: `v1.2.0`
+<!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
 Timeline Reprise is an experimental reprise of the SIMILE Timeline 2.3.1 browser widget.
@@ -28,9 +30,11 @@ No source rebuild was performed for the initial baseline.
 
 For npm/git consumers:
 
+<!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.1.0"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.2.0"
 ```
+<!-- timeline-reprise-install:end -->
 
 For normal usage, load the SIMILE base library first, then the Reprise
 stylesheet and the single combined Reprise JavaScript file:
@@ -80,6 +84,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [simile-baseline.html](examples/simile-baseline.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) | Loads the original SIMILE Timeline library unpatched. |
 | [timeline-dark-mode.html](examples/timeline-dark-mode.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html) | Loads the original SIMILE Timeline library with CSS supporting dark mode styles. |
 | [timeline-reprise-colors.html](examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. |
+| [timeline-reprise-filtered-theme.html](examples/timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-filtered-theme.html) | Loads event theme configuration from embedded JSON and filters a larger event set by tags. |
 | [timeline-reprise-overview.html](examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html) | Reprise Overview extends theme support for overview bands. |
 | [timeline-reprise-scales.html](examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html) | Reprise Cardinal Axis adds a bounded numeric axis.<br>Reprise Scaled Zones expands selected date ranges within a band. |
 | [timeline-reprise-event-layout.html](examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |

@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Filtered Theme Data</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    .example-section {
+      margin-top: 28px;
+    }
+
+    .example-section h2 {
+      margin-bottom: 8px;
+    }
+
+    #timeline {
+      height: 460px;
+      border-width: 1px;
+      border-style: solid;
+      border-color: #5f6368;
+    }
+
+    .summary {
+      margin: 12px 0 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Filtered Theme Data</h1>
+  <p>
+    This example loads event theme configuration from JSON, filters a larger
+    event set by tags, then renders the filtered result.
+  </p>
+
+  <p id="summary" class="summary"></p>
+  <div id="timeline"></div>
+
+  <script id="timeline-config" type="application/json">
+{
+  "theme": "delivery",
+  "filter": {
+    "tagsContain": ["showcase", "release"],
+    "tagsNotContain": ["internal"],
+    "tagsNotOnlyContain": ["draft", "archive"]
+  },
+  "bands": {
+    "date": "Mar 15 2020",
+    "main": {
+      "width": "*",
+      "intervalUnit": "month",
+      "intervalPixels": 125
+    },
+    "overview": {
+      "width": "22%",
+      "intervalUnit": "year",
+      "intervalPixels": 220
+    }
+  },
+  "eventThemes": [
+    {
+      "id": "delivery",
+      "labels": true,
+      "bubbles": true,
+      "eventColorScope": "both",
+      "useEmphasis": true,
+      "emphasis": {
+        "critical": {
+          "labelColor": "red",
+          "tapeColor": "red",
+          "eventColorScope": "both"
+        },
+        "quiet": {
+          "labelColor": "gray",
+          "tapeColor": "gray",
+          "eventColorScope": "label"
+        },
+        "launch": {
+          "labelColor": "green",
+          "tapeColor": "green",
+          "eventColorScope": "both"
+        }
+      },
+      "track": {
+        "horizontal": {
+          "offset": 12,
+          "gap": 5
+        }
+      },
+      "instant": {
+        "width": 7,
+        "iconColor": "orange"
+      },
+      "range": {
+        "width": 5,
+        "iconColor": "green",
+        "short": {
+          "toLabelGap": 4,
+          "minDisplayLength": 12
+        },
+        "horizontal": {
+          "eventRoutingThreshold": 34,
+          "toLabelGap": 9,
+          "labelHorizontalGap": 10,
+          "labelTrackCount": 4,
+          "labelTrackHeight": 18,
+          "labelTrackGap": 5,
+          "tapeGap": 5,
+          "sparklineStagger": 8,
+          "stickyLeftInset": 4
+        }
+      },
+      "bubble": {
+        "enabled": true,
+        "width": 320,
+        "maxHeight": null
+      }
+    }
+  ],
+  "events": [
+    {
+      "start": "2020-01-06",
+      "title": "Briefing packet",
+      "description": "Initial source material arrives.",
+      "color": "blue",
+      "tags": ["showcase", "planning"]
+    },
+    {
+      "start": "2020-01-13",
+      "end": "2020-02-05",
+      "title": "Discovery interviews",
+      "description": "External interviews and evidence gathering.",
+      "color": "green",
+      "tags": ["showcase", "research"]
+    },
+    {
+      "start": "2020-01-18",
+      "title": "Internal budget note",
+      "description": "Filtered out by the internal tag.",
+      "color": "gray",
+      "tags": ["internal", "planning"]
+    },
+    {
+      "start": "2020-02-03",
+      "end": "2020-02-18",
+      "title": "Prototype window",
+      "description": "Short range routed as a compact event.",
+      "color": "purple",
+      "tags": ["showcase", "build"]
+    },
+    {
+      "start": "2020-02-12",
+      "title": "Architecture sign-off",
+      "description": "A decision point with critical emphasis.",
+      "color": "red",
+      "emphasis": "critical",
+      "tags": ["showcase", "decision"]
+    },
+    {
+      "start": "2020-02-20",
+      "end": "2020-03-27",
+      "title": "Implementation phase",
+      "description": "Main delivery range.",
+      "color": "orange",
+      "tags": ["showcase", "build"]
+    },
+    {
+      "start": "2020-03-04",
+      "end": "2020-03-18",
+      "title": "Documentation sprint",
+      "description": "Parallel work with quieter styling.",
+      "color": "yellow",
+      "emphasis": "quiet",
+      "tags": ["showcase", "docs"]
+    },
+    {
+      "start": "2020-03-12",
+      "title": "Draft-only placeholder",
+      "description": "Filtered out because it only has excluded tags.",
+      "color": "gray",
+      "tags": ["draft"]
+    },
+    {
+      "start": "2020-03-19",
+      "title": "Design review",
+      "description": "A visible draft because it also has showcase.",
+      "color": "purple",
+      "tags": ["showcase", "draft"]
+    },
+    {
+      "start": "2020-03-30",
+      "end": "2020-04-17",
+      "title": "Acceptance testing",
+      "description": "Test cycle before release.",
+      "color": "green",
+      "tags": ["showcase", "test"]
+    },
+    {
+      "start": "2020-04-08",
+      "title": "Security review",
+      "description": "Filtered out by the internal tag.",
+      "color": "red",
+      "tags": ["showcase", "internal", "risk"]
+    },
+    {
+      "start": "2020-04-21",
+      "title": "Release candidate",
+      "description": "Candidate build selected.",
+      "color": "blue",
+      "emphasis": "launch",
+      "tags": ["release", "showcase"]
+    },
+    {
+      "start": "2020-04-27",
+      "end": "2020-05-12",
+      "title": "Launch rollout",
+      "description": "Release rollout range with launch emphasis.",
+      "color": "green",
+      "emphasis": "launch",
+      "tags": ["release", "showcase"]
+    },
+    {
+      "start": "2020-05-06",
+      "title": "Archive-only note",
+      "description": "Filtered out because it only has archive.",
+      "color": "gray",
+      "tags": ["archive"]
+    },
+    {
+      "start": "2020-05-18",
+      "end": "2020-06-05",
+      "title": "Post-release review",
+      "description": "Review range after the launch.",
+      "color": "blue",
+      "tags": ["release", "review"]
+    },
+    {
+      "start": "2020-06-15",
+      "title": "Public retrospective",
+      "description": "Final visible milestone.",
+      "color": "orange",
+      "tags": ["showcase", "review"]
+    }
+  ]
+}
+  </script>
+
+  <script>
+    var config = JSON.parse(document.getElementById("timeline-config").textContent);
+    var eventThemes = Timeline.loadEventThemes(config.eventThemes);
+    var selectedTheme = eventThemes[config.theme];
+    var eventSource = new Timeline.DefaultEventSource();
+    var theme = Timeline.ClassicTheme.create();
+    var filteredEvents = Timeline.filterEvents(config.events, config.filter);
+    var bands = config.bands;
+
+    theme.eventTheme = selectedTheme;
+
+    var timelineEvents = filteredEvents.map(function (event) {
+      var item = Object.assign({}, event);
+
+      if (!item.end && item.color) {
+        item.icon = Timeline.ThemeIcons.get(item.color);
+      }
+      if (item.textColor == null) {
+        item.textColor = "inherit";
+      }
+      if (item.overviewColor == null && item.color) {
+        item.overviewColor = item.color;
+      }
+
+      return item;
+    });
+
+    var bandInfos = [
+      Timeline.createBandInfo({
+        eventSource: eventSource,
+        date: bands.date,
+        width: bands.main.width,
+        intervalUnit: Timeline.resolveTimelineDateTimeUnit(bands.main.intervalUnit),
+        intervalPixels: bands.main.intervalPixels,
+        theme: theme
+      }),
+      Timeline.createBandInfo({
+        eventSource: eventSource,
+        date: bands.date,
+        width: bands.overview.width,
+        intervalUnit: Timeline.resolveTimelineDateTimeUnit(bands.overview.intervalUnit),
+        intervalPixels: bands.overview.intervalPixels,
+        overview: true,
+        theme: theme
+      })
+    ];
+
+    bandInfos[1].syncWith = 0;
+    bandInfos[1].highlight = true;
+
+    Timeline.create(
+      document.getElementById("timeline"),
+      bandInfos
+    );
+
+    eventSource.loadJSON({
+      dateTimeFormat: "iso8601",
+      events: timelineEvents
+    }, document.location.href);
+
+    document.getElementById("summary").textContent =
+      "Showing " + timelineEvents.length + " of " + config.events.length +
+      " events using theme `" + config.theme + "`.";
+  </script>
+</body>
+</html>
