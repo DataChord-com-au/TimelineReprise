@@ -2510,6 +2510,22 @@ const Reprise = Object.freeze({
         return tracks.length - 1;
     }
 
+    function getTapeLabelAxisSpan(item) {
+        const start = toFiniteNumber(item?.startPixel);
+        const end = toFiniteNumber(item?.endPixel);
+
+        return start != null && end != null
+            ? Math.abs(end - start)
+            : 0;
+    }
+
+    function compareTapeLabelSpanInnerFirst(a, b) {
+        const itemA = a.item || a;
+        const itemB = b.item || b;
+
+        return getTapeLabelAxisSpan(itemA) - getTapeLabelAxisSpan(itemB);
+    }
+
     function getPointGroupKey(item, fallback) {
         const id = getEventId(item.evt);
         return id != null ? "id:" + id : item.evt || "event:" + fallback;
@@ -2691,7 +2707,14 @@ const Reprise = Object.freeze({
             assignVerticalEventGroup(painter, tracks, group, group.fixedLane + 1);
         }
 
-        for (const { item } of [...stickyTapeLabels, ...normalTapeLabels]) {
+        const orderedTapeLabels = [...stickyTapeLabels, ...normalTapeLabels]
+            .map((entry, order) => ({ ...entry, order }))
+            .sort((a, b) =>
+                compareTapeLabelSpanInnerFirst(a, b) ||
+                a.order - b.order
+            );
+
+        for (const { item } of orderedTapeLabels) {
             const naturalTop = item.naturalTop ?? item.startPixel;
             const preferredTop = Math.max(naturalTop, stickyTop);
             const placement = placeSlidingLabel(
@@ -2892,10 +2915,16 @@ const Reprise = Object.freeze({
                     left,
                     right: left + width,
                     width,
-                    rightSticky
+                    rightSticky,
+                    routeIndex: routedTapePlacements.length
                 });
             }
         }
+
+        routedTapePlacements.sort((a, b) =>
+            compareTapeLabelSpanInnerFirst(a, b) ||
+            a.routeIndex - b.routeIndex
+        );
 
         for (const entry of routedTapePlacements) {
             const sparkLeft = Math.round(

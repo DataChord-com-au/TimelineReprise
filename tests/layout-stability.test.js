@@ -198,6 +198,18 @@ test("horizontal event routing includes the rendered sparkline interval", () => 
     assert.notEqual(open.data.top, remoteLabelWithLocalSpark.data.top);
 });
 
+test("horizontal stacked duration labels place the longest span outside", () => {
+    const painter = makeEventPainter("horizontal");
+    const long = tapeLabel(event("long", 0, 160), 0, 50, 16);
+    const short = tapeLabel(event("short", 0, 60), 0, 50, 16);
+    painter._repriseTapeLabels.push(long, short);
+
+    painter.paint();
+
+    assert.ok(long.data.top > short.data.top);
+    assert.notEqual(long.data.left, short.data.left);
+});
+
 test("vertical event duration labels use local side lanes", () => {
     const baseline = makeEventPainter("vertical");
     const baselineTop = tapeLabel(event("top", 0, 50), 0, 80, 25);
@@ -218,6 +230,18 @@ test("vertical event duration labels use local side lanes", () => {
     assert.equal(crowdedTop.data.top, baselineTop.data.top);
     assert.equal(new Set(lowerLabels.map((item) => item.data.left)).size, 3);
     assert.deepEqual(lowerLabels.map((item) => item.data.top), [120, 120, 120]);
+});
+
+test("vertical stacked duration labels place the longest span outside", () => {
+    const painter = makeEventPainter("vertical");
+    const long = tapeLabel(event("long", 10, 40), 10, 80, 25);
+    const short = tapeLabel(event("short", 10, 30), 10, 80, 25);
+    painter._repriseTapeLabels.push(long, short);
+
+    painter.paint();
+
+    assert.ok(long.data.left > short.data.left);
+    assert.equal(long.data.top, short.data.top);
 });
 
 function makeNarrative(orientation) {
