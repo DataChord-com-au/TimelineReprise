@@ -18,8 +18,8 @@ The intended shape is progressive: pages can load only the original library, add
 - `dist/timeline-reprise.css` - the complete Reprise stylesheet.
 - `dist/images/` - external media referenced by the stylesheet.
 
-The files under `timeline-reprise/` are build inputs. They are not separate
-consumer modules.
+The files under `src/` are build inputs. `src/index.js` is the ordered
+browser ESM entry, and stylesheet inputs live under `src/css/`.
 
 
 ## Browser Widget Usage

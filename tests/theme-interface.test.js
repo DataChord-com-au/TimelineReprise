@@ -13,8 +13,8 @@ function loadNarrativeDecorator() {
     const filename = path.join(
         __dirname,
         "..",
-        "timeline-reprise",
-        "timeline-reprise-narrative.js"
+        "src",
+        "narrative.js"
     );
 
     vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });

@@ -3,9 +3,9 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
-const sourceRoot = path.join(root, "timeline-reprise");
+const sourceRoot = path.join(root, "src");
 const distRoot = path.join(root, "dist");
-const loaderPath = path.join(sourceRoot, "timeline-reprise.js");
+const entryPath = path.join(sourceRoot, "index.js");
 const packageJson = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8")
 );
@@ -15,34 +15,72 @@ function readText(filename) {
     return fs.readFileSync(filename, "utf8").replace(/\r\n/g, "\n").trim();
 }
 
-function readManifest() {
-    const loader = readText(loaderPath);
-    const pattern = /\{\s*type:\s*['"](css|js)['"]\s*,\s*path:\s*['"]([^'"]+)['"]\s*\}/g;
-    const entries = Array.from(loader.matchAll(pattern), match => ({
-        type: match[1],
-        path: match[2]
-    }));
+function toSourcePath(filename) {
+    return path.relative(sourceRoot, filename).replace(/\\/g, "/");
+}
 
-    if (entries.length === 0) {
-        throw new Error(`No distribution entries found in ${loaderPath}`);
+function resolveSourcePath(fromFile, specifier) {
+    if (!specifier.startsWith("./") && !specifier.startsWith("../")) {
+        throw new Error(`Only relative source imports are supported: ${specifier}`);
     }
 
-    for (const entry of entries) {
-        const filename = path.join(sourceRoot, entry.path);
-        if (!fs.existsSync(filename)) {
-            throw new Error(`Distribution source does not exist: ${filename}`);
-        }
+    const filename = path.resolve(path.dirname(fromFile), specifier);
+    const sourcePrefix = sourceRoot + path.sep;
+
+    if (filename !== sourceRoot && !filename.startsWith(sourcePrefix)) {
+        throw new Error(`Source path escapes src/: ${specifier}`);
+    }
+    if (!fs.existsSync(filename)) {
+        throw new Error(`Distribution source does not exist: ${filename}`);
+    }
+
+    return {
+        path: toSourcePath(filename),
+        filename
+    };
+}
+
+function readScriptEntries(entryText) {
+    const importPattern = /^import\s+(?:[^'"]+\s+from\s+)?['"]([^'"]+\.js)['"]\s*;?\s*$/gm;
+    const entries = Array.from(entryText.matchAll(importPattern), match =>
+        resolveSourcePath(entryPath, match[1])
+    );
+
+    if (entries.length === 0) {
+        throw new Error(`No JavaScript imports found in ${entryPath}`);
     }
 
     return entries;
 }
 
-function combine(entries, type) {
+function readStylesheetEntries(entryText) {
+    const match = entryText.match(
+        /export\s+const\s+stylesheets\s*=\s*(\[[\s\S]*?\])\s*;/m
+    );
+
+    if (!match) {
+        throw new Error(`No stylesheets export found in ${entryPath}`);
+    }
+
+    const stylesheets = JSON.parse(match[1]);
+
+    if (!Array.isArray(stylesheets) || stylesheets.length === 0) {
+        throw new Error("The stylesheets export must be a non-empty array");
+    }
+
+    return stylesheets.map(specifier => {
+        if (typeof specifier !== "string" || !specifier.endsWith(".css")) {
+            throw new Error(`Invalid stylesheet source: ${specifier}`);
+        }
+
+        return resolveSourcePath(entryPath, specifier);
+    });
+}
+
+function combine(entries) {
     return [
         banner,
-        ...entries
-            .filter(entry => entry.type === type)
-            .map(entry => `/* ${entry.path} */\n${readText(path.join(sourceRoot, entry.path))}`)
+        ...entries.map(entry => `/* ${entry.path} */\n${readText(entry.filename)}`)
     ].join("\n\n") + "\n";
 }
 
@@ -51,14 +89,13 @@ function copyCssAssets(cssEntries) {
     const urlPattern = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
 
     for (const entry of cssEntries) {
-        const cssFile = path.join(sourceRoot, entry.path);
-        const css = readText(cssFile);
+        const css = readText(entry.filename);
 
         for (const match of css.matchAll(urlPattern)) {
             const assetPath = match[2];
             if (/^(?:[a-z]+:|\/|#)/i.test(assetPath)) continue;
 
-            const source = path.resolve(path.dirname(cssFile), assetPath);
+            const source = path.resolve(path.dirname(entry.filename), assetPath);
             const target = path.resolve(distRoot, assetPath);
             const distPrefix = distRoot + path.sep;
 
@@ -86,16 +123,11 @@ function copyCssAssets(cssEntries) {
     return copiedTargets.size;
 }
 
-const entries = readManifest();
-const js = combine(entries, "js");
-const css = combine(entries, "css");
-
-if (!entries.some(entry => entry.type === "js")) {
-    throw new Error("The distribution manifest contains no JavaScript sources");
-}
-if (!entries.some(entry => entry.type === "css")) {
-    throw new Error("The distribution manifest contains no CSS sources");
-}
+const entryText = readText(entryPath);
+const scriptEntries = readScriptEntries(entryText);
+const cssEntries = readStylesheetEntries(entryText);
+const js = combine(scriptEntries);
+const css = combine(cssEntries);
 
 new vm.Script(js, { filename: "dist/timeline-reprise.js" });
 
@@ -104,7 +136,7 @@ fs.mkdirSync(distRoot, { recursive: true });
 fs.writeFileSync(path.join(distRoot, "timeline-reprise.js"), js, "utf8");
 fs.writeFileSync(path.join(distRoot, "timeline-reprise.css"), css, "utf8");
 
-const assetCount = copyCssAssets(entries.filter(entry => entry.type === "css"));
+const assetCount = copyCssAssets(cssEntries);
 
 console.log(
     `Built dist/timeline-reprise.js, dist/timeline-reprise.css, and ${assetCount} media assets.`

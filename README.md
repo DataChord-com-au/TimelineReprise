@@ -11,7 +11,7 @@ It keeps a self-contained static copy of the original SIMILE Timeline library an
 
 - `upstream/` - original, unchanged SIMILE Timeline 2.3.1 release artifacts and provenance notes
 - `vendor/` - extracted runnable SIMILE Timeline/Ajax browser files used by examples and the reprise layer
-- `timeline-reprise/` - custom patches, painters, layout behavior, and styling
+- `src/` - custom patches, painters, layout behavior, and styling
 - `examples/` - HTML demos of the reprise layer features
 
 ## Extraction To `vendor/`
@@ -45,8 +45,8 @@ stylesheet and the single combined Reprise JavaScript file:
 The distribution JavaScript contains the complete Reprise feature set. Its
 stylesheet is loaded explicitly and keeps media under `dist/images/`.
 
-For source development, `timeline-reprise/timeline-reprise.js` remains available
-as a loader for the uncombined build inputs and their stylesheet.
+For source development, `src/index.js` is the ordered browser ESM entry.
+Stylesheet inputs live under `src/css/` and are combined by the build.
 
 ## Distribution Build
 
