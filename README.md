@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v1.2.0`
+Version: `1.2.0`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 

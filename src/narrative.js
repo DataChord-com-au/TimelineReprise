@@ -941,19 +941,16 @@
                     stickyLeft,
                     Math.min(placement.left, rightStickyLeft)
                 );
-                const reservationLeft = placement.left > rightStickyLeft
-                    ? stickyLeft
-                    : left;
                 const track = placeFixedLabel(
                     shiftedTracks,
-                    reservationLeft,
+                    left,
                     left + size
                 );
 
                 record.track = track;
                 record.labelElmt.style.display = "";
                 this._setLabelPosition(record, left);
-                reserveInterval(shiftedTracks, track, reservationLeft, left + size);
+                reserveInterval(shiftedTracks, track, left, left + size);
             }
 
             tracks = shiftedTracks;
@@ -990,7 +987,18 @@
 
             const size = this._labelMainSize(record);
             let main = Math.max(record.startPixel, stickyMain);
-            main = pushPastCollisions(record.track, main, size);
+
+            if (record.trackExplicit) {
+                record.track = record.baseTrack;
+                main = pushPastCollisions(record.track, main, size);
+            } else {
+                record.track = firstFreeVisibleTrackOrOverflow(
+                    main,
+                    size,
+                    0,
+                    record
+                );
+            }
 
             if (main >= record.endPixel) {
                 record.labelElmt.style.display = "none";

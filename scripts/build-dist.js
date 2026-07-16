@@ -75,7 +75,7 @@ function syncReadmeVersions(repriseVersion) {
     readme = replaceMarkedBlock(
         readme,
         "timeline-reprise-version",
-        `Version: \`v${repriseVersion}\``,
+        `Version: \`${repriseVersion}\``,
         "README.md"
     );
     readme = replaceMarkedBlock(
