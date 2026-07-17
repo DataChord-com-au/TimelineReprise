@@ -74,13 +74,18 @@
                 return this.colorAliases[color.toLowerCase()] ?? color;
             },
 
-            get: function (color) {
+            get: function (color, size) {
                 const fill = this.getCssColor(color);
                 if (!fill) return null;
 
+                const dimension = Number.isFinite(size) && size > 0 ? size : 9;
+                const center = dimension / 2;
+                const radius = center - 0.5;
+
                 const svg =
-                    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">' +
-                    '<circle cx="5" cy="5" r="4.5" fill="' + fill + '"/>' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" data-tr-theme-icon="1" width="' + dimension +
+                    '" height="' + dimension + '" viewBox="0 0 ' + dimension + ' ' + dimension + '">' +
+                    '<circle cx="' + center + '" cy="' + center + '" r="' + radius + '" fill="' + fill + '"/>' +
                     '</svg>';
 
                 return "data:image/svg+xml," + encodeURIComponent(svg);

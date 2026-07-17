@@ -75,7 +75,7 @@
         const eventTheme = ensureNativeEventTheme(theme);
         const track = getTrackSpec(authoredTheme, timeline);
 
-        const tickHeight = toFiniteNumber(authoredTheme.instant?.width);
+        const tickHeight = toFiniteNumber(authoredTheme.instant?.tickWidth);
         const trackOffset = toFiniteNumber(track?.offset);
 
         if (isObject(track)) {
@@ -88,7 +88,7 @@
         }
 
         if (isObject(authoredTheme.instant)) {
-            setNumber(eventTheme.overviewTrack, "tickHeight", authoredTheme.instant.width);
+            setNumber(eventTheme.overviewTrack, "tickHeight", authoredTheme.instant.tickWidth);
             setColor(eventTheme.instant, "color", authoredTheme.instant.iconColor);
         }
 

@@ -75,15 +75,18 @@
   </section>
 
   <script>
+    var projectStartEvent = {
+      start: "2020-01-10",
+      title: "Project Starts",
+      description: "",
+      iconColor: "orange"
+    };
+    projectStartEvent.icon = Timeline.ThemeIcons.get(projectStartEvent.iconColor);
+
     var eventData = {
       dateTimeFormat: "iso8601",
       events: [
-        {
-          start: "2020-01-10",
-          title: "Project starts",
-          description: "",
-          icon: Timeline.ThemeIcons.get("orange")
-        },
+        projectStartEvent,
         {
           start: "2020-02-01",
           end: "2020-03-20",
@@ -152,7 +155,6 @@
           }
         },
         instant: {
-          width: 6,
           iconColor: "orange"
         },
         range: {
@@ -185,6 +187,22 @@
       return theme;
     }
 
+    function createProjectStartDivider() {
+      return new Timeline.NarrativeDecorator({
+        labels: false,
+        instant: {
+          width: 1
+        },
+        instants: [
+          {
+            date: new Date(Date.UTC(2020, 0, 10)),
+            title: "Project Starts",
+            lineColor: Timeline.ThemeIcons.getCssColor(projectStartEvent.iconColor)
+          }
+        ]
+      });
+    }
+
     function createHorizontalBands(eventSource, theme) {
       var bandInfos = [
         Timeline.createBandInfo({
@@ -206,6 +224,12 @@
         })
       ];
 
+      bandInfos[0].decorators = [
+        createProjectStartDivider()
+      ];
+      bandInfos[1].decorators = [
+        createProjectStartDivider()
+      ];
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
 
@@ -233,6 +257,12 @@
         })
       ];
 
+      bandInfos[0].decorators = [
+        createProjectStartDivider()
+      ];
+      bandInfos[1].decorators = [
+        createProjectStartDivider()
+      ];
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
 

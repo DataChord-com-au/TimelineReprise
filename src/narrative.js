@@ -220,8 +220,8 @@
         this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
         this._labelOffset = themedFinite(params, [labelTheme, eventTheme], ["offset", "labelOffset"], 0, "labelOffset");
         this._labelWidth = themedFiniteOrNull(params, [labelTheme, eventTheme], ["width", "labelWidth"], "labelWidth");
-        this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 113);
-        this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 116);
+        this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 5);
+        this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 6);
 
         this._spanColors = themedValue(params, [rangeTheme, eventTheme], ["colors", "spanColors"], null, "spanColors");
         this._dividerColors = themedValue(params, [instantTheme, eventTheme], ["colors", "dividerColors"], null, "dividerColors");

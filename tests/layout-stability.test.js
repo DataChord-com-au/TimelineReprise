@@ -11,9 +11,18 @@ function loadEventPainter() {
     proto.initialize = function () {};
     proto._prepareForPainting = function () {};
     proto._findFreeTrack = function () { return 0; };
-    proto._paintEventIcon = function () {};
+    proto._paintEventIcon = function (evt, iconTrack, left, metrics) {
+        return paintedData(
+            left,
+            metrics?.trackOffset ?? 0,
+            metrics?.iconWidth ?? 10,
+            metrics?.iconHeight ?? 10
+        );
+    };
     proto._paintEventTape = function () {};
-    proto._paintEventLabel = function () {};
+    proto._paintEventLabel = function (evt, text, left, top, width, height) {
+        return paintedData(left, top, width, height);
+    };
     proto._showBubble = function () {};
     proto.paint = function () {};
     proto.softPaint = function () {};
@@ -27,6 +36,16 @@ function loadEventPainter() {
 
     vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
     return Timeline.OriginalEventPainter;
+}
+
+function loadCore(Timeline) {
+    const context = vm.createContext({
+        Timeline,
+        window: { Timeline }
+    });
+    const filename = path.join(__dirname, "..", "src", "core.js");
+
+    vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
 }
 
 function loadNarrativeDecorator() {
@@ -68,6 +87,13 @@ function event(id, start, end) {
         getEnd: () => end,
         getTrackNum: () => 0,
         isInstant: () => false
+    };
+}
+
+function instantEvent(id, start) {
+    return {
+        ...event(id, start, start),
+        isInstant: () => true
     };
 }
 
@@ -146,6 +172,33 @@ function makeEventPainter(orientation) {
     return painter;
 }
 
+test("native decorator layers are not remapped by Reprise", () => {
+    function Impl() {}
+    function Band() {}
+
+    const createdLayers = [];
+    const Timeline = {
+        _Impl: Impl,
+        _Band: Band
+    };
+
+    Impl.prototype._distributeWidths = function () {};
+    Band.prototype.createLayerDiv = function (zIndex) {
+        createdLayers.push(zIndex);
+        return {};
+    };
+
+    loadCore(Timeline);
+
+    const band = new Band();
+    band.createLayerDiv(1);
+    band.createLayerDiv(10);
+    band.createLayerDiv(100);
+    band.createLayerDiv(105);
+
+    assert.deepEqual(createdLayers, [1, 10, 100, 105]);
+});
+
 function tapeLabel(evt, natural, width, height) {
     return {
         evt,
@@ -196,6 +249,55 @@ test("horizontal event routing includes the rendered sparkline interval", () => 
     painter.paint();
 
     assert.notEqual(open.data.top, remoteLabelWithLocalSpark.data.top);
+});
+
+test("horizontal instant icons use the adjusted timepoint baseline", () => {
+    const painter = makeEventPainter("horizontal");
+    const evt = instantEvent("instant", 20);
+    const icon = painter._paintEventIcon(
+        evt,
+        0,
+        20,
+        painter._repriseMetrics,
+        painter._params.theme,
+        0
+    );
+
+    assert.equal(icon.left, 20);
+    assert.equal(icon.elmt.style.left, "20px");
+    assert.equal(painter._reprisePointIcons[0].data.left, 20);
+});
+
+test("horizontal instant label gap zero uses the adjusted baseline", () => {
+    const painter = makeEventPainter("horizontal");
+    const evt = instantEvent("instant", 20);
+    const theme = painter._params.theme;
+    theme.event.instant.horizontal = { labelGap: 0 };
+
+    const iconData = paintedData(20, 10, 10, 10);
+    painter._reprisePointIcons.push({
+        evt,
+        lane: 0,
+        trackTopOffset: 8,
+        data: iconData
+    });
+
+    const label = painter._paintEventLabel(
+        evt,
+        "instant",
+        0,
+        0,
+        60,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+
+    assert.equal(label.left, 28);
+    assert.equal(label.top, 11);
+    assert.equal(label.elmt.style.left, "28px");
+    assert.equal(label.elmt.style.top, "11px");
+    assert.equal(painter._reprisePointLabels[0].naturalLeft, 28);
 });
 
 test("horizontal stacked duration labels place the longest span outside", () => {

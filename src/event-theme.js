@@ -163,6 +163,7 @@ class EventTheme {
         this.#assertColorList(spec.colors, `${caller}.colors`);
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
+        this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });
         this.#assertNumber(spec.labelGap, `${caller}.labelGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);

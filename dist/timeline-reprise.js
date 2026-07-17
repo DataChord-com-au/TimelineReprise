@@ -337,6 +337,7 @@ class EventTheme {
         this.#assertColorList(spec.colors, `${caller}.colors`);
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
+        this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });
         this.#assertNumber(spec.labelGap, `${caller}.labelGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
@@ -732,13 +733,18 @@ const Reprise = Object.freeze({
                 return this.colorAliases[color.toLowerCase()] ?? color;
             },
 
-            get: function (color) {
+            get: function (color, size) {
                 const fill = this.getCssColor(color);
                 if (!fill) return null;
 
+                const dimension = Number.isFinite(size) && size > 0 ? size : 9;
+                const center = dimension / 2;
+                const radius = center - 0.5;
+
                 const svg =
-                    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10">' +
-                    '<circle cx="5" cy="5" r="4.5" fill="' + fill + '"/>' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" data-tr-theme-icon="1" width="' + dimension +
+                    '" height="' + dimension + '" viewBox="0 0 ' + dimension + ' ' + dimension + '">' +
+                    '<circle cx="' + center + '" cy="' + center + '" r="' + radius + '" fill="' + fill + '"/>' +
                     '</svg>';
 
                 return "data:image/svg+xml," + encodeURIComponent(svg);
@@ -902,7 +908,7 @@ const Reprise = Object.freeze({
         const eventTheme = ensureNativeEventTheme(theme);
         const track = getTrackSpec(authoredTheme, timeline);
 
-        const tickHeight = toFiniteNumber(authoredTheme.instant?.width);
+        const tickHeight = toFiniteNumber(authoredTheme.instant?.tickWidth);
         const trackOffset = toFiniteNumber(track?.offset);
 
         if (isObject(track)) {
@@ -915,7 +921,7 @@ const Reprise = Object.freeze({
         }
 
         if (isObject(authoredTheme.instant)) {
-            setNumber(eventTheme.overviewTrack, "tickHeight", authoredTheme.instant.width);
+            setNumber(eventTheme.overviewTrack, "tickHeight", authoredTheme.instant.tickWidth);
             setColor(eventTheme.instant, "color", authoredTheme.instant.iconColor);
         }
 
@@ -1365,6 +1371,13 @@ const Reprise = Object.freeze({
     if (Timeline._eventLayout23PatchApplied) return;
     Timeline._eventLayout23PatchApplied = true;
 
+    const HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET = 0;
+    const HORIZONTAL_INSTANT_LABEL_BASELINE_OFFSET = -2;
+    const HORIZONTAL_INSTANT_LABEL_BASELINE_TOP_OFFSET = 1;
+    const VERTICAL_INSTANT_LABEL_BASELINE_TOP_OFFSET = -2;
+    const VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET = 0;
+    const DEFAULT_INSTANT_ICON_SIZE = 9;
+
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
     }
@@ -1386,6 +1399,32 @@ const Reprise = Object.freeze({
 
     function positiveOr(value, fallback) {
         return Number.isFinite(value) && value > 0 ? value : fallback;
+    }
+
+    function isDefaultThemeIconElement(elmt) {
+        const child = elmt?.firstElementChild || elmt?.firstChild;
+        const src = child?.src || child?.getAttribute?.("src") || "";
+
+        return typeof src === "string" && src.indexOf("data-tr-theme-icon") !== -1;
+    }
+
+    function applyThemeIconSize(data, metrics) {
+        if (!data?.elmt || !isDefaultThemeIconElement(data.elmt)) return;
+
+        const width = positiveOr(metrics?.iconWidth, DEFAULT_INSTANT_ICON_SIZE);
+        const height = positiveOr(metrics?.iconHeight, width);
+        const child = data.elmt.firstElementChild || data.elmt.firstChild;
+
+        data.width = width;
+        data.height = height;
+        data.elmt.style.width = width + "px";
+        data.elmt.style.height = height + "px";
+
+        if (child) {
+            child.style.display = "block";
+            child.style.width = width + "px";
+            child.style.height = height + "px";
+        }
     }
 
     function maxFinite(fallback, values) {
@@ -1694,14 +1733,17 @@ const Reprise = Object.freeze({
             setNumber(eventTheme.track, "height", track.height);
         }
 
-        if (isObject(authoredTheme.instant)) {
-            setNumber(eventTheme.instant, "iconWidth", authoredTheme.instant.width);
-            setNumber(
-                eventTheme.instant,
-                "iconHeight",
-                authoredTheme.instant.height ?? authoredTheme.instant.width
-            );
-        }
+        setNumber(eventTheme.instant, "iconWidth", authoredTheme.instant?.width ?? DEFAULT_INSTANT_ICON_SIZE);
+        setNumber(
+            eventTheme.instant,
+            "iconHeight",
+            authoredTheme.instant?.height ?? authoredTheme.instant?.width ?? DEFAULT_INSTANT_ICON_SIZE
+        );
+
+        eventTheme.track.height = Math.max(
+            finiteOr(eventTheme.track.height, 0),
+            eventTheme.instant.iconHeight
+        );
 
         if (isObject(instant)) {
             const orientation = getOrientation(timeline) === "vertical" ? "vertical" : "horizontal";
@@ -1915,8 +1957,8 @@ const Reprise = Object.freeze({
             trackHeight,
             trackGap,
             trackIncrement: trackHeight + trackGap,
-            iconWidth: positiveOr(instant.iconWidth, 10),
-            iconHeight: positiveOr(instant.iconHeight, positiveOr(instant.iconWidth, 10))
+            iconWidth: positiveOr(instant.iconWidth, DEFAULT_INSTANT_ICON_SIZE),
+            iconHeight: positiveOr(instant.iconHeight, positiveOr(instant.iconWidth, DEFAULT_INSTANT_ICON_SIZE))
         };
     }
 
@@ -2185,12 +2227,12 @@ const Reprise = Object.freeze({
     }
 
     function getVerticalPointLabelLeft(painter, item, metrics, theme) {
-        const markerWidth = item.evt?.isInstant?.()
-            ? metrics.iconWidth
-            : theme.event.tape.height;
+        const laneLeft = getVerticalEventLaneLeft(painter, metrics, theme, item.lane);
 
-        return getVerticalEventLaneLeft(painter, metrics, theme, item.lane) +
-            markerWidth +
+        if (item.evt?.isInstant?.()) return laneLeft;
+
+        return laneLeft +
+            theme.event.tape.height +
             getInstantLabelGap(painter, theme);
     }
 
@@ -2274,7 +2316,7 @@ const Reprise = Object.freeze({
         const tapeCenter = getTapeLaneTop(painter, metrics, theme, item.lane) +
             Math.round(theme.event.tape.height / 2);
         const sparkTop = tapeCenter;
-        const sparkHeight = Math.max(0, item.data.top - tapeCenter - 2);
+        const sparkHeight = Math.max(0, item.data.top - tapeCenter - 4);
         const sparkLeft = Math.round(
             Number.isFinite(item._repriseSparkLeft)
                 ? item._repriseSparkLeft
@@ -2305,7 +2347,7 @@ const Reprise = Object.freeze({
             Math.round(theme.event.tape.height / 2);
         const fontSize = getLabelFontSize(item.data, getDataHeight(item.data, item.height || 12));
         const sparkTop = Math.round(item.data.top + fontSize / 2);
-        const sparkWidth = Math.max(0, item.data.left - tapeCenter - 2);
+        const sparkWidth = Math.max(0, item.data.left - tapeCenter - 3);
 
         setPaintedRect(item.spark, {
             left: tapeCenter,
@@ -2361,6 +2403,21 @@ const Reprise = Object.freeze({
         return fallback;
     }
 
+    function getLabelLineHeight(data, fontSize) {
+        const element = data?.elmt;
+        const fallback = fontSize * 1.2;
+        if (!element) return fallback;
+
+        const view = element.ownerDocument?.defaultView;
+        const style = view?.getComputedStyle?.(element);
+        if (!style) return fallback;
+
+        const lineHeight = parseFloat(style.lineHeight);
+        if (Number.isFinite(lineHeight)) return lineHeight;
+
+        return fallback;
+    }
+
     function findPointIconItem(painter, evt) {
         const id = getEventId(evt);
 
@@ -2384,6 +2441,14 @@ const Reprise = Object.freeze({
 
     function getRenderedIconMetrics(icon, metrics) {
         const iconElement = icon?.data?.elmt;
+
+        if (isDefaultThemeIconElement(iconElement)) {
+            return {
+                height: positiveOr(metrics?.iconHeight, DEFAULT_INSTANT_ICON_SIZE),
+                topOffset: 0
+            };
+        }
+
         const child = iconElement?.firstElementChild || iconElement?.firstChild;
         const iconRect = iconElement?.getBoundingClientRect?.();
         const childRect = child?.getBoundingClientRect?.();
@@ -2412,27 +2477,34 @@ const Reprise = Object.freeze({
         const iconMetrics = getRenderedIconMetrics(icon, metrics);
         const iconCenterTop = icon.data.top + iconMetrics.topOffset + iconMetrics.height / 2;
         const fontSize = getLabelFontSize(item.data, item.height || getDataHeight(item.data, 0));
-        const left = icon.data.left + iconWidth + getInstantLabelGap(painter, theme);
-        const top = Math.round(iconCenterTop - fontSize * 0.35);
+        const lineHeight = getLabelLineHeight(item.data, fontSize);
+        const left = icon.data.left +
+            iconWidth +
+            HORIZONTAL_INSTANT_LABEL_BASELINE_OFFSET +
+            getInstantLabelGap(painter, theme);
+        const top = Math.round(iconCenterTop - lineHeight / 2) +
+            HORIZONTAL_INSTANT_LABEL_BASELINE_TOP_OFFSET;
 
         setPaintedRect(item.data, { left, top });
 
         item.naturalLeft = left;
-        item.trackTopOffset = top - getOriginalTrackTop(metrics, item.lane);
+        item.trackTopOffset = finiteOr(icon.trackTopOffset, 0) + (top - icon.data.top);
     }
 
-    function alignVerticalInstantLabelToIcon(painter, item, metrics) {
+    function alignVerticalInstantLabelToIcon(painter, item, metrics, theme) {
         if (!item.evt?.isInstant?.()) return;
 
         const icon = findPointIconItem(painter, item.evt);
         if (!icon?.data) return;
 
         const iconMetrics = getRenderedIconMetrics(icon, metrics);
-        const iconCenterTop = icon.data.top + iconMetrics.topOffset + iconMetrics.height / 2;
-        const fontSize = getLabelFontSize(item.data, item.height || getDataHeight(item.data, 0));
-        const top = Math.round(iconCenterTop - fontSize * 0.35);
+        const iconBottom = icon.data.top + iconMetrics.topOffset + iconMetrics.height;
+        const top = Math.round(
+            iconBottom + getInstantLabelGap(painter, theme) + VERTICAL_INSTANT_LABEL_BASELINE_TOP_OFFSET
+        );
 
-        setPaintedRect(item.data, { top });
+        setPaintedRect(item.data, { top, left: icon.data.left });
+        item.naturalLeft = icon.data.left;
         item.height = getDataHeight(item.data, item.height || 0);
     }
 
@@ -2656,7 +2728,7 @@ const Reprise = Object.freeze({
 
         for (const item of painter._reprisePointLabels) {
             setPaintedRect(item.data, { width: labelWidth });
-            alignVerticalInstantLabelToIcon(painter, item, metrics);
+            alignVerticalInstantLabelToIcon(painter, item, metrics, theme);
             item.height = getDataHeight(item.data, item.height || 0);
         }
 
@@ -2696,7 +2768,7 @@ const Reprise = Object.freeze({
                 a.index - b.index
             );
         const initialEventLaneCount = getTapeLabelTrackCount(painter);
-        const tracks = Array.from(
+        let tracks = Array.from(
             { length: initialEventLaneCount + 1 },
             () => []
         );
@@ -2707,14 +2779,9 @@ const Reprise = Object.freeze({
             assignVerticalEventGroup(painter, tracks, group, group.fixedLane + 1);
         }
 
-        const orderedTapeLabels = [...stickyTapeLabels, ...normalTapeLabels]
-            .map((entry, order) => ({ ...entry, order }))
-            .sort((a, b) =>
-                compareTapeLabelSpanInnerFirst(a, b) ||
-                a.order - b.order
-            );
+        const tapePlacements = [];
 
-        for (const { item } of orderedTapeLabels) {
+        for (const { item } of [...stickyTapeLabels, ...normalTapeLabels]) {
             const naturalTop = item.naturalTop ?? item.startPixel;
             const preferredTop = Math.max(naturalTop, stickyTop);
             const placement = placeSlidingLabel(
@@ -2731,7 +2798,32 @@ const Reprise = Object.freeze({
                 continue;
             }
 
-            const labelTrack = placement.track;
+            reserveInterval(
+                tracks,
+                placement.track,
+                placement.left,
+                placement.left + item.height
+            );
+            tapePlacements.push({ item, placement });
+        }
+
+        const shiftedTracks = tracks.map(() => []);
+        const routedTapePlacements = tapePlacements
+            .map((entry, routeIndex) => ({
+                item: entry.item,
+                top: entry.placement.left,
+                bottom: entry.placement.left + entry.item.height,
+                routeIndex
+            }))
+            .sort((a, b) =>
+                compareTapeLabelSpanInnerFirst(a, b) ||
+                a.routeIndex - b.routeIndex
+            );
+
+        for (const entry of routedTapePlacements) {
+            const labelTrack = placeFixedGroup(shiftedTracks, entry.top, entry.bottom, labelGap);
+            reserveInterval(shiftedTracks, labelTrack, entry.top, entry.bottom);
+
             const left = labelTrack === 0
                 ? tapeLabelLeft
                 : getVerticalEventLaneLeft(
@@ -2741,16 +2833,12 @@ const Reprise = Object.freeze({
                     labelTrack - 1
                 );
 
-            item.labelTrack = labelTrack;
-            setPaintedRect(item.data, { left, top: placement.left });
-            reserveInterval(
-                tracks,
-                labelTrack,
-                placement.left,
-                placement.left + item.height
-            );
-            updateVerticalTapeSparkLine(painter, item, metrics, theme);
+            entry.item.labelTrack = labelTrack;
+            setPaintedRect(entry.item.data, { left, top: entry.top });
+            updateVerticalTapeSparkLine(painter, entry.item, metrics, theme);
         }
+
+        tracks = shiftedTracks;
 
         for (const group of pointGroups.filter((item) => item.fixedLane == null)) {
             let physicalTrack = 1;
@@ -3162,8 +3250,14 @@ const Reprise = Object.freeze({
     proto._paintEventIcon = function (evt, iconTrack, left, metrics, theme, tapeHeight) {
         this._repriseMetrics = metrics;
         const data = originalPaintIcon.apply(this, arguments);
+        applyThemeIconSize(data, metrics);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data);
+            if (evt?.isInstant?.()) {
+                setPaintedRect(verticalData, {
+                    top: verticalData.top + VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET
+                });
+            }
             this._reprisePointIcons.push({
                 evt,
                 lane: getEventLane(this, evt),
@@ -3174,6 +3268,12 @@ const Reprise = Object.freeze({
             return verticalData;
         }
         if (!isHorizontal(this) || !data?.elmt) return data;
+
+        if (evt?.isInstant?.()) {
+            setPaintedRect(data, {
+                left: data.left + HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET
+            });
+        }
 
         rememberEventItem(this, this._reprisePointIcons, evt, iconTrack, metrics, data);
         return data;
@@ -3607,8 +3707,8 @@ const Reprise = Object.freeze({
         this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
         this._labelOffset = themedFinite(params, [labelTheme, eventTheme], ["offset", "labelOffset"], 0, "labelOffset");
         this._labelWidth = themedFiniteOrNull(params, [labelTheme, eventTheme], ["width", "labelWidth"], "labelWidth");
-        this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 113);
-        this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 116);
+        this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 5);
+        this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 6);
 
         this._spanColors = themedValue(params, [rangeTheme, eventTheme], ["colors", "spanColors"], null, "spanColors");
         this._dividerColors = themedValue(params, [instantTheme, eventTheme], ["colors", "dividerColors"], null, "dividerColors");
