@@ -1864,18 +1864,15 @@ const Reprise = Object.freeze({
     }
 
     function getTapeLaneGap(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).tapeGap, getTrackGap(painter, metrics));
+        return finiteOr(getTapeSpec(painter).tapeGap, 2);
     }
 
     function getTapeToLabelGap(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).toLabelGap, getTrackGap(painter, metrics));
+        return finiteOr(getTapeSpec(painter).toLabelGap, 2);
     }
 
     function getLabelGap(painter, metrics) {
-        return finiteOr(
-            getTapeSpec(painter).labelHorizontalGap,
-            Math.max(getTrackGap(painter, metrics), 12)
-        );
+        return finiteOr(getTapeSpec(painter).labelHorizontalGap, 12);
     }
 
     function getEventRoutingThreshold(painter) {
@@ -1902,7 +1899,7 @@ const Reprise = Object.freeze({
     }
 
     function getTapeLabelTrackGap(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).labelTrackGap, getTrackGap(painter, metrics));
+        return finiteOr(getTapeSpec(painter).labelTrackGap, 2);
     }
 
     function getStickyLeftInset(painter) {
@@ -2201,10 +2198,7 @@ const Reprise = Object.freeze({
             getTapeLaneGap(painter, metrics);
         const labelRight = getVerticalTapeLabelLeft(painter, metrics, theme) +
             getVerticalTapeLabelWidth(painter, metrics);
-        const gap = finiteOr(
-            getTapeSpec(painter).toEventGap,
-            Math.max(getTrackGap(painter, metrics), 12)
-        );
+        const gap = finiteOr(getTapeSpec(painter).toEventGap, 12);
 
         return Math.max(tapeRight, labelRight) + gap;
     }

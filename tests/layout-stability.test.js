@@ -356,6 +356,150 @@ test("several overlapping durations with long labels route across multiple label
     assert.deepEqual(visible.map((item) => item.evt.getID()).sort(), visibleIdsBefore);
 });
 
+function untrackedEvent(id, start, end) {
+    return {
+        getID: () => id,
+        getStart: () => start,
+        getEnd: () => end,
+        isInstant: () => false
+    };
+}
+
+function eventThemeWithTrackGap(trackGap) {
+    return {
+        event: {
+            track: { offset: 2, height: 20, gap: trackGap },
+            tape: {
+                height: 4,
+                horizontal: {
+                    eventRoutingThreshold: 28,
+                    labelTrackCount: 1,
+                    labelTrackHeight: 20,
+                    sparklineStagger: 8,
+                    stickyLeftInset: 0
+                    // tapeGap, toLabelGap, labelHorizontalGap and labelTrackGap are
+                    // deliberately left unset so each exercises its own independent
+                    // default instead of falling back to track.gap.
+                },
+                short: { minDisplayLength: 4 }
+            },
+            label: { offsetFromLine: 3 },
+            duration: { color: "gray" },
+            instant: { iconWidth: 10, iconHeight: 10 }
+        }
+    };
+}
+
+function makePainterWithTrackGap(orientation, trackGap, viewLength) {
+    const painter = makeEventPainter(orientation, viewLength);
+    painter._params = { theme: eventThemeWithTrackGap(trackGap) };
+    return painter;
+}
+
+const IMPRECISE_RANGE_SPECS = [
+    ["standard-bounded", 0, 600, "Standard bounded"],
+    ["imprecise-both", 60, 800, "Imprecise example - both ends"],
+    ["imprecise-start", 60, 900, "Imprecise example - start"],
+    ["imprecise-end", 300, 500, "Imprecise example - end"],
+    ["open-start", -400, 600, "Open start example"],
+    ["present-start", 40, 700, "Present start example"],
+    ["unresolved-start", 40, 900, "Unresolved start example"],
+    ["extra-overlap-1", 80, 750, "Extra overlapping duration one"],
+    ["extra-overlap-2", 100, 780, "Extra overlapping duration two"],
+    ["open-end", 300, 1400, "Open end example"],
+    ["present-end", 400, 1400, "Present end example"],
+    ["unresolved-end", 500, 1400, "Unresolved end example"]
+];
+
+function buildImpreciseRangeItems() {
+    return IMPRECISE_RANGE_SPECS.map(([id, start, end, title]) =>
+        tapeLabel(event(id, start, end), start, Math.max(30, title.length * 6), 16)
+    );
+}
+
+test("customizing track.gap does not change the tapeGap/toLabelGap defaults for overlapping tape lanes", () => {
+    function buildItems() {
+        return [
+            tapeLabel(untrackedEvent("p", 0, 200), 0, 40, 16),
+            tapeLabel(untrackedEvent("q", 50, 250), 200, 40, 16)
+        ];
+    }
+
+    const baseline = makePainterWithTrackGap("horizontal", 2, 400);
+    const baselineItems = buildItems();
+    baseline._repriseTapeLabels.push(...baselineItems);
+    baseline.paint();
+
+    const detuned = makePainterWithTrackGap("horizontal", 40, 400);
+    const detunedItems = buildItems();
+    detuned._repriseTapeLabels.push(...detunedItems);
+    detuned.paint();
+
+    assert.equal(baseline._repriseTapeLaneEnds.length, 2, "fixture should need two overlapping tape lanes");
+    assert.equal(detuned._repriseTapeLaneEnds.length, 2, "fixture should need two overlapping tape lanes");
+    assert.equal(detunedItems[0].data.top, baselineItems[0].data.top);
+    assert.equal(detunedItems[1].data.top, baselineItems[1].data.top);
+});
+
+test("customizing track.gap does not change the toLabelGap/labelTrackGap defaults across routed label rows", () => {
+    const baseline = makePainterWithTrackGap("horizontal", 2, 900);
+    const baselineItems = buildImpreciseRangeItems();
+    baseline._repriseTapeLabels.push(...baselineItems);
+    baseline.paint();
+
+    const detuned = makePainterWithTrackGap("horizontal", 60, 900);
+    const detunedItems = buildImpreciseRangeItems();
+    detuned._repriseTapeLabels.push(...detunedItems);
+    detuned.paint();
+
+    assert.ok(
+        new Set(
+            baselineItems.filter((item) => !isHidden(item)).map((item) => item.data.top)
+        ).size >= 2,
+        "fixture should route visible labels across multiple rows"
+    );
+    assert.equal(detuned._repriseLabelTrackCount, baseline._repriseLabelTrackCount);
+
+    for (let i = 0; i < baselineItems.length; i++) {
+        const id = IMPRECISE_RANGE_SPECS[i][0];
+        assert.equal(isHidden(detunedItems[i]), isHidden(baselineItems[i]), `visibility mismatch for ${id}`);
+        if (!isHidden(baselineItems[i])) {
+            assert.equal(detunedItems[i].data.top, baselineItems[i].data.top, `top mismatch for ${id}`);
+            assert.equal(detunedItems[i].data.left, baselineItems[i].data.left, `left mismatch for ${id}`);
+        }
+    }
+});
+
+test("customizing track.gap does not change the labelHorizontalGap default used to decide whether adjacent labels share a row", () => {
+    function buildItems() {
+        return [
+            tapeLabel(event("d", 0, 10), 0, 30, 16),
+            tapeLabel(event("e", 100, 110), 50, 30, 16)
+        ];
+    }
+
+    const baseline = makePainterWithTrackGap("horizontal", 2, 300);
+    const baselineItems = buildItems();
+    baseline._repriseTapeLabels.push(...baselineItems);
+    baseline.paint();
+
+    const detuned = makePainterWithTrackGap("horizontal", 200, 300);
+    const detunedItems = buildItems();
+    detuned._repriseTapeLabels.push(...detunedItems);
+    detuned.paint();
+
+    assert.equal(
+        baselineItems[0].data.top,
+        baselineItems[1].data.top,
+        "labels 20px apart should already share a row at the default gap"
+    );
+    assert.equal(
+        detunedItems[0].data.top,
+        detunedItems[1].data.top,
+        "a large track.gap must not force these labels into separate rows once labelHorizontalGap has its own default"
+    );
+});
+
 test("horizontal instant icons use the adjusted timepoint baseline", () => {
     const painter = makeEventPainter("horizontal");
     const evt = instantEvent("instant", 20);

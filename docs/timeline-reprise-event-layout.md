@@ -144,7 +144,7 @@ A flat `track` object is also accepted as a fallback.
 Sets the outer offset before event content.
 
 ### `eventTheme.track.*.gap`
-Sets the default gap used by event lanes and as fallback spacing for tapes and labels.
+Sets the gap used by event lanes.
 
 ### `eventTheme.track.*.height`
 Optional native SIMILE track height.
@@ -188,13 +188,13 @@ Extra gap between a short duration tape and its label on horizontal timelines.
 Duration length, in pixels, at which a range is treated as a long tape event.
 
 ### `eventTheme.range.horizontal.tapeGap`
-Gap between long-range tape lanes.
+Gap between long-range tape lanes. Defaults to `2` if unset.
 
 ### `eventTheme.range.horizontal.toLabelGap`
-Gap from the tape block to the first routed label row.
+Gap from the tape block to the first routed label row. Defaults to `2` if unset.
 
 ### `eventTheme.range.horizontal.labelHorizontalGap`
-Minimum horizontal gap between routed labels.
+Minimum horizontal gap between routed labels. Defaults to `12` if unset.
 
 ### `eventTheme.range.horizontal.labelTrackCount`
 Initial number of routed label rows.
@@ -203,7 +203,7 @@ Initial number of routed label rows.
 Height of a routed label row.
 
 ### `eventTheme.range.horizontal.labelTrackGap`
-Gap between routed label rows.
+Gap between routed label rows. Defaults to `2` if unset.
 
 ### `eventTheme.range.horizontal.sparklineStagger`
 Horizontal stagger applied to tape-label sparklines.
@@ -217,10 +217,10 @@ Inset used when range labels stick at the left or right viewport edge.
 Duration length, in pixels, at which a range is treated as a long tape event.
 
 ### `eventTheme.range.vertical.tapeGap`
-Gap between long-range tape lanes.
+Gap between long-range tape lanes. Defaults to `2` if unset.
 
 ### `eventTheme.range.vertical.toLabelGap`
-Gap from the tape block to the vertical range-label column.
+Gap from the tape block to the vertical range-label column. Defaults to `2` if unset.
 
 ### `eventTheme.range.vertical.labelWidth`
 Width of vertical event labels. If omitted, event layout derives a width from the band width.
@@ -229,7 +229,7 @@ Width of vertical event labels. If omitted, event layout derives a width from th
 Initial number of point/short-duration event lanes. Extra lanes are added if the configured lanes are full.
 
 ### `eventTheme.range.vertical.labelTrackGap`
-Fallback gap between stacked vertical range labels.
+Gap between stacked vertical range labels. Defaults to `2` if unset.
 
 ### `eventTheme.range.vertical.stickyTopInset`
 Inset used when range labels stick at the top viewport edge.
@@ -238,7 +238,7 @@ Inset used when range labels stick at the top viewport edge.
 Gap between stacked sticky range labels.
 
 ### `eventTheme.range.vertical.toEventGap`
-Gap from the vertical range-label column to point/short-duration event lanes.
+Gap from the vertical range-label column to point/short-duration event lanes. Defaults to `12` if unset.
 
 ## Event Overrides
 
