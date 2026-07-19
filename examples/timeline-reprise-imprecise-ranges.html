@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Imprecise Ranges (Sparkline Regression)</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    .example-section {
+      margin-top: 28px;
+    }
+
+    .example-section h2 {
+      margin-bottom: 8px;
+    }
+
+    .timeline-frame {
+      border-width: 1px;
+      border-style: solid;
+      border-color: #5f6368;
+    }
+
+    #timeline-horizontal {
+      height: 420px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Imprecise Ranges</h1>
+  <p>
+    Regression example for a bug where collision handling correctly rerouted
+    duration labels across multiple label tracks, but some tape-to-label
+    sparklines lost their connection: retaining geometry from an earlier
+    placement, continuing past a label, or terminating away from it. The
+    events below overlap heavily and carry long labels, so they route across
+    several label tracks (and some labels stick to the right viewport edge),
+    which is exactly the situation that exposed the disconnect.
+  </p>
+  <ul>
+    <li>every sparkline should visibly touch its own label, in every label track</li>
+    <li>this holds after the initial layout, and continues to hold after resizing the window or panning the band</li>
+    <li>no sparkline should point at a different event's tape or label</li>
+  </ul>
+
+  <section class="example-section">
+    <div id="timeline-horizontal" class="timeline-frame"></div>
+  </section>
+
+  <script>
+    // Mirrors scratch/demo-imprecise-ranges-events.js (the data that exposed
+    // the bug in the ChronicleTimelineDemo "Imprecise Ranges" example), with
+    // the "open" / "present" / "unresolved" sentinels resolved to concrete
+    // dates so the scenario can be reproduced without the consuming demo's
+    // sentinel-parsing layer.
+    var today = new Date();
+    var dynamicStart = new Date(today);
+    var dynamicEnd = new Date(today);
+    dynamicStart.setDate(dynamicStart.getDate() - 22);
+    dynamicEnd.setDate(dynamicEnd.getDate() + 4);
+
+    function isoDate(date) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    var impreciseRangesEvents = [
+      {
+        start: "2026-01-01",
+        end: "2026-03-01",
+        title: "Standard bounded",
+        description: "Bounded both ends, no sentinels."
+      },
+      {
+        start: "2026-03-01",
+        latestStart: "2026-04-01",
+        earliestEnd: "2026-07-01",
+        end: "2026-07-14",
+        title: "Imprecise example - both ends",
+        description: "Imprecision both ends, no sentinels."
+      },
+      {
+        start: "2026-03-01",
+        latestStart: "2026-04-01",
+        end: "2026-08-01",
+        title: "Imprecise example - start",
+        description: "Imprecision at start, no sentinels."
+      },
+      {
+        start: "2026-04-01",
+        earliestEnd: "2026-05-01",
+        end: "2026-05-15",
+        title: "Imprecise example - end",
+        description: "Imprecision at end, no sentinels."
+      },
+      {
+        start: "2025-10-01",
+        end: "2026-07-01",
+        title: "Open start example",
+        description: "Sentinel start resolved to an unbounded-looking early date."
+      },
+      {
+        start: isoDate(today),
+        end: "2026-08-01",
+        title: "Present start example",
+        description: "Sentinel start resolved to today."
+      },
+      {
+        start: "2025-06-01",
+        end: "2026-08-10",
+        title: "Unresolved start example",
+        description: "Sentinel start resolved to a distinct, deeply uncertain date."
+      },
+      {
+        start: "2026-04-01",
+        end: "2027-06-01",
+        title: "Open end example",
+        description: "Sentinel end resolved to an unbounded-looking late date."
+      },
+      {
+        start: "2026-05-01",
+        end: isoDate(today),
+        title: "Present end example",
+        description: "Sentinel end resolved to today."
+      },
+      {
+        start: "2026-06-01",
+        end: "2027-12-01",
+        title: "Unresolved end example",
+        description: "Sentinel end resolved to a distinct, deeply uncertain date."
+      },
+      {
+        start: isoDate(dynamicStart),
+        end: isoDate(dynamicEnd),
+        title: "Dynamic bounded range spanning today",
+        description: "Bounded both ends, dynamically generated to span today."
+      }
+    ];
+
+    function createImpreciseRangesTheme() {
+      var theme = Timeline.ClassicTheme.create();
+
+      theme.eventTheme = {
+        track: {
+          horizontal: {
+            offset: 12,
+            gap: 5
+          }
+        },
+        range: {
+          width: 4,
+          iconColor: "blue",
+          horizontal: {
+            eventRoutingThreshold: 28,
+            toLabelGap: 8,
+            labelHorizontalGap: 8,
+            labelTrackCount: 1,
+            labelTrackHeight: 18,
+            labelTrackGap: 6,
+            sparklineStagger: 8,
+            stickyLeftInset: 4
+          }
+        }
+      };
+
+      return theme;
+    }
+
+    function createHorizontalBands(eventSource, theme) {
+      return [
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Apr 1 2026",
+          width: "100%",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 90,
+          theme: theme
+        })
+      ];
+    }
+
+    var eventSource = new Timeline.DefaultEventSource();
+
+    Timeline.create(
+      document.getElementById("timeline-horizontal"),
+      createHorizontalBands(eventSource, createImpreciseRangesTheme())
+    );
+
+    eventSource.loadJSON(
+      { dateTimeFormat: "iso8601", events: impreciseRangesEvents },
+      document.location.href
+    );
+  </script>
+</body>
+</html>

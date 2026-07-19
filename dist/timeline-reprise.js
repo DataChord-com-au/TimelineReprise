@@ -2521,18 +2521,6 @@ const Reprise = Object.freeze({
         tracks[track].push({ left, right });
     }
 
-    function intervalsAreFree(intervals, candidates, gap) {
-        return candidates.every((candidate) =>
-            intervalIsFree(intervals, candidate.left, candidate.right, gap)
-        );
-    }
-
-    function reserveIntervals(tracks, track, intervals) {
-        for (const interval of intervals) {
-            reserveInterval(tracks, track, interval.left, interval.right);
-        }
-    }
-
     function findSlidingLeft(intervals, preferredLeft, width, maxLeft, gap) {
         if (preferredLeft >= maxLeft) return null;
 
@@ -2567,15 +2555,6 @@ const Reprise = Object.freeze({
     function placeFixedGroup(tracks, left, right, gap) {
         for (let track = 0; track < tracks.length; track++) {
             if (intervalIsFree(tracks[track], left, right, gap)) return track;
-        }
-
-        tracks.push([]);
-        return tracks.length - 1;
-    }
-
-    function placeFixedIntervals(tracks, intervals, gap) {
-        for (let track = 0; track < tracks.length; track++) {
-            if (intervalsAreFree(tracks[track], intervals, gap)) return track;
         }
 
         tracks.push([]);
@@ -2989,9 +2968,14 @@ const Reprise = Object.freeze({
                 const { item, placement, width } = entries[index];
                 const stagger = placement.track * sparklineStagger;
                 const maxStagger = Math.max(0, item.endPixel - placement.left - 1);
+                // The tape's own natural attach point: where its tape entered
+                // the sliding/collision placement, plus any stagger. This is
+                // deliberately independent of the sticky-right clamp below, so
+                // a label pushed off the visible edge cannot drag its tick
+                // along with it onto a position the tape never actually had.
                 const desiredLeft = placement.left + Math.min(stagger, maxStagger);
+                const tickLeft = Math.round(desiredLeft + 2);
                 const rightStickyLeft = stickyRight - width;
-                const rightSticky = desiredLeft > rightStickyLeft;
                 const left = Math.max(
                     stickyLeft,
                     Math.min(desiredLeft, rightStickyLeft)
@@ -3003,7 +2987,7 @@ const Reprise = Object.freeze({
                     left,
                     right: left + width,
                     width,
-                    rightSticky,
+                    tickLeft,
                     routeIndex: routedTapePlacements.length
                 });
             }
@@ -3015,26 +2999,22 @@ const Reprise = Object.freeze({
         );
 
         for (const entry of routedTapePlacements) {
-            const sparkLeft = Math.round(
-                entry.rightSticky
-                    ? entry.item.startPixel + 2
-                    : entry.left + 2
-            );
-            const occupiedIntervals = [{ left: entry.left, right: entry.right }];
-
-            if (sparkLeft < entry.left || sparkLeft + 1 > entry.right) {
-                const visibleSparkLeft = Math.max(stickyLeft, sparkLeft);
-                const visibleSparkRight = Math.min(stickyRight, sparkLeft + 1);
-                if (visibleSparkRight > visibleSparkLeft) {
-                    occupiedIntervals.push({
-                        left: visibleSparkLeft,
-                        right: visibleSparkRight
-                    });
-                }
+            // Usually tickLeft lands inside [left, right] (it does whenever
+            // the sticky-right clamp above didn't have to move the label), so
+            // the spark still touches the label - just possibly at a
+            // different point along it than the label's own left edge. Only
+            // when clamping pulled the label far enough that its own tape's
+            // attach point no longer falls anywhere on it do we drop the
+            // label instead of faking a connection or stretching one across
+            // an arbitrary distance.
+            if (entry.item.spark && (entry.tickLeft < entry.left - 1 || entry.tickLeft > entry.right + 1)) {
+                entry.item.data.elmt.style.display = "none";
+                entry.item.spark.elmt.style.display = "none";
+                continue;
             }
 
-            const track = placeFixedIntervals(shiftedTracks, occupiedIntervals, labelGap);
-            reserveIntervals(shiftedTracks, track, occupiedIntervals);
+            const track = placeFixedGroup(shiftedTracks, entry.left, entry.right, labelGap);
+            reserveInterval(shiftedTracks, track, entry.left, entry.right);
 
             setPaintedRect(entry.item.data, {
                 left: entry.left,
@@ -3042,9 +3022,10 @@ const Reprise = Object.freeze({
                 width: entry.width
             });
 
-            entry.item._repriseSparkLeft = sparkLeft;
-
-            if (entry.item.spark) updateTapeSparkLine(painter, entry.item, metrics, theme);
+            if (entry.item.spark) {
+                entry.item._repriseSparkLeft = entry.tickLeft;
+                updateTapeSparkLine(painter, entry.item, metrics, theme);
+            }
         }
 
         tracks = shiftedTracks;
