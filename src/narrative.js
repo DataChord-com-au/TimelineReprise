@@ -175,7 +175,6 @@
         this._eventColorScope = "both";
         this._useEmphasis = false;
         this._emphasisSpecs = {};
-        this._labelWidth = null;
 
         this._band = null;
         this._timeline = null;
@@ -219,7 +218,6 @@
         this._stickyInset = themedFinite(params, [labelTheme, eventTheme], "stickyInset", 2);
         this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
         this._labelOffset = themedFinite(params, [labelTheme, eventTheme], ["offset", "labelOffset"], 0, "labelOffset");
-        this._labelWidth = themedFiniteOrNull(params, [labelTheme, eventTheme], ["width", "labelWidth"], "labelWidth");
         this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 5);
         this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 6);
 
@@ -301,15 +299,8 @@
         return Math.max(1, Math.floor(available / this._trackCount));
     };
 
-    Timeline.NarrativeDecorator.prototype._labelTrackSizeValue = function () {
-        const trackSize = this._trackSizeValue();
-        return !this._isHorizontal() && this._labelWidth != null
-            ? Math.max(trackSize, this._labelWidth)
-            : trackSize;
-    };
-
     Timeline.NarrativeDecorator.prototype._trackStart = function (track) {
-        const trackSize = this._labelTrackSizeValue();
+        const trackSize = this._trackSizeValue();
         const increment = trackSize + this._trackGap;
 
         if (!this._isHorizontal() && this._trackAlign === "end") {
@@ -460,9 +451,7 @@
             rect.width || 0,
             record.labelElmt.offsetWidth || 0
         );
-        record.width = this._labelWidth != null && !this._isHorizontal()
-            ? visibleWidth
-            : Math.max(visibleWidth, record.labelElmt.scrollWidth || 0);
+        record.width = Math.max(visibleWidth, record.labelElmt.scrollWidth || 0);
         record.height = Math.max(
             rect.height || 0,
             record.labelElmt.offsetHeight || 0,
@@ -486,23 +475,13 @@
                 height: trackSize
             });
         } else {
-            if (this._labelWidth == null) {
-                this._setRect(record.labelElmt, {
-                    top: adjustedMainStart,
-                    left: trackStart
-                });
-                record.labelElmt.style.width = "";
-                record.labelElmt.style.whiteSpace = "";
-                record.labelElmt.style.overflowWrap = "";
-            } else {
-                this._setRect(record.labelElmt, {
-                    top: adjustedMainStart,
-                    left: trackStart,
-                    width: this._labelWidth
-                });
-                record.labelElmt.style.whiteSpace = "normal";
-                record.labelElmt.style.overflowWrap = "break-word";
-            }
+            this._setRect(record.labelElmt, {
+                top: adjustedMainStart,
+                left: trackStart,
+                width: trackSize
+            });
+            record.labelElmt.style.whiteSpace = "normal";
+            record.labelElmt.style.overflowWrap = "break-word";
         }
     };
 
@@ -723,7 +702,7 @@
         const verticalOccupied = [];
 
         const labelCrossEnd = (record, track) =>
-            this._trackStart(track) + Math.max(this._labelTrackSizeValue(), record.width || 0);
+            this._trackStart(track) + Math.max(this._trackSizeValue(), record.width || 0);
 
         const addOccupied = (track, start, size, record = null) => {
             occupied[track] ??= [];

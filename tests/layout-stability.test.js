@@ -12,14 +12,27 @@ function loadEventPainter() {
     proto._prepareForPainting = function () {};
     proto._findFreeTrack = function () { return 0; };
     proto._paintEventIcon = function (evt, iconTrack, left, metrics) {
-        return paintedData(
+        const data = paintedData(
             left,
             metrics?.trackOffset ?? 0,
             metrics?.iconWidth ?? 10,
             metrics?.iconHeight ?? 10
         );
+        data.icon = evt?.getIcon?.() ?? metrics?.icon ?? null;
+        return data;
     };
-    proto._paintEventTape = function () {};
+    proto._paintEventTape = function (
+        evt, iconTrack, startPixel, endPixel, color, opacity, metrics, theme
+    ) {
+        const data = paintedData(
+            startPixel,
+            metrics.trackOffset + iconTrack * metrics.trackIncrement,
+            endPixel - startPixel,
+            theme.event.tape.height
+        );
+        data.color = color;
+        return data;
+    };
     proto._paintEventLabel = function (evt, text, left, top, width, height) {
         return paintedData(left, top, width, height);
     };
@@ -27,7 +40,13 @@ function loadEventPainter() {
     proto.paint = function () {};
     proto.softPaint = function () {};
 
-    const Timeline = { OriginalEventPainter };
+    const Timeline = {
+        OriginalEventPainter,
+        ThemeIcons: {
+            getCssColor: (color) => color,
+            get: (color, size) => `theme-icon:${color}:${size}`
+        }
+    };
     const context = vm.createContext({
         Timeline,
         window: { Timeline }
@@ -35,6 +54,7 @@ function loadEventPainter() {
     const filename = path.join(__dirname, "..", "src", "event-layout.js");
 
     vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
+    Timeline.OriginalEventPainter._testTimeline = Timeline;
     return Timeline.OriginalEventPainter;
 }
 
@@ -97,6 +117,29 @@ function instantEvent(id, start) {
     };
 }
 
+function styledInstantEvent(id, start, {
+    color = null,
+    icon = null,
+    iconColor = null,
+    emphasis = null
+} = {}) {
+    const properties = { iconColor, emphasis };
+
+    return {
+        ...instantEvent(id, start),
+        getColor: () => color,
+        getIcon: () => icon,
+        getProperty: (name) => properties[name]
+    };
+}
+
+function eventOnLane(id, start, end, lane) {
+    return {
+        ...event(id, start, end),
+        getTrackNum: () => lane
+    };
+}
+
 function eventTheme() {
     return {
         event: {
@@ -107,9 +150,7 @@ function eventTheme() {
                     eventRoutingThreshold: 28,
                     tapeGap: 2,
                     toLabelGap: 2,
-                    labelHorizontalGap: 10,
-                    labelTrackCount: 1,
-                    labelTrackHeight: 20,
+                    labelRoutingGap: 10,
                     labelTrackGap: 2,
                     sparklineStagger: 8,
                     stickyLeftInset: 0
@@ -119,10 +160,9 @@ function eventTheme() {
                     tapeGap: 2,
                     toLabelGap: 2,
                     labelWidth: 80,
-                    labelTrackCount: 1,
+                    labelRoutingGap: 5,
                     labelTrackGap: 5,
                     stickyTopInset: 0,
-                    stickyLabelGap: 5,
                     toEventGap: 10
                 },
                 short: { minDisplayLength: 4 }
@@ -197,6 +237,47 @@ test("native decorator layers are not remapped by Reprise", () => {
     band.createLayerDiv(105);
 
     assert.deepEqual(createdLayers, [1, 10, 100, 105]);
+});
+
+test("event-layout theme mapping carries instant iconColor into the native painter theme", () => {
+    const OriginalEventPainter = loadEventPainter();
+    const theme = eventTheme();
+
+    OriginalEventPainter._testTimeline.EventLayoutThemeShim.applyEventTheme(
+        theme,
+        { instant: { iconColor: "orange" } },
+        { isHorizontal: () => true, isVertical: () => false }
+    );
+
+    assert.equal(theme.event.instant.iconColor, "orange");
+});
+
+test("event-layout theme mapping carries bubble width and maxHeight into the native painter theme", () => {
+    const OriginalEventPainter = loadEventPainter();
+    const theme = eventTheme();
+    const titleStyler = function () {};
+    const shim = OriginalEventPainter._testTimeline.EventLayoutThemeShim;
+
+    theme.event.bubble = { width: 250, maxHeight: 0, titleStyler };
+
+    shim.applyEventTheme(
+        theme,
+        { bubble: { width: 360, maxHeight: 480 } },
+        { isHorizontal: () => true, isVertical: () => false }
+    );
+
+    assert.equal(theme.event.bubble.width, 360);
+    assert.equal(theme.event.bubble.maxHeight, 480);
+    assert.equal(theme.event.bubble.titleStyler, titleStyler);
+
+    shim.applyEventTheme(
+        theme,
+        { bubble: { maxHeight: null } },
+        { isHorizontal: () => true, isVertical: () => false }
+    );
+
+    assert.equal(theme.event.bubble.width, 360);
+    assert.equal(theme.event.bubble.maxHeight, null);
 });
 
 function tapeLabel(evt, natural, width, height) {
@@ -373,11 +454,9 @@ function eventThemeWithTrackGap(trackGap) {
                 height: 4,
                 horizontal: {
                     eventRoutingThreshold: 28,
-                    labelTrackCount: 1,
-                    labelTrackHeight: 20,
                     sparklineStagger: 8,
                     stickyLeftInset: 0
-                    // tapeGap, toLabelGap, labelHorizontalGap and labelTrackGap are
+                    // tapeGap, toLabelGap, labelRoutingGap and labelTrackGap are
                     // deliberately left unset so each exercises its own independent
                     // default instead of falling back to track.gap.
                 },
@@ -470,11 +549,11 @@ test("customizing track.gap does not change the toLabelGap/labelTrackGap default
     }
 });
 
-test("customizing track.gap does not change the labelHorizontalGap default used to decide whether adjacent labels share a row", () => {
+test("customizing track.gap does not change the labelRoutingGap default used to decide whether adjacent labels share a row", () => {
     function buildItems() {
         return [
             tapeLabel(event("d", 0, 10), 0, 30, 16),
-            tapeLabel(event("e", 100, 110), 50, 30, 16)
+            tapeLabel(event("e", 100, 110), 38, 30, 16)
         ];
     }
 
@@ -491,14 +570,385 @@ test("customizing track.gap does not change the labelHorizontalGap default used 
     assert.equal(
         baselineItems[0].data.top,
         baselineItems[1].data.top,
-        "labels 20px apart should already share a row at the default gap"
+        "labels exactly 8px apart should share a row at the default gap"
     );
     assert.equal(
         detunedItems[0].data.top,
         detunedItems[1].data.top,
-        "a large track.gap must not force these labels into separate rows once labelHorizontalGap has its own default"
+        "a large track.gap must not force these labels into separate rows once labelRoutingGap has its own default"
     );
 });
+
+function buildPointLabelGapFixture({ labelRoutingGap, labelTrackGap, overlap }) {
+    const painter = makeEventPainter("horizontal", 300);
+    const tapeSpec = painter._params.theme.event.tape.horizontal;
+    const secondLeft = overlap ? 0 : 50;
+    const labels = [
+        {
+            evt: instantEvent("label-a", 0),
+            lane: 0,
+            trackTopOffset: 0,
+            data: paintedData(0, 0, 30, 8),
+            naturalLeft: 0,
+            width: 30,
+            height: 8
+        },
+        {
+            evt: instantEvent("label-b", secondLeft),
+            lane: 0,
+            trackTopOffset: 0,
+            data: paintedData(secondLeft, 0, 30, 8),
+            naturalLeft: secondLeft,
+            width: 30,
+            height: 8
+        }
+    ];
+
+    tapeSpec.labelRoutingGap = labelRoutingGap;
+    tapeSpec.labelTrackGap = labelTrackGap;
+    painter._reprisePointLabels.push(...labels);
+    painter.paint();
+
+    return labels;
+}
+
+test("labelRoutingGap controls whether nearby horizontal labels use another row", () => {
+    const close = buildPointLabelGapFixture({
+        labelRoutingGap: 10,
+        labelTrackGap: 2,
+        overlap: false
+    });
+    const separated = buildPointLabelGapFixture({
+        labelRoutingGap: 25,
+        labelTrackGap: 2,
+        overlap: false
+    });
+
+    assert.equal(close[0].data.top, close[1].data.top);
+    assert.notEqual(separated[0].data.top, separated[1].data.top);
+});
+
+test("labelTrackGap controls the vertical gap between routed horizontal label rows", () => {
+    for (const labelTrackGap of [2, 9]) {
+        const labels = buildPointLabelGapFixture({
+            labelRoutingGap: 0,
+            labelTrackGap,
+            overlap: true
+        });
+
+        assert.equal(
+            Math.abs(labels[1].data.top - labels[0].data.top) - 20,
+            labelTrackGap
+        );
+    }
+});
+
+test("vertical labelRoutingGap controls spacing between labels in a column", () => {
+    for (const [labelRoutingGap, expected] of [[undefined, 4], [9, 9]]) {
+        const painter = makeEventPainter("vertical", 300);
+        const labels = [
+            tapeLabel(event("vertical-a", 0, 100), 0, 80, 20),
+            tapeLabel(event("vertical-b", 21, 120), 21, 80, 20)
+        ];
+
+        if (labelRoutingGap === undefined) {
+            delete painter._params.theme.event.tape.vertical.labelRoutingGap;
+        } else {
+            painter._params.theme.event.tape.vertical.labelRoutingGap = labelRoutingGap;
+        }
+        painter._repriseTapeLabels.push(...labels);
+        painter.paint();
+
+        assert.equal(labels[1].data.top - (labels[0].data.top + labels[0].data.height), expected);
+    }
+});
+
+test("vertical labelTrackGap controls spacing between routed side columns", () => {
+    function columnPitch(labelTrackGap) {
+        const painter = makeEventPainter("vertical", 300);
+        const first = {
+            evt: { ...untrackedEvent("vertical-point-a", 20, 20), isInstant: () => true },
+            data: paintedData(0, 20, 80, 20),
+            width: 80,
+            height: 20
+        };
+        const second = {
+            evt: { ...untrackedEvent("vertical-point-b", 20, 20), isInstant: () => true },
+            data: paintedData(0, 20, 80, 20),
+            width: 80,
+            height: 20
+        };
+
+        painter._params.theme.event.tape.vertical.labelTrackGap = labelTrackGap;
+        painter._reprisePointLabels.push(first, second);
+        painter.paint();
+
+        return second.data.left - first.data.left;
+    }
+
+    assert.equal(columnPitch(9) - columnPitch(2), 7);
+});
+
+function buildRangeGapFixture(
+    orientation,
+    { toLabelGap, tapeGap = 2, tapeWidth = 4, trackGap = 2 } = {}
+) {
+    const painter = makeEventPainter(orientation, 400);
+    const theme = painter._params.theme;
+    const tapeSpec = theme.event.tape[orientation];
+    const evt = eventOnLane("range", 20, 200, 0);
+    const label = tapeLabel(evt, 20, 40, 16);
+    const tape = {
+        evt,
+        lane: 0,
+        data: paintedData(20, 80, 180, tapeWidth),
+        startPixel: 20,
+        endPixel: 200
+    };
+
+    theme.event.tape.height = tapeWidth;
+    theme.event.track.gap = trackGap;
+    painter._repriseMetrics.trackGap = trackGap;
+    tapeSpec.tapeGap = tapeGap;
+    if (toLabelGap === undefined) {
+        delete tapeSpec.toLabelGap;
+    } else {
+        tapeSpec.toLabelGap = toLabelGap;
+    }
+
+    painter._repriseTapeLabels.push(label);
+    painter._repriseTapeBars.push(tape);
+    painter.paint();
+
+    return { label, painter, tape };
+}
+
+function visibleSparklineToLabelGap(orientation, label) {
+    return orientation === "horizontal"
+        ? label.data.top - (label.spark.top + label.spark.height)
+        : label.data.left - (label.spark.left + label.spark.width);
+}
+
+function crossAxisPosition(orientation, data) {
+    return orientation === "horizontal" ? data.top : data.left;
+}
+
+function crossAxisSize(orientation, data) {
+    return orientation === "horizontal" ? data.height : data.width;
+}
+
+for (const orientation of ["horizontal", "vertical"]) {
+    test(`${orientation} range toLabelGap changes only the visible sparkline endpoint gap`, () => {
+        const baseline = buildRangeGapFixture(orientation, {
+            toLabelGap: 1,
+            tapeGap: 8
+        });
+        const changed = buildRangeGapFixture(orientation, {
+            toLabelGap: 6,
+            tapeGap: 8
+        });
+        const defaulted = buildRangeGapFixture(orientation, { tapeGap: 8 });
+
+        assert.equal(visibleSparklineToLabelGap(orientation, baseline.label), 1);
+        assert.equal(visibleSparklineToLabelGap(orientation, changed.label), 6);
+        assert.equal(visibleSparklineToLabelGap(orientation, defaulted.label), 4);
+        assert.equal(
+            crossAxisPosition(orientation, changed.label.data),
+            crossAxisPosition(orientation, baseline.label.data),
+            "toLabelGap must not move the label row/column"
+        );
+        assert.deepEqual(
+            { left: changed.label.data.left, top: changed.label.data.top },
+            { left: baseline.label.data.left, top: baseline.label.data.top },
+            "toLabelGap must not move the label"
+        );
+        assert.equal(
+            crossAxisPosition(orientation, changed.tape.data),
+            crossAxisPosition(orientation, baseline.tape.data),
+            "toLabelGap must not move the tape"
+        );
+        assert.deepEqual(
+            { left: changed.tape.data.left, top: changed.tape.data.top },
+            { left: baseline.tape.data.left, top: baseline.tape.data.top },
+            "toLabelGap must not move the tape"
+        );
+    });
+
+    test(`${orientation} range sparkline gap is independent of tape width, tapeGap, and track gap`, () => {
+        const variants = [
+            { tapeWidth: 4, tapeGap: 2, trackGap: 2 },
+            { tapeWidth: 12, tapeGap: 2, trackGap: 2 },
+            { tapeWidth: 4, tapeGap: 9, trackGap: 2 },
+            { tapeWidth: 4, tapeGap: 2, trackGap: 50 }
+        ];
+
+        for (const variant of variants) {
+            const { label } = buildRangeGapFixture(orientation, {
+                ...variant,
+                toLabelGap: 1
+            });
+            assert.equal(
+                visibleSparklineToLabelGap(orientation, label),
+                1,
+                JSON.stringify(variant)
+            );
+        }
+    });
+
+    test(`${orientation} range tapeGap controls tape-lane and tape-block spacing`, () => {
+        function build(tapeGap) {
+            const painter = makeEventPainter(orientation, 500);
+            const theme = painter._params.theme;
+            const tapeSpec = theme.event.tape[orientation];
+            const events = [
+                eventOnLane("lane-0", 20, 140, 0),
+                eventOnLane("lane-1", 180, 320, 1)
+            ];
+            const labels = events.map((evt) => tapeLabel(evt, evt.getStart(), 40, 16));
+            const tapes = events.map((evt) => ({
+                evt,
+                lane: evt.getTrackNum(),
+                data: paintedData(evt.getStart(), 80, evt.getEnd() - evt.getStart(), 4),
+                startPixel: evt.getStart(),
+                endPixel: evt.getEnd()
+            }));
+
+            tapeSpec.tapeGap = tapeGap;
+            tapeSpec.toLabelGap = 0;
+            painter._repriseTapeLabels.push(...labels);
+            painter._repriseTapeBars.push(...tapes);
+            painter.paint();
+
+            return { labels, tapes };
+        }
+
+        for (const tapeGap of [2, 9]) {
+            const { labels, tapes } = build(tapeGap);
+            const firstTapeEnd = crossAxisPosition(orientation, tapes[0].data) +
+                crossAxisSize(orientation, tapes[0].data);
+            const secondTapeEnd = crossAxisPosition(orientation, tapes[1].data) +
+                crossAxisSize(orientation, tapes[1].data);
+
+            assert.equal(
+                crossAxisPosition(orientation, tapes[1].data) - firstTapeEnd,
+                tapeGap,
+                "tapeGap must set the space between adjacent tape lanes"
+            );
+            assert.equal(
+                crossAxisPosition(orientation, labels[0].data) - secondTapeEnd,
+                tapeGap,
+                "the tape block must use tapeGap before the first label row/column"
+            );
+        }
+    });
+
+    test(`${orientation} range tapeGap does not change time-axis lane assignment`, () => {
+        function assignedLanes(tapeGap) {
+            const painter = makeEventPainter(orientation, 500);
+            const tapeSpec = painter._params.theme.event.tape[orientation];
+            const labels = [
+                tapeLabel(untrackedEvent("first", 20, 100), 20, 40, 16),
+                tapeLabel(untrackedEvent("second", 101, 180), 101, 40, 16)
+            ];
+
+            tapeSpec.tapeGap = tapeGap;
+            painter._repriseTapeLabels.push(...labels);
+            painter.paint();
+
+            return labels.map((label) => label.lane);
+        }
+
+        assert.deepEqual(assignedLanes(2), [0, 0]);
+        assert.deepEqual(assignedLanes(50), [0, 0]);
+    });
+
+    test(`${orientation} range excessive toLabelGap clamps sparkline length to zero`, () => {
+        const { label } = buildRangeGapFixture(orientation, {
+            toLabelGap: 100,
+            tapeGap: 2
+        });
+
+        assert.equal(
+            orientation === "horizontal" ? label.spark.height : label.spark.width,
+            0
+        );
+    });
+}
+
+for (const orientation of ["horizontal", "vertical"]) {
+    test(`${orientation} unthemed range sparklines fall back to native tape blue`, () => {
+        const painter = makeEventPainter(orientation);
+        const label = tapeLabel(event("default-blue", 20, 120), 20, 60, 16);
+
+        delete painter._params.theme.event.duration.color;
+        label.tapeColor = undefined;
+        painter._repriseTapeLabels.push(label);
+        painter.paint();
+
+        assert.equal(
+            label.spark.elmt.style.backgroundColor,
+            "color-mix(in srgb, blue 70%, white)"
+        );
+    });
+}
+
+function buildShortRangeGapFixture(
+    orientation,
+    { horizontalGap, verticalGap } = {}
+) {
+    const painter = makeEventPainter(orientation, 400);
+    const metrics = painter._repriseMetrics;
+    const theme = painter._params.theme;
+    const short = eventOnLane("short", 20, 30, 0);
+
+    theme.event.tape.horizontal.toLabelGap = horizontalGap;
+    theme.event.tape.vertical.toLabelGap = verticalGap;
+
+    const tape = painter._paintEventTape(
+        short,
+        0,
+        20,
+        30,
+        "gray",
+        100,
+        metrics,
+        theme,
+        0
+    );
+    const label = painter._paintEventLabel(
+        short,
+        "short",
+        20,
+        metrics.trackOffset + theme.event.tape.height,
+        40,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+    painter.paint();
+
+    return { label, tape };
+}
+
+function visibleShortRangeLabelGap(orientation, fixture) {
+    return orientation === "horizontal"
+        ? fixture.label.top - (fixture.tape.top + fixture.tape.height)
+        : fixture.label.left - (fixture.tape.left + fixture.tape.width);
+}
+
+for (const orientation of ["horizontal", "vertical"]) {
+    test(`${orientation} short ranges use the orientation-specific range toLabelGap`, () => {
+        const fixture = buildShortRangeGapFixture(orientation, {
+            horizontalGap: 4,
+            verticalGap: 9
+        });
+
+        assert.equal(
+            visibleShortRangeLabelGap(orientation, fixture),
+            orientation === "horizontal" ? 4 : 9
+        );
+    });
+}
 
 test("horizontal instant icons use the adjusted timepoint baseline", () => {
     const painter = makeEventPainter("horizontal");
@@ -517,11 +967,162 @@ test("horizontal instant icons use the adjusted timepoint baseline", () => {
     assert.equal(painter._reprisePointIcons[0].data.left, 20);
 });
 
-test("horizontal instant label gap zero uses the adjusted baseline", () => {
+for (const orientation of ["horizontal", "vertical"]) {
+    test(`${orientation} instant iconColor follows default, theme, event, and emphasis precedence`, () => {
+        function paint({
+            themeColor,
+            eventColor,
+            eventIconColor,
+            emphasisIconColor,
+            useEmphasis = true,
+            scope = "graphic",
+            icon = null
+        } = {}) {
+            const painter = makeEventPainter(orientation);
+            const theme = painter._params.theme;
+            const evt = styledInstantEvent("instant", 20, {
+                color: eventColor,
+                icon,
+                iconColor: eventIconColor,
+                emphasis: "critical"
+            });
+
+            theme.event.instant.iconColor = themeColor;
+            theme.eventTheme = {
+                eventColorScope: scope,
+                useEmphasis,
+                emphasis: {
+                    critical: emphasisIconColor == null
+                        ? {}
+                        : { iconColor: emphasisIconColor }
+                }
+            };
+
+            return painter._paintEventIcon(
+                evt,
+                0,
+                20,
+                painter._repriseMetrics,
+                theme,
+                0
+            ).icon;
+        }
+
+        assert.equal(paint(), "theme-icon:blue:10");
+        assert.equal(paint({ themeColor: "orange" }), "theme-icon:orange:10");
+        assert.equal(
+            paint({ themeColor: "orange", eventIconColor: "green" }),
+            "theme-icon:green:10"
+        );
+        assert.equal(
+            paint({
+                themeColor: "orange",
+                eventIconColor: "green",
+                emphasisIconColor: "red"
+            }),
+            "theme-icon:red:10"
+        );
+        assert.equal(
+            paint({
+                themeColor: "orange",
+                eventIconColor: "green",
+                emphasisIconColor: "red",
+                useEmphasis: false
+            }),
+            "theme-icon:green:10"
+        );
+    });
+
+    test(`${orientation} instant event color obeys eventColorScope without hiding explicit icon colors`, () => {
+        function paint(scope, eventIconColor = null) {
+            const painter = makeEventPainter(orientation);
+            const theme = painter._params.theme;
+            const evt = styledInstantEvent("instant", 20, {
+                color: "purple",
+                iconColor: eventIconColor
+            });
+
+            theme.event.instant.iconColor = "orange";
+            theme.eventTheme = { eventColorScope: scope };
+
+            return painter._paintEventIcon(
+                evt,
+                0,
+                20,
+                painter._repriseMetrics,
+                theme,
+                0
+            ).icon;
+        }
+
+        assert.equal(paint("graphic"), "theme-icon:purple:10");
+        assert.equal(paint("both"), "theme-icon:purple:10");
+        assert.equal(paint("label"), "theme-icon:orange:10");
+        assert.equal(paint("none"), "theme-icon:orange:10");
+        assert.equal(paint("label", "green"), "theme-icon:green:10");
+    });
+
+    test(`${orientation} instant custom icon URLs survive theme defaults but yield to event iconColor`, () => {
+        const painter = makeEventPainter(orientation);
+        const theme = painter._params.theme;
+        theme.event.instant.iconColor = "orange";
+
+        function paint(eventIconColor) {
+            return painter._paintEventIcon(
+                styledInstantEvent("instant", 20, {
+                    icon: "custom.svg",
+                    iconColor: eventIconColor
+                }),
+                0,
+                20,
+                painter._repriseMetrics,
+                theme,
+                0
+            ).icon;
+        }
+
+        assert.equal(paint(null), "custom.svg");
+        assert.equal(paint("green"), "theme-icon:green:10");
+    });
+}
+
+test("duration emphasis iconColor overrides event tapeColor", () => {
+    const painter = makeEventPainter("horizontal");
+    const theme = painter._params.theme;
+    const evt = {
+        ...event("duration", 20, 80),
+        getColor: () => null,
+        getProperty: (name) => ({
+            emphasis: "critical",
+            tapeColor: "green"
+        })[name]
+    };
+
+    theme.eventTheme = {
+        useEmphasis: true,
+        emphasis: { critical: { iconColor: "red" } }
+    };
+
+    const tape = painter._paintEventTape(
+        evt,
+        0,
+        20,
+        80,
+        "gray",
+        100,
+        painter._repriseMetrics,
+        theme,
+        0
+    );
+
+    assert.equal(tape.color, "red");
+});
+
+test("horizontal instant toLabelGap is the exact visible dot-to-label gap", () => {
     const painter = makeEventPainter("horizontal");
     const evt = instantEvent("instant", 20);
     const theme = painter._params.theme;
-    theme.event.instant.horizontal = { labelGap: 0 };
+    theme.event.instant.horizontal = { toLabelGap: 6 };
 
     const iconData = paintedData(20, 10, 10, 10);
     painter._reprisePointIcons.push({
@@ -542,11 +1143,62 @@ test("horizontal instant label gap zero uses the adjusted baseline", () => {
         "timeline-event-label"
     );
 
-    assert.equal(label.left, 28);
+    assert.equal(label.left, 36);
     assert.equal(label.top, 11);
-    assert.equal(label.elmt.style.left, "28px");
+    assert.equal(label.elmt.style.left, "36px");
     assert.equal(label.elmt.style.top, "11px");
-    assert.equal(painter._reprisePointLabels[0].naturalLeft, 28);
+    assert.equal(label.left - (iconData.left + iconData.width), 6);
+    assert.equal(painter._reprisePointLabels[0].naturalLeft, 36);
+});
+
+test("horizontal instant toLabelGap defaults to 4px", () => {
+    const painter = makeEventPainter("horizontal");
+    const evt = instantEvent("instant", 20);
+    const iconData = paintedData(20, 10, 10, 10);
+
+    painter._reprisePointIcons.push({ evt, lane: 0, trackTopOffset: 8, data: iconData });
+    const label = painter._paintEventLabel(
+        evt,
+        "instant",
+        0,
+        0,
+        60,
+        8,
+        painter._params.theme,
+        "timeline-event-label"
+    );
+
+    assert.equal(label.left - (iconData.left + iconData.width), 4);
+});
+
+test("vertical instant toLabelGap is exact and defaults to 4px", () => {
+    function measure(toLabelGap) {
+        const painter = makeEventPainter("vertical");
+        const evt = instantEvent("instant", 20);
+        const theme = painter._params.theme;
+        const iconData = paintedData(10, 20, 10, 10);
+
+        if (toLabelGap !== undefined) {
+            theme.event.instant.vertical = { toLabelGap };
+        }
+        painter._reprisePointIcons.push({ evt, lane: 0, data: iconData, width: 10, height: 10 });
+        const label = painter._paintEventLabel(
+            evt,
+            "instant",
+            20,
+            0,
+            60,
+            8,
+            theme,
+            "timeline-event-label"
+        );
+        painter.paint();
+
+        return label.top - (iconData.top + iconData.height);
+    }
+
+    assert.equal(measure(), 4);
+    assert.equal(measure(7), 7);
 });
 
 test("horizontal stacked duration labels place the longest span outside", () => {
@@ -621,7 +1273,6 @@ function makeNarrative(orientation) {
     decorator._trackGap = 5;
     decorator._trackAlign = "start";
     decorator._labelOffset = 0;
-    decorator._labelWidth = horizontal ? null : 40;
     decorator._instantRecords = [];
 
     return decorator;
@@ -674,5 +1325,15 @@ test("vertical narrative ranges choose locally free side tracks", () => {
         "120px",
         "120px",
         "120px"
+    ]);
+    assert.deepEqual(lower.map((record) => record.labelElmt.style.left), [
+        "0px",
+        "45px",
+        "90px"
+    ]);
+    assert.deepEqual(lower.map((record) => record.labelElmt.style.width), [
+        "40px",
+        "40px",
+        "40px"
     ]);
 });

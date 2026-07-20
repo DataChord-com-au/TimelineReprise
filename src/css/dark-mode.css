@@ -1,3 +1,13 @@
+/*------------------- Timeline Layout ----------------*/
+
+.timeline-vertical .timeline-date-label {
+  box-sizing: border-box;
+  width: auto;
+  padding-right: 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+
 /*------------------- Dark Mode Styles ----------------*/
 
 @media (prefers-color-scheme: dark) {

@@ -164,7 +164,7 @@ class EventTheme {
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
         this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });
-        this.#assertNumber(spec.labelGap, `${caller}.labelGap`, { nonNegative: true });
+        this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
     }
@@ -180,15 +180,12 @@ class EventTheme {
         this.#assertNumber(spec.eventRoutingThreshold, `${caller}.eventRoutingThreshold`, { positive: true });
         this.#assertNumber(spec.tapeGap, `${caller}.tapeGap`, { nonNegative: true });
         this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelHorizontalGap, `${caller}.labelHorizontalGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelTrackCount, `${caller}.labelTrackCount`, { positive: true });
-        this.#assertNumber(spec.labelTrackHeight, `${caller}.labelTrackHeight`, { positive: true });
+        this.#assertNumber(spec.labelRoutingGap, `${caller}.labelRoutingGap`, { nonNegative: true });
         this.#assertNumber(spec.labelTrackGap, `${caller}.labelTrackGap`, { nonNegative: true });
         this.#assertNumber(spec.labelWidth, `${caller}.labelWidth`, { positive: true });
         this.#assertNumber(spec.sparklineStagger, `${caller}.sparklineStagger`, { nonNegative: true });
         this.#assertNumber(spec.stickyLeftInset, `${caller}.stickyLeftInset`, { nonNegative: true });
         this.#assertNumber(spec.stickyTopInset, `${caller}.stickyTopInset`, { nonNegative: true });
-        this.#assertNumber(spec.stickyLabelGap, `${caller}.stickyLabelGap`, { nonNegative: true });
         this.#assertNumber(spec.toEventGap, `${caller}.toEventGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
@@ -196,7 +193,6 @@ class EventTheme {
         if (spec.short !== undefined) {
             this.#assertPlainObject(spec.short, `${caller}.short`);
             this.#assertNumber(spec.short.minDisplayLength, `${caller}.short.minDisplayLength`, { positive: true });
-            this.#assertNumber(spec.short.toLabelGap, `${caller}.short.toLabelGap`, { nonNegative: true });
         }
     }
 
@@ -206,8 +202,6 @@ class EventTheme {
         this.#assertNumber(spec.stickyInset, `${caller}.stickyInset`, { nonNegative: true });
         this.#assertNumber(spec.stickyGap, `${caller}.stickyGap`, { nonNegative: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
-        this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
-        this.#assertNumber(spec.instantLabelGap, `${caller}.instantLabelGap`, { nonNegative: true });
         this.#assertBoolean(spec.labels, `${caller}.labels`);
     }
 
@@ -254,7 +248,6 @@ class EventTheme {
         this.#assertColor(spec.spanColor, `${caller}.spanColor`);
         this.#assertColor(spec.lineColor, `${caller}.lineColor`);
         this.#assertColor(spec.dividerColor, `${caller}.dividerColor`);
-        this.#assertColor(spec.tapeColor, `${caller}.tapeColor`);
     }
 
     static #assertEmphasisMap(spec, caller) {

@@ -139,8 +139,7 @@ class EmphasisStyle {
             textColor,
             spanColor,
             lineColor,
-            dividerColor,
-            tapeColor
+            dividerColor
         } = config;
         const normalizedId = validateEmphasisSpecId(id, `${caller}.id`);
 
@@ -149,12 +148,12 @@ class EmphasisStyle {
         setOptional(this, "labels", labels, validateBoolean, caller);
         setOptional(this, "bubbles", bubbles, validateBoolean, caller);
         setOptional(this, "eventColorScope", eventColorScope, validateEventColorScope, caller);
-        setOptional(this, "color", color ?? iconColor, normalizeColorString, caller);
+        setOptional(this, "color", color, normalizeColorString, caller);
+        setOptional(this, "iconColor", iconColor, normalizeColorString, caller);
         setOptional(this, "labelColor", labelColor, normalizeColorString, caller);
         setOptional(this, "textColor", textColor, normalizeColorString, caller);
         setOptional(this, "spanColor", spanColor, normalizeColorString, caller);
         setOptional(this, "lineColor", lineColor ?? dividerColor, normalizeColorString, caller);
-        setOptional(this, "tapeColor", tapeColor, normalizeColorString, caller);
 
         Object.freeze(this);
     }
@@ -338,7 +337,7 @@ class EventTheme {
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
         this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });
-        this.#assertNumber(spec.labelGap, `${caller}.labelGap`, { nonNegative: true });
+        this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
     }
@@ -354,15 +353,12 @@ class EventTheme {
         this.#assertNumber(spec.eventRoutingThreshold, `${caller}.eventRoutingThreshold`, { positive: true });
         this.#assertNumber(spec.tapeGap, `${caller}.tapeGap`, { nonNegative: true });
         this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelHorizontalGap, `${caller}.labelHorizontalGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelTrackCount, `${caller}.labelTrackCount`, { positive: true });
-        this.#assertNumber(spec.labelTrackHeight, `${caller}.labelTrackHeight`, { positive: true });
+        this.#assertNumber(spec.labelRoutingGap, `${caller}.labelRoutingGap`, { nonNegative: true });
         this.#assertNumber(spec.labelTrackGap, `${caller}.labelTrackGap`, { nonNegative: true });
         this.#assertNumber(spec.labelWidth, `${caller}.labelWidth`, { positive: true });
         this.#assertNumber(spec.sparklineStagger, `${caller}.sparklineStagger`, { nonNegative: true });
         this.#assertNumber(spec.stickyLeftInset, `${caller}.stickyLeftInset`, { nonNegative: true });
         this.#assertNumber(spec.stickyTopInset, `${caller}.stickyTopInset`, { nonNegative: true });
-        this.#assertNumber(spec.stickyLabelGap, `${caller}.stickyLabelGap`, { nonNegative: true });
         this.#assertNumber(spec.toEventGap, `${caller}.toEventGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
@@ -370,7 +366,6 @@ class EventTheme {
         if (spec.short !== undefined) {
             this.#assertPlainObject(spec.short, `${caller}.short`);
             this.#assertNumber(spec.short.minDisplayLength, `${caller}.short.minDisplayLength`, { positive: true });
-            this.#assertNumber(spec.short.toLabelGap, `${caller}.short.toLabelGap`, { nonNegative: true });
         }
     }
 
@@ -380,8 +375,6 @@ class EventTheme {
         this.#assertNumber(spec.stickyInset, `${caller}.stickyInset`, { nonNegative: true });
         this.#assertNumber(spec.stickyGap, `${caller}.stickyGap`, { nonNegative: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
-        this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
-        this.#assertNumber(spec.instantLabelGap, `${caller}.instantLabelGap`, { nonNegative: true });
         this.#assertBoolean(spec.labels, `${caller}.labels`);
     }
 
@@ -428,7 +421,6 @@ class EventTheme {
         this.#assertColor(spec.spanColor, `${caller}.spanColor`);
         this.#assertColor(spec.lineColor, `${caller}.lineColor`);
         this.#assertColor(spec.dividerColor, `${caller}.dividerColor`);
-        this.#assertColor(spec.tapeColor, `${caller}.tapeColor`);
     }
 
     static #assertEmphasisMap(spec, caller) {
@@ -1372,11 +1364,11 @@ const Reprise = Object.freeze({
     Timeline._eventLayout23PatchApplied = true;
 
     const HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET = 0;
-    const HORIZONTAL_INSTANT_LABEL_BASELINE_OFFSET = -2;
     const HORIZONTAL_INSTANT_LABEL_BASELINE_TOP_OFFSET = 1;
-    const VERTICAL_INSTANT_LABEL_BASELINE_TOP_OFFSET = -2;
     const VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET = 0;
     const DEFAULT_INSTANT_ICON_SIZE = 9;
+    const DEFAULT_INSTANT_ICON_COLOR = "blue";
+    const DEFAULT_RANGE_TAPE_COLOR = "blue";
 
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
@@ -1636,6 +1628,51 @@ const Reprise = Object.freeze({
             : null;
     }
 
+    function getScopedEventGraphicColor(evt, theme) {
+        const scope = getEventColorScope(evt, theme, "graphic");
+        if (scope !== "graphic" && scope !== "both") return null;
+
+        const color = getEventColor(evt, theme);
+        return color != null ? resolveCssColor(color) || color : null;
+    }
+
+    function getEventInstantIconColor(evt, theme) {
+        const emphasisValue = getEmphasisValue(evt, theme, "iconColor");
+        if (emphasisValue.found) {
+            const color = stringValue(emphasisValue.value);
+            if (color != null) return resolveCssColor(color) || color;
+        }
+
+        const eventColor = stringValue(getEventProperty(evt, "iconColor"));
+        if (eventColor != null) return resolveCssColor(eventColor) || eventColor;
+
+        const scopedColor = getScopedEventGraphicColor(evt, theme);
+        if (scopedColor != null) return scopedColor;
+
+        // An authored icon URL is already a more specific graphic than the
+        // theme/default dot colour. Event and emphasis colour overrides above
+        // still replace it deliberately.
+        if (stringValue(evt?.getIcon?.()) != null) return null;
+
+        return stringValue(theme?.event?.instant?.iconColor) ||
+            resolveCssColor(DEFAULT_INSTANT_ICON_COLOR) ||
+            DEFAULT_INSTANT_ICON_COLOR;
+    }
+
+    function getEventWithThemeIcon(evt, theme, metrics) {
+        const color = getEventInstantIconColor(evt, theme);
+        if (color == null || typeof Timeline.ThemeIcons?.get !== "function") return evt;
+
+        const width = positiveOr(metrics?.iconWidth, DEFAULT_INSTANT_ICON_SIZE);
+        const height = positiveOr(metrics?.iconHeight, width);
+        const icon = Timeline.ThemeIcons.get(color, Math.max(width, height));
+        if (icon == null) return evt;
+
+        const themedEvent = Object.create(evt);
+        themedEvent.getIcon = function () { return icon; };
+        return themedEvent;
+    }
+
     function getDefaultGraphicColor(evt, theme, fallback) {
         if (evt?.isInstant?.()) {
             return theme?.event?.instant?.impreciseColor || fallback;
@@ -1683,6 +1720,7 @@ const Reprise = Object.freeze({
         if (!isObject(theme.event.label)) theme.event.label = {};
         if (!isObject(theme.event.duration)) theme.event.duration = {};
         if (!isObject(theme.event.instant)) theme.event.instant = {};
+        if (!isObject(theme.event.bubble)) theme.event.bubble = {};
         return theme.event;
     }
 
@@ -1715,6 +1753,18 @@ const Reprise = Object.freeze({
             eventTheme.bubbles = authoredTheme.bubble.enabled;
         }
 
+        if (isObject(authoredTheme.bubble)) {
+            setNumber(eventTheme.bubble, "width", authoredTheme.bubble.width);
+
+            if (hasDefinedOwn(authoredTheme.bubble, "maxHeight")) {
+                if (authoredTheme.bubble.maxHeight === null) {
+                    eventTheme.bubble.maxHeight = null;
+                } else {
+                    setNumber(eventTheme.bubble, "maxHeight", authoredTheme.bubble.maxHeight);
+                }
+            }
+        }
+
         if (hasDefinedOwn(authoredTheme, "eventColorScope")) {
             eventTheme.eventColorScope = authoredTheme.eventColorScope;
         }
@@ -1739,6 +1789,7 @@ const Reprise = Object.freeze({
             "iconHeight",
             authoredTheme.instant?.height ?? authoredTheme.instant?.width ?? DEFAULT_INSTANT_ICON_SIZE
         );
+        setColor(eventTheme.instant, "iconColor", authoredTheme.instant?.iconColor);
 
         eventTheme.track.height = Math.max(
             finiteOr(eventTheme.track.height, 0),
@@ -1840,12 +1891,6 @@ const Reprise = Object.freeze({
         return tape.horizontal || {};
     }
 
-    function getLabelSpec(painter) {
-        const label = painter._params?.theme?.event?.label || {};
-        if (isVertical(painter)) return label.vertical || label.horizontal || {};
-        return label.horizontal || {};
-    }
-
     function getInstantSpec(painter) {
         const instant = painter._params?.theme?.event?.instant || {};
         if (isVertical(painter)) return instant.vertical || instant.horizontal || {};
@@ -1856,23 +1901,19 @@ const Reprise = Object.freeze({
         return painter._params?.theme?.event?.tape?.short || {};
     }
 
-    function getTrackGap(painter, metrics) {
-        return finiteOr(
-            painter._params?.theme?.event?.track?.gap,
-            finiteOr(metrics?.trackGap, 2)
-        );
-    }
-
     function getTapeLaneGap(painter, metrics) {
         return finiteOr(getTapeSpec(painter).tapeGap, 2);
     }
 
-    function getTapeToLabelGap(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).toLabelGap, 2);
+    function getTapeToLabelGap(painter) {
+        return finiteOr(getTapeSpec(painter).toLabelGap, 4);
     }
 
-    function getLabelGap(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).labelHorizontalGap, 12);
+    function getLabelRoutingGap(painter) {
+        return finiteOr(
+            getTapeSpec(painter).labelRoutingGap,
+            isVertical(painter) ? 4 : 8
+        );
     }
 
     function getEventRoutingThreshold(painter) {
@@ -1886,19 +1927,7 @@ const Reprise = Object.freeze({
         );
     }
 
-    function getShortDurationLabelGap(painter) {
-        return finiteOr(getShortTapeSpec(painter).toLabelGap, 3);
-    }
-
-    function getTapeLabelTrackCount(painter) {
-        return Math.max(1, normalizeLane(finiteOr(getTapeSpec(painter).labelTrackCount, 1)));
-    }
-
-    function getTapeLabelTrackHeight(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).labelTrackHeight, metrics.trackHeight);
-    }
-
-    function getTapeLabelTrackGap(painter, metrics) {
+    function getLabelTrackGap(painter) {
         return finiteOr(getTapeSpec(painter).labelTrackGap, 2);
     }
 
@@ -1917,11 +1946,8 @@ const Reprise = Object.freeze({
         return finiteOr(getTapeSpec(painter).sparklineStagger, 8);
     }
 
-    function getInstantLabelGap(painter, theme) {
-        return finiteOr(
-            getInstantSpec(painter).labelGap,
-            finiteOr(getLabelSpec(painter).instantLabelGap, (theme?.event?.label?.offsetFromLine || 3) + 4)
-        );
+    function getInstantToLabelGap(painter) {
+        return finiteOr(getInstantSpec(painter).toLabelGap, 4);
     }
 
     function getEventDurationWidth(painter, evt) {
@@ -2107,9 +2133,7 @@ const Reprise = Object.freeze({
         if (tapeCount === 0) return metrics.trackOffset;
 
         return metrics.trackOffset +
-            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics)) -
-            getTapeLaneGap(painter, metrics) +
-            getTapeToLabelGap(painter, metrics);
+            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
     }
 
     function getRoutedTrackCount(painter) {
@@ -2118,14 +2142,14 @@ const Reprise = Object.freeze({
 
     function getRoutedTrackHeight(painter, metrics) {
         return Math.max(
-            getTapeLabelTrackHeight(painter, metrics),
+            metrics.trackHeight,
             painter._repriseLabelTrackHeight || 0
         );
     }
 
     function getRoutedTrackIncrement(painter, metrics) {
         return getRoutedTrackHeight(painter, metrics) +
-            getTapeLabelTrackGap(painter, metrics);
+            getLabelTrackGap(painter);
     }
 
     function getRoutedTrackBlockHeight(painter, metrics) {
@@ -2133,7 +2157,7 @@ const Reprise = Object.freeze({
         if (trackCount === 0) return 0;
 
         return trackCount * getRoutedTrackHeight(painter, metrics) +
-            Math.max(0, trackCount - 1) * getTapeLabelTrackGap(painter, metrics);
+            Math.max(0, trackCount - 1) * getLabelTrackGap(painter);
     }
 
     function getEventBaseTop(painter, metrics, theme) {
@@ -2184,9 +2208,7 @@ const Reprise = Object.freeze({
         if (tapeCount === 0) return metrics.trackOffset;
 
         return metrics.trackOffset +
-            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics)) -
-            getTapeLaneGap(painter, metrics) +
-            getTapeToLabelGap(painter, metrics);
+            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
     }
 
     function getVerticalEventBaseLeft(painter, metrics, theme) {
@@ -2205,14 +2227,14 @@ const Reprise = Object.freeze({
 
     function getVerticalEventLaneIncrement(painter, metrics, theme) {
         const markerWidth = Math.max(metrics.iconWidth, theme.event.tape.height);
-
-        return Math.max(
-            metrics.trackIncrement,
-            markerWidth +
-                getInstantLabelGap(painter, theme) +
-                getVerticalTapeLabelWidth(painter, metrics) +
-                getTrackGap(painter, metrics)
+        const labelWidth = getVerticalTapeLabelWidth(painter, metrics);
+        const contentWidth = Math.max(
+            markerWidth,
+            labelWidth,
+            theme.event.tape.height + getTapeToLabelGap(painter) + labelWidth
         );
+
+        return contentWidth + getLabelTrackGap(painter);
     }
 
     function getVerticalEventLaneLeft(painter, metrics, theme, lane) {
@@ -2227,7 +2249,7 @@ const Reprise = Object.freeze({
 
         return laneLeft +
             theme.event.tape.height +
-            getInstantLabelGap(painter, theme);
+            getTapeToLabelGap(painter);
     }
 
     function setPaintedRect(data, rect) {
@@ -2252,7 +2274,7 @@ const Reprise = Object.freeze({
     }
 
     function getEventTapeColor(evt, fallback, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, "tapeColor");
+        const emphasisValue = getEmphasisValue(evt, theme, "iconColor");
         if (emphasisValue.found) {
             const emphasisColor = stringValue(emphasisValue.value);
             if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
@@ -2295,12 +2317,16 @@ const Reprise = Object.freeze({
         };
     }
 
+    function getTapeSparklineColor(tapeColor) {
+        return resolveCssColor(tapeColor) ||
+            resolveCssColor(DEFAULT_RANGE_TAPE_COLOR) ||
+            DEFAULT_RANGE_TAPE_COLOR;
+    }
+
     function updateTapeSparkLine(painter, item, metrics, theme) {
         if (!item.spark?.elmt) return;
 
-        const cssColor = Timeline.ThemeIcons?.getCssColor
-            ? Timeline.ThemeIcons.getCssColor(item.tapeColor)
-            : item.tapeColor;
+        const cssColor = getTapeSparklineColor(item.tapeColor);
 
         if (cssColor) {
             item.spark.elmt.style.backgroundColor =
@@ -2310,7 +2336,10 @@ const Reprise = Object.freeze({
         const tapeCenter = getTapeLaneTop(painter, metrics, theme, item.lane) +
             Math.round(theme.event.tape.height / 2);
         const sparkTop = tapeCenter;
-        const sparkHeight = Math.max(0, item.data.top - tapeCenter - 4);
+        const sparkHeight = Math.max(
+            0,
+            item.data.top - tapeCenter - getTapeToLabelGap(painter)
+        );
         const sparkLeft = Math.round(
             Number.isFinite(item._repriseSparkLeft)
                 ? item._repriseSparkLeft
@@ -2328,9 +2357,7 @@ const Reprise = Object.freeze({
     function updateVerticalTapeSparkLine(painter, item, metrics, theme) {
         if (!item.spark?.elmt) return;
 
-        const cssColor = Timeline.ThemeIcons?.getCssColor
-            ? Timeline.ThemeIcons.getCssColor(item.tapeColor)
-            : item.tapeColor;
+        const cssColor = getTapeSparklineColor(item.tapeColor);
 
         if (cssColor) {
             item.spark.elmt.style.backgroundColor =
@@ -2341,7 +2368,10 @@ const Reprise = Object.freeze({
             Math.round(theme.event.tape.height / 2);
         const fontSize = getLabelFontSize(item.data, getDataHeight(item.data, item.height || 12));
         const sparkTop = Math.round(item.data.top + fontSize / 2);
-        const sparkWidth = Math.max(0, item.data.left - tapeCenter - 3);
+        const sparkWidth = Math.max(
+            0,
+            item.data.left - tapeCenter - getTapeToLabelGap(painter)
+        );
 
         setPaintedRect(item.spark, {
             left: tapeCenter,
@@ -2467,15 +2497,14 @@ const Reprise = Object.freeze({
         const icon = findPointIconItem(painter, item.evt);
         if (!icon?.data) return;
 
-        const iconWidth = finiteOr(metrics.iconWidth, getDataWidth(icon.data, 0));
+        const iconWidth = getDataWidth(icon.data, metrics.iconWidth);
         const iconMetrics = getRenderedIconMetrics(icon, metrics);
         const iconCenterTop = icon.data.top + iconMetrics.topOffset + iconMetrics.height / 2;
         const fontSize = getLabelFontSize(item.data, item.height || getDataHeight(item.data, 0));
         const lineHeight = getLabelLineHeight(item.data, fontSize);
         const left = icon.data.left +
             iconWidth +
-            HORIZONTAL_INSTANT_LABEL_BASELINE_OFFSET +
-            getInstantLabelGap(painter, theme);
+            getInstantToLabelGap(painter);
         const top = Math.round(iconCenterTop - lineHeight / 2) +
             HORIZONTAL_INSTANT_LABEL_BASELINE_TOP_OFFSET;
 
@@ -2493,9 +2522,7 @@ const Reprise = Object.freeze({
 
         const iconMetrics = getRenderedIconMetrics(icon, metrics);
         const iconBottom = icon.data.top + iconMetrics.topOffset + iconMetrics.height;
-        const top = Math.round(
-            iconBottom + getInstantLabelGap(painter, theme) + VERTICAL_INSTANT_LABEL_BASELINE_TOP_OFFSET
-        );
+        const top = Math.round(iconBottom + getInstantToLabelGap(painter));
 
         setPaintedRect(item.data, { top, left: icon.data.left });
         item.naturalLeft = icon.data.left;
@@ -2621,8 +2648,7 @@ const Reprise = Object.freeze({
             );
     }
 
-    function rebuildTapeLanes(painter, metrics) {
-        const gap = getTapeLaneGap(painter, metrics);
+    function rebuildTapeLanes(painter) {
         const laneEnds = [];
         const labels = painter._repriseTapeLabels
             .map((item, index) => ({ item, index }))
@@ -2643,7 +2669,7 @@ const Reprise = Object.freeze({
             } else {
                 lane = 0;
                 for (; lane < laneEnds.length; lane++) {
-                    if (laneEnds[lane] + gap < item.startPixel) break;
+                    if (laneEnds[lane] < item.startPixel) break;
                 }
             }
 
@@ -2666,7 +2692,7 @@ const Reprise = Object.freeze({
         const theme = painter._params.theme;
         if (!metrics || !theme) return;
 
-        rebuildTapeLanes(painter, metrics);
+        rebuildTapeLanes(painter);
 
         const tapeLabelLeft = getVerticalTapeLabelLeft(painter, metrics, theme);
         const labelWidth = getVerticalTapeLabelWidth(painter, metrics);
@@ -2707,10 +2733,7 @@ const Reprise = Object.freeze({
 
         const viewportTop = -painter._band.getViewOffset();
         const stickyTop = viewportTop + getStickyTopInset(painter);
-        const labelGap = finiteOr(
-            getTapeSpec(painter).stickyLabelGap,
-            getTapeLabelTrackGap(painter, metrics)
-        );
+        const labelGap = getLabelRoutingGap(painter);
         const activeTapeLabels = painter._repriseTapeLabels
             .map((item, index) => ({ item, index }))
             .filter(({ item }) => {
@@ -2740,11 +2763,7 @@ const Reprise = Object.freeze({
                 Number(b.isDuration) - Number(a.isDuration) ||
                 a.index - b.index
             );
-        const initialEventLaneCount = getTapeLabelTrackCount(painter);
-        let tracks = Array.from(
-            { length: initialEventLaneCount + 1 },
-            () => []
-        );
+        let tracks = [[], []];
 
         painter._repriseEventLanes = {};
 
@@ -2872,12 +2891,12 @@ const Reprise = Object.freeze({
         const theme = painter._params.theme;
         if (!metrics || !theme) return;
 
-        rebuildTapeLanes(painter, metrics);
+        rebuildTapeLanes(painter);
 
         const viewportLeft = -painter._band.getViewOffset();
         const stickyLeft = viewportLeft + getStickyLeftInset(painter);
         const stickyRight = viewportLeft + painter._band.getViewLength() - getStickyLeftInset(painter);
-        const labelGap = getLabelGap(painter, metrics);
+        const labelGap = getLabelRoutingGap(painter);
         const sparklineStagger = getSparklineStagger(painter);
         const labels = painter._repriseTapeLabels
             .map((item, index) => ({ ...item, index }))
@@ -2893,12 +2912,12 @@ const Reprise = Object.freeze({
             );
         const hasRoutableItems = labels.length > 0 || pointGroups.length > 0;
         let tracks = hasRoutableItems
-            ? Array.from({ length: getTapeLabelTrackCount(painter) }, () => [])
+            ? [[]]
             : [];
         const tapePlacements = [];
 
         painter._repriseLabelTrackHeight = maxFinite(
-            getTapeLabelTrackHeight(painter, metrics),
+            metrics.trackHeight,
             [
                 ...labels.map((item) => getDataHeight(item.data, item.height || 0)),
                 ...pointGroups.map((group) => group.maxBottomOffset - group.minTopOffset)
@@ -3159,11 +3178,10 @@ const Reprise = Object.freeze({
             if (isTapeEvent(this, evt)) {
                 const startPixel = Math.round(this._band.dateToPixelOffset(evt.getStart()));
                 const endPixel = Math.round(this._band.dateToPixelOffset(evt.getEnd()));
-                const gap = getTapeLaneGap(this, this._repriseMetrics);
                 let lane = 0;
 
                 for (; lane < this._repriseTapeLaneStarts.length; lane++) {
-                    if (this._repriseTapeLaneStarts[lane] > endPixel + gap) break;
+                    if (this._repriseTapeLaneStarts[lane] > endPixel) break;
                 }
 
                 this._repriseTapeLaneStarts[lane] = startPixel;
@@ -3197,11 +3215,10 @@ const Reprise = Object.freeze({
         if (isTapeEvent(this, evt)) {
             const startPixel = Math.round(this._band.dateToPixelOffset(evt.getStart()));
             const endPixel = Math.round(this._band.dateToPixelOffset(evt.getEnd()));
-            const gap = getTapeLaneGap(this, this._repriseMetrics);
             let lane = 0;
 
             for (; lane < this._repriseTapeLaneStarts.length; lane++) {
-                if (this._repriseTapeLaneStarts[lane] > endPixel + gap) break;
+                if (this._repriseTapeLaneStarts[lane] > endPixel) break;
             }
 
             this._repriseTapeLaneStarts[lane] = startPixel;
@@ -3224,7 +3241,11 @@ const Reprise = Object.freeze({
 
     proto._paintEventIcon = function (evt, iconTrack, left, metrics, theme, tapeHeight) {
         this._repriseMetrics = metrics;
-        const data = originalPaintIcon.apply(this, arguments);
+        const paintArguments = Array.from(arguments);
+        paintArguments[0] = evt?.isInstant?.()
+            ? getEventWithThemeIcon(evt, theme, metrics)
+            : evt;
+        const data = originalPaintIcon.apply(this, paintArguments);
         applyThemeIconSize(data, metrics);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data);
@@ -3426,7 +3447,7 @@ const Reprise = Object.freeze({
         item.width = width;
         item.height = height;
         if (!evt.isInstant()) {
-            item.trackTopOffset += getShortDurationLabelGap(this);
+            item.trackTopOffset += getTapeToLabelGap(this);
         }
         alignInstantLabelToIcon(this, item, metrics, theme);
         return data;
@@ -3637,7 +3658,6 @@ const Reprise = Object.freeze({
         this._eventColorScope = "both";
         this._useEmphasis = false;
         this._emphasisSpecs = {};
-        this._labelWidth = null;
 
         this._band = null;
         this._timeline = null;
@@ -3681,7 +3701,6 @@ const Reprise = Object.freeze({
         this._stickyInset = themedFinite(params, [labelTheme, eventTheme], "stickyInset", 2);
         this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
         this._labelOffset = themedFinite(params, [labelTheme, eventTheme], ["offset", "labelOffset"], 0, "labelOffset");
-        this._labelWidth = themedFiniteOrNull(params, [labelTheme, eventTheme], ["width", "labelWidth"], "labelWidth");
         this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 5);
         this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 6);
 
@@ -3763,15 +3782,8 @@ const Reprise = Object.freeze({
         return Math.max(1, Math.floor(available / this._trackCount));
     };
 
-    Timeline.NarrativeDecorator.prototype._labelTrackSizeValue = function () {
-        const trackSize = this._trackSizeValue();
-        return !this._isHorizontal() && this._labelWidth != null
-            ? Math.max(trackSize, this._labelWidth)
-            : trackSize;
-    };
-
     Timeline.NarrativeDecorator.prototype._trackStart = function (track) {
-        const trackSize = this._labelTrackSizeValue();
+        const trackSize = this._trackSizeValue();
         const increment = trackSize + this._trackGap;
 
         if (!this._isHorizontal() && this._trackAlign === "end") {
@@ -3922,9 +3934,7 @@ const Reprise = Object.freeze({
             rect.width || 0,
             record.labelElmt.offsetWidth || 0
         );
-        record.width = this._labelWidth != null && !this._isHorizontal()
-            ? visibleWidth
-            : Math.max(visibleWidth, record.labelElmt.scrollWidth || 0);
+        record.width = Math.max(visibleWidth, record.labelElmt.scrollWidth || 0);
         record.height = Math.max(
             rect.height || 0,
             record.labelElmt.offsetHeight || 0,
@@ -3948,23 +3958,13 @@ const Reprise = Object.freeze({
                 height: trackSize
             });
         } else {
-            if (this._labelWidth == null) {
-                this._setRect(record.labelElmt, {
-                    top: adjustedMainStart,
-                    left: trackStart
-                });
-                record.labelElmt.style.width = "";
-                record.labelElmt.style.whiteSpace = "";
-                record.labelElmt.style.overflowWrap = "";
-            } else {
-                this._setRect(record.labelElmt, {
-                    top: adjustedMainStart,
-                    left: trackStart,
-                    width: this._labelWidth
-                });
-                record.labelElmt.style.whiteSpace = "normal";
-                record.labelElmt.style.overflowWrap = "break-word";
-            }
+            this._setRect(record.labelElmt, {
+                top: adjustedMainStart,
+                left: trackStart,
+                width: trackSize
+            });
+            record.labelElmt.style.whiteSpace = "normal";
+            record.labelElmt.style.overflowWrap = "break-word";
         }
     };
 
@@ -4185,7 +4185,7 @@ const Reprise = Object.freeze({
         const verticalOccupied = [];
 
         const labelCrossEnd = (record, track) =>
-            this._trackStart(track) + Math.max(this._labelTrackSizeValue(), record.width || 0);
+            this._trackStart(track) + Math.max(this._trackSizeValue(), record.width || 0);
 
         const addOccupied = (track, start, size, record = null) => {
             occupied[track] ??= [];

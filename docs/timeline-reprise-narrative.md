@@ -134,7 +134,7 @@ theme.eventTheme = {
         vertical: {
             count: 2,
             offset: 10,
-            size: 52,
+            size: 104,
             gap: 6
         }
     },
@@ -148,7 +148,6 @@ theme.eventTheme = {
     },
     label: {
         offset: 2,
-        width: 104,
         stickyInset: 6,
         stickyGap: 4
     },
@@ -233,10 +232,10 @@ Initial number of label tracks. Extra tracks can be used if routed labels need m
 Outer offset before the first narrative track.
 
 ### `track.size`
-Track size across the band. On horizontal timelines this is the label row height. On vertical timelines this is the minimum label column width.
+Track size across the band. On horizontal timelines this is the label row height. On vertical timelines this is the label column width, and labels wrap to fit it.
 
 ### `track.gap`
-Gap between narrative tracks.
+Gap between narrative label rows on horizontal timelines or label columns on vertical timelines.
 
 ### `track.endPadding`
 Optional trailing padding used when deriving `track.size`.
@@ -280,13 +279,6 @@ Extra class added to instant label elements.
 
 ### `eventTheme.label.offset`
 Offset applied along the timeline axis when placing labels.
-
-### `eventTheme.label.width`
-Optional fixed width for vertical narrative labels.
-
-When set, labels wrap to that width. Vertical label columns are spaced with `max(track.size, label.width)`, so columns line up with the actual label boxes.
-
-If omitted, labels use their natural width.
 
 ### `eventTheme.label.stickyInset`
 Inset from the visible viewport edge used by sticky range labels.

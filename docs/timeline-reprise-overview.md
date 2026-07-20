@@ -17,7 +17,7 @@ theme.eventTheme = {
         }
     },
     instant: {
-        width: 8,
+        tickWidth: 8,
         iconColor: "orange"
     },
     range: {
@@ -71,12 +71,12 @@ Sets spacing between instant ticks and the first range tape, and between range t
 
 ## Instant Events
 
-### `eventTheme.instant.width`
-Sets the overview tick thickness for instant events.
+### `eventTheme.instant.tickWidth`
+Sets the cross-axis length of overview ticks for instant events.
 
 ```js
 instant: {
-    width: 8
+    tickWidth: 8
 }
 ```
 
@@ -91,7 +91,7 @@ instant: {
 
 Named colours are resolved through `Timeline.ThemeIcons` when available.
 
-Overview reads `width` and `iconColor` directly from `instant`.
+Overview reads `tickWidth` and `iconColor` directly from `instant`.
 Orientation branches under `instant` are ignored by the overview painter.
 
 ## Range Events

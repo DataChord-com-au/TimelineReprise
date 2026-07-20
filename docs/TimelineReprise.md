@@ -58,6 +58,7 @@ external files under `dist/images/`.
 ### [timeline-reprise-overview.html](../examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html)
 ### [timeline-reprise-scales.html](../examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html)
 ### [timeline-reprise-event-layout.html](../examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html)
+### [timeline-reprise-imprecise-ranges.html](examples\timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-imprecise-ranges.html)
 ### [timeline-reprise-narrative.html](../examples/timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-narrative.html)
 
 

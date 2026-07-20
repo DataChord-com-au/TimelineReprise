@@ -81,7 +81,6 @@
       description: "",
       iconColor: "orange"
     };
-    projectStartEvent.icon = Timeline.ThemeIcons.get(projectStartEvent.iconColor);
 
     var eventData = {
       dateTimeFormat: "iso8601",
@@ -107,7 +106,7 @@
           start: "2020-02-18",
           title: "Decision point",
           description: "",
-          icon: Timeline.ThemeIcons.get("blue")
+          iconColor: "blue"
         },
         {
           start: "2020-03-01",
@@ -129,13 +128,13 @@
           start: "2020-03-16",
           title: "Milestone review",
           description: "",
-          icon: Timeline.ThemeIcons.get("orange")
+          iconColor: "orange"
         },
         {
           start: "2020-04-05",
           title: "Release candidate",
           description: "",
-          icon: Timeline.ThemeIcons.get("green")
+          iconColor: "green"
         }
       ]
     };
@@ -146,39 +145,43 @@
       theme.eventTheme = {
         track: {
           horizontal: {
-            offset: 12,
-            gap: 5
+            offset: 12
           },
           vertical: {
-            offset: 12,
-            gap: 5
+            offset: 12
           }
         },
         instant: {
-          iconColor: "orange"
+          iconColor: "orange",
+          horizontal: {
+            toLabelGap: 4
+          },
+          vertical: {
+            toLabelGap: 4
+          }
         },
         range: {
           width: 4,
           iconColor: "green",
           short: {
-            toLabelGap: 3,
             minDisplayLength: 12
           },
           horizontal: {
             eventRoutingThreshold: 36,
-            toLabelGap: 8,
-            labelHorizontalGap: 8,
-            labelTrackCount: 3,
-            labelTrackHeight: 18,
+            toLabelGap: 4,
+            labelRoutingGap: 8,
+            labelTrackGap: 5,
+            tapeGap: 5,
             sparklineStagger: 8,
             stickyLeftInset: 4
           },
           vertical: {
             eventRoutingThreshold: 36,
-            toLabelGap: 8,
-            labelTrackCount: 3,
+            toLabelGap: 4,
+            labelRoutingGap: 4,
+            labelTrackGap: 5,
+            tapeGap: 5,
             stickyTopInset: 4,
-            stickyLabelGap: 5,
             toEventGap: 12
           }
         }

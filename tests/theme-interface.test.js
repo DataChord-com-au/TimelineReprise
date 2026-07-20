@@ -60,7 +60,6 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
         },
         label: {
             offset: 14,
-            width: 15,
             stickyInset: 16,
             stickyGap: 17
         },
@@ -90,7 +89,6 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     assert.equal(decorator._spanSize, 12);
     assert.equal(decorator._dividerWidth, 13);
     assert.equal(decorator._labelOffset, 14);
-    assert.equal(decorator._labelWidth, 15);
     assert.equal(decorator._stickyInset, 16);
     assert.equal(decorator._stickyGap, 17);
     assert.equal(decorator._bubbleWidth, 18);

@@ -83,43 +83,43 @@
       "emphasis": {
         "critical": {
           "labelColor": "red",
-          "tapeColor": "red",
+          "iconColor": "red",
           "eventColorScope": "both"
         },
         "quiet": {
           "labelColor": "gray",
-          "tapeColor": "gray",
+          "iconColor": "gray",
           "eventColorScope": "label"
         },
         "launch": {
           "labelColor": "green",
-          "tapeColor": "green",
+          "iconColor": "green",
           "eventColorScope": "both"
         }
       },
       "track": {
         "horizontal": {
-          "offset": 12,
-          "gap": 5
+          "offset": 12
         }
       },
       "instant": {
         "width": 8,
-        "iconColor": "orange"
+        "tickWidth": 8,
+        "iconColor": "orange",
+        "horizontal": {
+          "toLabelGap": 3
+        }
       },
       "range": {
         "width": 5,
         "iconColor": "green",
         "short": {
-          "toLabelGap": 4,
           "minDisplayLength": 12
         },
         "horizontal": {
           "eventRoutingThreshold": 34,
-          "toLabelGap": 9,
-          "labelHorizontalGap": 10,
-          "labelTrackCount": 4,
-          "labelTrackHeight": 18,
+          "toLabelGap": 0,
+          "labelRoutingGap": 10,
           "labelTrackGap": 5,
           "tapeGap": 5,
           "sparklineStagger": 8,
@@ -275,9 +275,6 @@
     var timelineEvents = filteredEvents.map(function (event) {
       var item = Object.assign({}, event);
 
-      if (!item.end && item.color) {
-        item.icon = Timeline.ThemeIcons.get(item.color);
-      }
       if (item.textColor == null) {
         item.textColor = "inherit";
       }

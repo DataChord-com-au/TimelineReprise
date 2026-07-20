@@ -81,8 +81,7 @@ class EmphasisStyle {
             textColor,
             spanColor,
             lineColor,
-            dividerColor,
-            tapeColor
+            dividerColor
         } = config;
         const normalizedId = validateEmphasisSpecId(id, `${caller}.id`);
 
@@ -91,12 +90,12 @@ class EmphasisStyle {
         setOptional(this, "labels", labels, validateBoolean, caller);
         setOptional(this, "bubbles", bubbles, validateBoolean, caller);
         setOptional(this, "eventColorScope", eventColorScope, validateEventColorScope, caller);
-        setOptional(this, "color", color ?? iconColor, normalizeColorString, caller);
+        setOptional(this, "color", color, normalizeColorString, caller);
+        setOptional(this, "iconColor", iconColor, normalizeColorString, caller);
         setOptional(this, "labelColor", labelColor, normalizeColorString, caller);
         setOptional(this, "textColor", textColor, normalizeColorString, caller);
         setOptional(this, "spanColor", spanColor, normalizeColorString, caller);
         setOptional(this, "lineColor", lineColor ?? dividerColor, normalizeColorString, caller);
-        setOptional(this, "tapeColor", tapeColor, normalizeColorString, caller);
 
         Object.freeze(this);
     }

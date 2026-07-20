@@ -13,6 +13,7 @@
     body {
       font-family: sans-serif;
       margin: 24px;
+      color: #6a1b9a;
     }
 
     #timeline {
@@ -25,7 +26,7 @@
     @media (prefers-color-scheme: dark) {
       body {
         background: #202124;
-        color: #e8eaed;
+        color: #f6c344;
       }
     }
   </style>
@@ -37,7 +38,7 @@
   </p>
   <ul>
     <li>named colors can be reused for event markers and duration tapes</li>
-    <li>labels can be re-colored or inherit the style color</li>
+    <li>label colors can be set using <code>textColor</code>, and <code>inherit</code> will take the color from the page</li>
     <li>the main band can expand while the overview band keeps a predictable size</li>
     <li>the page follows the browser's light or dark color preference</li>
   </ul>
@@ -86,7 +87,7 @@
           start: "2020-06-01",
           end: "2020-09-01",
           title: "Range event",
-          description: "",
+          description: "This label uses textColor: inherit, so it takes the page text colour.",
           color: Timeline.ThemeIcons.getCssColor("green"),
           textColor: "inherit"
         },
