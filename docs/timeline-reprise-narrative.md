@@ -219,6 +219,7 @@ Supported emphasis properties:
 - `textColor`
 - `spanColor`
 - `lineColor`
+- `lineWidth`
 
 ## Track Theme
 

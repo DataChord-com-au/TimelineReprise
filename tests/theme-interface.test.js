@@ -23,7 +23,7 @@ function loadNarrativeDecorator() {
 
 test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     const NarrativeDecorator = loadNarrativeDecorator();
-    const emphasis = { strong: { color: "purple" } };
+    const emphasis = { strong: { color: "purple", lineWidth: 4 } };
     const rangeColors = ["green", "blue"];
     const instantColors = ["purple"];
     const eventTheme = {

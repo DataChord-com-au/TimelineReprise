@@ -53,6 +53,14 @@ function validateEventColorScope(value, caller) {
     return value;
 }
 
+function validatePositiveNumber(value, caller) {
+    if (!Number.isFinite(value) || value <= 0) {
+        throw new RangeError(`${caller} must be a positive finite number.`);
+    }
+
+    return value;
+}
+
 function setOptional(target, key, value, validator, caller) {
     if (value !== undefined) {
         target[key] = validator(value, `${caller}.${key}`);
@@ -81,7 +89,7 @@ class EmphasisStyle {
             textColor,
             spanColor,
             lineColor,
-            dividerColor
+            lineWidth
         } = config;
         const normalizedId = validateEmphasisSpecId(id, `${caller}.id`);
 
@@ -95,7 +103,8 @@ class EmphasisStyle {
         setOptional(this, "labelColor", labelColor, normalizeColorString, caller);
         setOptional(this, "textColor", textColor, normalizeColorString, caller);
         setOptional(this, "spanColor", spanColor, normalizeColorString, caller);
-        setOptional(this, "lineColor", lineColor ?? dividerColor, normalizeColorString, caller);
+        setOptional(this, "lineColor", lineColor, normalizeColorString, caller);
+        setOptional(this, "lineWidth", lineWidth, validatePositiveNumber, caller);
 
         Object.freeze(this);
     }

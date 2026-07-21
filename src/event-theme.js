@@ -247,7 +247,7 @@ class EventTheme {
         this.#assertColor(spec.textColor, `${caller}.textColor`);
         this.#assertColor(spec.spanColor, `${caller}.spanColor`);
         this.#assertColor(spec.lineColor, `${caller}.lineColor`);
-        this.#assertColor(spec.dividerColor, `${caller}.dividerColor`);
+        this.#assertNumber(spec.lineWidth, `${caller}.lineWidth`, { positive: true });
     }
 
     static #assertEmphasisMap(spec, caller) {
