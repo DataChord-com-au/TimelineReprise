@@ -3478,11 +3478,15 @@ const Reprise = Object.freeze({
     Timeline.EventLayoutThemeShim = Timeline.EventLayoutThemeShim || {};
     Timeline.EventLayoutThemeShim.applyEventTheme = applyEventLayoutThemeToTheme;
     Timeline.EventLayoutThemeShim.applyToPainterParams = applyEventLayoutThemeToPainterParams;
+    Timeline.EventLayoutThemeShim.getOriginalPainterMetrics = getOriginalPainterMetrics;
 }());
 
 /* narrative.js */
 (function () {
     if (!window.Timeline || Timeline.NarrativeDecorator) return;
+
+    const DEFAULT_HORIZONTAL_TRACK_SIZE = 18;
+    const DEFAULT_VERTICAL_TRACK_SIZE = 120;
 
     function finiteOr(value, fallback) {
         const number = toFiniteNumber(value);
@@ -3613,6 +3617,13 @@ const Reprise = Object.freeze({
             : source;
     }
 
+    function trackSizeNames(timeline) {
+        const orientation = getOrientation(timeline);
+        if (orientation === "vertical") return ["size", "trackSize", "width"];
+        if (orientation === "horizontal") return ["size", "trackSize", "height"];
+        return ["size", "trackSize"];
+    }
+
     function parseDate(unit, value) {
         if (typeof value === "string") return unit.parseFromObject(value);
         return value instanceof Date ? value : null;
@@ -3690,7 +3701,7 @@ const Reprise = Object.freeze({
         this._trackCount = Math.max(1, themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["count", "trackCount"], 1, "trackCount"));
         this._trackOffset = themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["offset", "trackOffset"], 0, "trackOffset");
         this._trackEndPadding = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], ["endPadding", "trackEndPadding"], "trackEndPadding");
-        this._trackSize = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], ["size", "trackSize"], "trackSize");
+        this._trackSize = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], trackSizeNames(this._timeline), "trackSize");
         this._trackGap = themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["gap", "trackGap"], 4, "trackGap");
         this._trackAlign = normalizeTrackAlign(themedValue(params, [paramTrackTheme, trackTheme, eventTheme], ["align", "trackAlign"], "start", "trackAlign"));
 
@@ -3771,15 +3782,13 @@ const Reprise = Object.freeze({
     Timeline.NarrativeDecorator.prototype._trackSizeValue = function () {
         if (this._trackSize != null) return this._trackSize;
 
-        const endPadding = this._trackEndPadding != null
-            ? this._trackEndPadding
-            : this._isHorizontal() ? this._trackOffset : 0;
-        const available = this._band.getViewWidth() -
-            this._trackOffset -
-            endPadding -
-            this._trackGap * (this._trackCount - 1);
+        return this._isHorizontal()
+            ? DEFAULT_HORIZONTAL_TRACK_SIZE
+            : DEFAULT_VERTICAL_TRACK_SIZE;
+    };
 
-        return Math.max(1, Math.floor(available / this._trackCount));
+    Timeline.NarrativeDecorator.prototype._trackEndPaddingValue = function () {
+        return this._trackEndPadding != null ? this._trackEndPadding : this._trackOffset;
     };
 
     Timeline.NarrativeDecorator.prototype._trackStart = function (track) {
@@ -3788,7 +3797,7 @@ const Reprise = Object.freeze({
 
         if (!this._isHorizontal() && this._trackAlign === "end") {
             return this._band.getViewWidth() -
-                this._trackOffset -
+                this._trackEndPaddingValue() -
                 trackSize -
                 track * increment;
         }

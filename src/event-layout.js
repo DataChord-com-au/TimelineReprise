@@ -2118,4 +2118,5 @@
     Timeline.EventLayoutThemeShim = Timeline.EventLayoutThemeShim || {};
     Timeline.EventLayoutThemeShim.applyEventTheme = applyEventLayoutThemeToTheme;
     Timeline.EventLayoutThemeShim.applyToPainterParams = applyEventLayoutThemeToPainterParams;
+    Timeline.EventLayoutThemeShim.getOriginalPainterMetrics = getOriginalPainterMetrics;
 }());

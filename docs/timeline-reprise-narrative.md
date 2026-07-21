@@ -234,11 +234,13 @@ Outer offset before the first narrative track.
 ### `track.size`
 Track size across the band. On horizontal timelines this is the label row height. On vertical timelines this is the label column width, and labels wrap to fit it.
 
+If omitted, a fixed intrinsic default is used instead of being derived from the band's rendered size: `18` on horizontal timelines, `120` on vertical timelines. `height` (horizontal) and `width` (vertical) are accepted as orientation-specific aliases for `size`.
+
 ### `track.gap`
 Gap between narrative label rows on horizontal timelines or label columns on vertical timelines.
 
 ### `track.endPadding`
-Optional trailing padding used when deriving `track.size`.
+Trailing padding reserved from the far edge of the band's cross-axis. Only used to anchor `align: "end"` tracks on vertical timelines. Defaults to `track.offset`.
 
 ### `track.align`
 Vertical-only track alignment. Use `start` or `end`.

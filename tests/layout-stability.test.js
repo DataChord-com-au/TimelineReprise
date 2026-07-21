@@ -1337,3 +1337,141 @@ test("vertical narrative ranges choose locally free side tracks", () => {
         "40px"
     ]);
 });
+
+function makeConfiguredNarrative(orientation, viewWidth, trackTheme, extraParams = {}) {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const horizontal = orientation === "horizontal";
+    const decorator = new NarrativeDecorator({
+        theme: { eventTheme: { track: { [orientation]: trackTheme } } },
+        ...extraParams
+    });
+
+    decorator.initialize(
+        { getViewWidth: () => viewWidth, _theme: null },
+        { isHorizontal: () => horizontal, isVertical: () => !horizontal }
+    );
+
+    return decorator;
+}
+
+test("narrative horizontal track size defaults to a fixed intrinsic size, independent of band cross-axis extent", () => {
+    const small = makeConfiguredNarrative("horizontal", 80, { count: 3, offset: 35, gap: 8 });
+    const large = makeConfiguredNarrative("horizontal", 800, { count: 3, offset: 35, gap: 8 });
+
+    assert.equal(small._trackSizeValue(), large._trackSizeValue());
+    assert.ok(small._trackSizeValue() >= 10, "default track size must not collapse toward 0px");
+});
+
+test("narrative vertical track size defaults to a fixed intrinsic size, independent of band cross-axis extent", () => {
+    const small = makeConfiguredNarrative("vertical", 100, { count: 2, offset: 40, gap: 12 });
+    const large = makeConfiguredNarrative("vertical", 900, { count: 2, offset: 40, gap: 12 });
+
+    assert.equal(small._trackSizeValue(), large._trackSizeValue());
+    assert.ok(small._trackSizeValue() >= 60, "default vertical track size must remain usable for wrapped label text");
+});
+
+test("narrative horizontal tracks stay evenly spaced and absolute-pixel sized when the band is smaller than the full track stack", () => {
+    // Real values from the biography demo's 'lifeEra' horizontal track theme (count:3, offset:35, gap:8,
+    // no explicit size) rendered inside its actual 80px-tall band.
+    const decorator = makeConfiguredNarrative("horizontal", 80, { count: 3, offset: 35, gap: 8, align: "start" });
+
+    const size = decorator._trackSizeValue();
+    assert.ok(size >= 10, `expected an absolute-pixel track size, got ${size}px`);
+
+    const starts = [0, 1, 2].map((track) => decorator._trackStart(track));
+    assert.equal(starts[1] - starts[0], size + 8);
+    assert.equal(starts[2] - starts[1], size + 8);
+});
+
+test("narrative explicit track size is used verbatim regardless of band size", () => {
+    const decorator = makeConfiguredNarrative("horizontal", 50, { count: 3, offset: 10, gap: 4, size: 22 });
+
+    assert.equal(decorator._trackSizeValue(), 22);
+    assert.equal(decorator._trackStart(1), 10 + (22 + 4));
+});
+
+test("narrative track size accepts height (horizontal) and width (vertical) as orientation aliases", () => {
+    const horizontalAlias = makeConfiguredNarrative("horizontal", 400, { count: 2, offset: 0, gap: 0, height: 30 });
+    assert.equal(horizontalAlias._trackSizeValue(), 30);
+
+    const verticalAlias = makeConfiguredNarrative("vertical", 400, { count: 2, offset: 0, gap: 0, width: 95 });
+    assert.equal(verticalAlias._trackSizeValue(), 95);
+
+    // A vertical "height" (or horizontal "width") is the wrong-axis name and must not be picked up.
+    const wrongAxis = makeConfiguredNarrative("vertical", 400, { count: 1, offset: 0, gap: 0, height: 30 });
+    assert.notEqual(wrongAxis._trackSizeValue(), 30);
+});
+
+test("narrative vertical start vs end alignment mirror around the band, anchored by endPadding", () => {
+    const start = makeConfiguredNarrative("vertical", 400, {
+        count: 2, offset: 40, size: 85, gap: 12, align: "start"
+    });
+    const end = makeConfiguredNarrative("vertical", 400, {
+        count: 2, offset: 40, size: 85, gap: 12, align: "end", endPadding: 40
+    });
+
+    assert.equal(start._trackStart(0), 40);
+    assert.equal(start._trackStart(1), 40 + 85 + 12);
+
+    // Symmetric endPadding === offset mirrors the start-aligned layout around the band.
+    assert.equal(end._trackStart(0), 400 - 40 - 85);
+    assert.equal(end._trackStart(1), 400 - 40 - 85 - (85 + 12));
+
+    const customEndPadding = makeConfiguredNarrative("vertical", 400, {
+        count: 2, offset: 40, size: 85, gap: 12, align: "end", endPadding: 100
+    });
+    assert.equal(customEndPadding._trackStart(0), 400 - 100 - 85);
+    assert.notEqual(customEndPadding._trackStart(0), end._trackStart(0));
+});
+
+test("narrative endPadding defaults to offset when omitted", () => {
+    const withDefault = makeConfiguredNarrative("vertical", 400, {
+        count: 1, offset: 40, size: 85, align: "end"
+    });
+    const withExplicitMatchingOffset = makeConfiguredNarrative("vertical", 400, {
+        count: 1, offset: 40, size: 85, align: "end", endPadding: 40
+    });
+
+    assert.equal(withDefault._trackStart(0), withExplicitMatchingOffset._trackStart(0));
+});
+
+test("narrative horizontal align has no effect (documented as vertical-only)", () => {
+    const start = makeConfiguredNarrative("horizontal", 400, { count: 2, offset: 10, size: 20, gap: 5, align: "start" });
+    const end = makeConfiguredNarrative("horizontal", 400, { count: 2, offset: 10, size: 20, gap: 5, align: "end" });
+
+    assert.equal(start._trackStart(1), end._trackStart(1));
+});
+
+test("narrative non-zero offset, endPadding, and gap combine deterministically", () => {
+    const decorator = makeConfiguredNarrative("vertical", 500, {
+        count: 3, offset: 22, size: 60, gap: 9, align: "end", endPadding: 17
+    });
+    const increment = 60 + 9;
+
+    assert.equal(decorator._trackStart(0), 500 - 17 - 60);
+    assert.equal(decorator._trackStart(1), 500 - 17 - 60 - increment);
+    assert.equal(decorator._trackStart(2), 500 - 17 - 60 - 2 * increment);
+});
+
+test("event-layout horizontal track height defaults to a fixed intrinsic size, independent of band cross-axis extent", () => {
+    const getMetrics = loadEventPainter()._testTimeline.EventLayoutThemeShim.getOriginalPainterMetrics;
+    const theme = eventTheme();
+    delete theme.event.track.height;
+
+    const metrics = getMetrics({ _params: { theme }, _frc: null });
+
+    // Default comes from Math.max(track.height fallback of 10, tape.height + lineHeight fallback of 12);
+    // it never reads painter._band, so it cannot vary with band size.
+    assert.equal(metrics.trackHeight, Math.max(10, theme.event.tape.height + 12));
+    assert.equal(metrics.trackOffset, theme.event.track.offset);
+});
+
+test("event-layout horizontal explicit track height is used verbatim", () => {
+    const getMetrics = loadEventPainter()._testTimeline.EventLayoutThemeShim.getOriginalPainterMetrics;
+    const theme = eventTheme();
+    theme.event.track.height = 55;
+
+    const metrics = getMetrics({ _params: { theme }, _frc: null });
+
+    assert.equal(metrics.trackHeight, 55);
+});
