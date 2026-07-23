@@ -1,7 +1,6 @@
 import { normalizeColorString } from "./color.js";
 
 const MODULE_LABEL = "TimelineReprise";
-const EVENT_COLOR_SCOPES = Object.freeze(["none", "label", "graphic", "both"]);
 
 function classLabel(ctor) {
     return `${MODULE_LABEL}.${ctor.displayName || ctor.name || "<anonymous class>"}`;
@@ -45,14 +44,6 @@ function validateBoolean(value, caller) {
     return value;
 }
 
-function validateEventColorScope(value, caller) {
-    if (typeof value !== "string" || !EVENT_COLOR_SCOPES.includes(value)) {
-        throw new RangeError(`${caller} must be "none", "label", "graphic", or "both".`);
-    }
-
-    return value;
-}
-
 function validatePositiveNumber(value, caller) {
     if (!Number.isFinite(value) || value <= 0) {
         throw new RangeError(`${caller} must be a positive finite number.`);
@@ -77,16 +68,19 @@ class EmphasisStyle {
         if (!isPlainObject(config)) {
             throw new TypeError(`${caller} must be an object.`);
         }
+        if (config.eventColorScope !== undefined) {
+            throw new TypeError(
+                `${caller}.eventColorScope is not supported; emphasis colors override event color scope.`
+            );
+        }
 
         const {
             id,
             labels,
             bubbles,
-            eventColorScope,
             color,
             iconColor,
             labelColor,
-            textColor,
             spanColor,
             lineColor,
             lineWidth
@@ -97,11 +91,9 @@ class EmphasisStyle {
 
         setOptional(this, "labels", labels, validateBoolean, caller);
         setOptional(this, "bubbles", bubbles, validateBoolean, caller);
-        setOptional(this, "eventColorScope", eventColorScope, validateEventColorScope, caller);
         setOptional(this, "color", color, normalizeColorString, caller);
         setOptional(this, "iconColor", iconColor, normalizeColorString, caller);
         setOptional(this, "labelColor", labelColor, normalizeColorString, caller);
-        setOptional(this, "textColor", textColor, normalizeColorString, caller);
         setOptional(this, "spanColor", spanColor, normalizeColorString, caller);
         setOptional(this, "lineColor", lineColor, normalizeColorString, caller);
         setOptional(this, "lineWidth", lineWidth, validatePositiveNumber, caller);

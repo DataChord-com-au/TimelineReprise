@@ -59,12 +59,10 @@ Optional:
 - `eventColorScope` - overrides the theme colour scope for this item.
 - `emphasis` - references a named emphasis spec.
 - `color` - item colour used according to `eventColorScope`.
-- `labelColor` or `textColor` - label colour.
+- `labelColor` - label colour.
 - `spanColor` - span colour.
 - `cssClass` - extra class on the span element.
 - `labelCssClass` - extra class on the label element.
-
-`narrativeTrack` and `timelineNarrativeTrack` are accepted as aliases for `track` when sharing data with other layers.
 
 ### Instant Items
 
@@ -95,13 +93,11 @@ Optional:
 - `eventColorScope` - overrides the theme colour scope for this item.
 - `emphasis` - references a named emphasis spec.
 - `color` - item colour used according to `eventColorScope`.
-- `labelColor` or `textColor` - label colour.
+- `labelColor` - label colour.
 - `lineColor` - divider-line colour.
 - `lineWidth` - divider-line width.
 - `cssClass` - extra class on the divider-line element.
 - `labelCssClass` - extra class on the label element.
-
-`narrativeTrack` and `timelineNarrativeTrack` are accepted as aliases for `track` when sharing data with other layers.
 
 ## Theme
 
@@ -110,20 +106,20 @@ band theme. Each feature reads the shared properties and the feature-specific
 properties it understands, ignoring the rest:
 
 ```js
+theme.emphasisSpecs = Timeline.loadEmphasisStyles([
+    {
+        id: "lifeEvent",
+        labelColor: "purple",
+        lineColor: "purple"
+    }
+]);
+
 theme.eventTheme = {
     spans: true,
     dividers: true,
     labels: true,
     bubbles: false,
     eventColorScope: "both",
-    useEmphasis: false,
-    emphasis: {
-        lifeEvent: {
-            labelColor: "purple",
-            lineColor: "purple",
-            eventColorScope: "both"
-        }
-    },
     track: {
         horizontal: {
             count: 2,
@@ -147,6 +143,7 @@ theme.eventTheme = {
         colors: ["purple"]
     },
     label: {
+        colorSource: "graphic",
         offset: 2,
         stickyInset: 6,
         stickyGap: 4
@@ -191,32 +188,36 @@ Values:
 
 Default: `both`.
 
-Without active emphasis, explicit item colours such as `labelColor`, `spanColor`, or `lineColor` override this scope.
+Without an emphasis override, explicit item colours such as `labelColor`,
+`spanColor`, or `lineColor` override this scope.
 
-### `eventTheme.useEmphasis`
-Set to `true` to allow narrative items to reference reusable emphasis specs.
+### `eventTheme.disableEmphasis`
+Set to `true` to ignore named emphasis styles on this decorator.
 
 Default: `false`.
 
-### `eventTheme.emphasis`
-Map of named emphasis specs.
+### `theme.emphasisSpecs`
+Registry of `Timeline.EmphasisStyle` objects, normally produced by
+`Timeline.loadEmphasisStyles()`. It is separate from `eventTheme` and can also
+be supplied directly as the decorator's `emphasisSpecs` option.
 
 An emphasis spec is applied only when all three are true:
 
-- `eventTheme.useEmphasis` is `true`
+- `eventTheme.disableEmphasis` is not `true`
 - the range or instant has `emphasis: "key"`
-- `eventTheme.emphasis.key` exists
+- `emphasisSpecs.key` exists
 
-When active, the emphasis spec overrides item-level style fields for the supported properties.
+When active, each defined emphasis property overrides the corresponding item
+and theme result. Undefined emphasis properties leave the lower-level result
+unchanged. An emphasis `color` applies to both the graphic and label and is not
+limited by `eventColorScope`.
 
 Supported emphasis properties:
 
 - `labels`
 - `bubbles`
-- `eventColorScope`
 - `color`
 - `labelColor`
-- `textColor`
 - `spanColor`
 - `lineColor`
 - `lineWidth`
@@ -235,7 +236,7 @@ Outer offset before the first narrative track.
 ### `track.size`
 Track size across the band. On horizontal timelines this is the label row height. On vertical timelines this is the label column width, and labels wrap to fit it.
 
-If omitted, a fixed intrinsic default is used instead of being derived from the band's rendered size: `18` on horizontal timelines, `120` on vertical timelines. `height` (horizontal) and `width` (vertical) are accepted as orientation-specific aliases for `size`.
+If omitted, a fixed intrinsic default is used instead of being derived from the band's rendered size: `18` on horizontal timelines, `120` on vertical timelines.
 
 ### `track.gap`
 Gap between narrative label rows on horizontal timelines or label columns on vertical timelines.
@@ -279,6 +280,18 @@ Extra class added to instant divider-line elements.
 Extra class added to instant label elements.
 
 ## Label Theme
+
+### `eventTheme.label.colorSource`
+Controls the fallback used when neither emphasis nor the item supplies a label
+colour and a scoped item `color` does not apply to the label.
+
+- `graphic` (default) derives a legible range-label tint from the final span
+  colour; instant labels use the final divider colour directly.
+- `theme` uses `eventTheme.label.color`.
+- `inherit` sets no inline colour, allowing normal CSS inheritance.
+
+### `eventTheme.label.color`
+Theme label colour used when `colorSource` is `theme`.
 
 ### `eventTheme.label.offset`
 Offset applied along the timeline axis when placing labels.
@@ -346,7 +359,8 @@ Set to `false` on one range or instant to stop only that bubble popup.
 Overrides `eventTheme.eventColorScope` for one range or instant.
 
 ### `emphasis`
-References a named spec from `eventTheme.emphasis` when `eventTheme.useEmphasis` is `true`.
+References a named spec from the decorator or band theme's `emphasisSpecs`
+registry. It applies unless `eventTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
 Sets one narrative label colour.

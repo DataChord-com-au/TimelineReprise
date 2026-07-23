@@ -73,30 +73,29 @@
       "intervalPixels": 220
     }
   },
+  "emphasisStyles": [
+    {
+      "id": "critical",
+      "labelColor": "red",
+      "iconColor": "red"
+    },
+    {
+      "id": "quiet",
+      "labelColor": "gray",
+      "iconColor": "gray"
+    },
+    {
+      "id": "launch",
+      "labelColor": "green",
+      "iconColor": "green"
+    }
+  ],
   "eventThemes": [
     {
       "id": "delivery",
       "labels": true,
       "bubbles": true,
       "eventColorScope": "both",
-      "useEmphasis": true,
-      "emphasis": {
-        "critical": {
-          "labelColor": "red",
-          "iconColor": "red",
-          "eventColorScope": "both"
-        },
-        "quiet": {
-          "labelColor": "gray",
-          "iconColor": "gray",
-          "eventColorScope": "label"
-        },
-        "launch": {
-          "labelColor": "green",
-          "iconColor": "green",
-          "eventColorScope": "both"
-        }
-      },
       "track": {
         "horizontal": {
           "offset": 12
@@ -263,6 +262,7 @@
 
   <script>
     var config = JSON.parse(document.getElementById("timeline-config").textContent);
+    var emphasisSpecs = Timeline.loadEmphasisStyles(config.emphasisStyles);
     var eventThemes = Timeline.loadEventThemes(config.eventThemes);
     var selectedTheme = eventThemes[config.theme];
     var eventSource = new Timeline.DefaultEventSource();
@@ -271,6 +271,7 @@
     var bands = config.bands;
 
     theme.eventTheme = selectedTheme;
+    theme.emphasisSpecs = emphasisSpecs;
 
     var timelineEvents = filteredEvents.map(function (event) {
       var item = Object.assign({}, event);

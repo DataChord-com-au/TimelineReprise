@@ -43,5 +43,7 @@ export {
 };
 
 export const stylesheets = [
+    "./css/timeline-layout.css",
+    "./css/band-background.css",
     "./css/dark-mode.css"
 ];

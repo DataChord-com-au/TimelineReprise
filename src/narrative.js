@@ -67,6 +67,51 @@
             : fallback;
     }
 
+    function normalizeLabelColorMode(value, fallback) {
+        const source = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return source === "graphic" || source === "theme" || source === "inherit"
+            ? source
+            : fallback;
+    }
+
+    function deriveSpanLabelColor(color) {
+        const match = String(color ?? "").match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+        if (!match) return color ?? null;
+
+        const r = Number(match[1]) / 255;
+        const g = Number(match[2]) / 255;
+        const b = Number(match[3]) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const light = (max + min) / 2;
+
+        if (max === min) return light > 0.55 ? "hsl(0, 0%, 28%)" : "hsl(0, 0%, 72%)";
+
+        const delta = max - min;
+        const sat = light > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+        let hue = max === r
+            ? (g - b) / delta + (g < b ? 6 : 0)
+            : max === g
+                ? (b - r) / delta + 2
+                : (r - g) / delta + 4;
+
+        hue *= 60;
+        const yellowish = hue >= 35 && hue <= 75;
+        const lightSat = yellowish
+            ? Math.max(sat * 0.72, 0.46)
+            : Math.max(sat * 0.55, 0.34);
+        const lightLabel = yellowish ? 40 : light > 0.55 ? 32 : 38;
+        const darkSat = yellowish
+            ? Math.max(sat * 0.65, 0.42)
+            : Math.max(sat * 0.62, 0.40);
+        const darkLabel = yellowish ? 68 : 64;
+
+        return `light-dark(hsl(${Math.round(hue)}, ${Math.round(lightSat * 100)}%, ${lightLabel}%), hsl(${Math.round(hue)}, ${Math.round(darkSat * 100)}%, ${darkLabel}%))`;
+    }
+
     function toNameList(names) {
         return Array.isArray(names) ? names : [names];
     }
@@ -109,8 +154,12 @@
         return toFiniteNumber(value);
     }
 
+    function getTimelineTheme(params, bandTheme) {
+        return isObject(params?.theme) ? params.theme : bandTheme;
+    }
+
     function getEventTheme(params, bandTheme) {
-        const theme = isObject(params?.theme) ? params.theme : bandTheme;
+        const theme = getTimelineTheme(params, bandTheme);
         return isObject(theme?.eventTheme) ? theme.eventTheme : {};
     }
 
@@ -131,13 +180,6 @@
         return isObject(source.horizontal) || isObject(source.vertical)
             ? {}
             : source;
-    }
-
-    function trackSizeNames(timeline) {
-        const orientation = getOrientation(timeline);
-        if (orientation === "vertical") return ["size", "trackSize", "width"];
-        if (orientation === "horizontal") return ["size", "trackSize", "height"];
-        return ["size", "trackSize"];
     }
 
     function parseDate(unit, value) {
@@ -162,7 +204,7 @@
     function normalizeTrackAlign(value) {
         const align = value == null ? "start" : String(value).trim().toLowerCase();
         if (align === "start" || align === "end") return align;
-        throw new TypeError("Timeline.NarrativeDecorator trackAlign must be 'start' or 'end'.");
+        throw new TypeError("Timeline.NarrativeDecorator track.align must be 'start' or 'end'.");
     }
 
     function hasTrackValue(value) {
@@ -183,8 +225,10 @@
         this._labels = params.labels !== false;
         this._bubbles = false;
         this._eventColorScope = "both";
-        this._useEmphasis = false;
+        this._disableEmphasis = false;
         this._emphasisSpecs = {};
+        this._labelColorMode = "graphic";
+        this._labelColor = null;
 
         this._band = null;
         this._timeline = null;
@@ -205,6 +249,7 @@
 
     Timeline.NarrativeDecorator.prototype._configureTheme = function () {
         const params = this._params;
+        const timelineTheme = getTimelineTheme(params, this._band?._theme);
         const eventTheme = getEventTheme(params, this._band?._theme);
         const paramTrackTheme = getOrientedObject(params.track, this._timeline);
         const trackTheme = getOrientedObject(eventTheme.track, this._timeline);
@@ -214,31 +259,36 @@
         const bubbleTheme = isObject(params.bubble) ? params.bubble : eventTheme.bubble;
         const layerTheme = isObject(params.layer) ? params.layer : eventTheme.layer;
 
-        this._trackCount = Math.max(1, themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["count", "trackCount"], 1, "trackCount"));
-        this._trackOffset = themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["offset", "trackOffset"], 0, "trackOffset");
-        this._trackEndPadding = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], ["endPadding", "trackEndPadding"], "trackEndPadding");
-        this._trackSize = themedFiniteOrNull(params, [paramTrackTheme, trackTheme, eventTheme], trackSizeNames(this._timeline), "trackSize");
-        this._trackGap = themedFinite(params, [paramTrackTheme, trackTheme, eventTheme], ["gap", "trackGap"], 4, "trackGap");
-        this._trackAlign = normalizeTrackAlign(themedValue(params, [paramTrackTheme, trackTheme, eventTheme], ["align", "trackAlign"], "start", "trackAlign"));
+        this._trackCount = Math.max(1, themedFinite({}, [paramTrackTheme, trackTheme], "count", 1));
+        this._trackOffset = themedFinite({}, [paramTrackTheme, trackTheme], "offset", 0);
+        this._trackEndPadding = themedFiniteOrNull({}, [paramTrackTheme, trackTheme], "endPadding");
+        this._trackSize = themedFiniteOrNull({}, [paramTrackTheme, trackTheme], "size");
+        this._trackGap = themedFinite({}, [paramTrackTheme, trackTheme], "gap", 4);
+        this._trackAlign = normalizeTrackAlign(themedValue({}, [paramTrackTheme, trackTheme], "align", "start"));
 
-        this._spanOffset = themedFinite(params, [rangeTheme, eventTheme], ["offset", "spanOffset"], 0, "spanOffset");
-        this._spanSize = themedFiniteOrNull(params, [rangeTheme, eventTheme], ["size", "spanSize"], "spanSize");
-        this._dividerWidth = themedFinite(params, [instantTheme, eventTheme], ["width", "dividerWidth"], 1, "dividerWidth");
+        this._spanOffset = themedFinite({}, rangeTheme, "offset", 0);
+        this._spanSize = themedFiniteOrNull({}, rangeTheme, "size");
+        this._dividerWidth = themedFinite({}, instantTheme, "width", 1);
 
         this._stickyInset = themedFinite(params, [labelTheme, eventTheme], "stickyInset", 2);
         this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
-        this._labelOffset = themedFinite(params, [labelTheme, eventTheme], ["offset", "labelOffset"], 0, "labelOffset");
-        this._zIndex = themedFinite(params, [layerTheme, eventTheme], "zIndex", 5);
-        this._labelZIndex = themedFinite(params, [layerTheme, eventTheme], "labelZIndex", 6);
+        this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
+        this._labelColorMode = normalizeLabelColorMode(
+            themedValue({}, labelTheme, "colorSource", "graphic"),
+            "graphic"
+        );
+        this._labelColor = themedValue({}, labelTheme, "color", null);
+        this._zIndex = themedFinite({}, layerTheme, "zIndex", 5);
+        this._labelZIndex = themedFinite({}, layerTheme, "labelZIndex", 6);
 
-        this._spanColors = themedValue(params, [rangeTheme, eventTheme], ["colors", "spanColors"], null, "spanColors");
-        this._dividerColors = themedValue(params, [instantTheme, eventTheme], ["colors", "dividerColors"], null, "dividerColors");
+        this._spanColors = themedValue({}, rangeTheme, "colors", null);
+        this._dividerColors = themedValue({}, instantTheme, "colors", null);
 
-        this._spanCssClass = themedValue(params, [rangeTheme, eventTheme], ["cssClass", "spanCssClass"], "", "spanCssClass");
-        this._spanLabelCssClass = themedValue(params, [rangeTheme, eventTheme], ["labelCssClass", "spanLabelCssClass"], "", "spanLabelCssClass");
-        this._dividerCssClass = themedValue(params, [instantTheme, eventTheme], ["cssClass", "dividerCssClass"], "", "dividerCssClass");
-        this._dividerLabelCssClass = themedValue(params, [instantTheme, eventTheme], ["labelCssClass", "dividerLabelCssClass"], "", "dividerLabelCssClass");
-        this._themeId = themedValue(params, [labelTheme, eventTheme], ["themeId", "id"], eventTheme.id ?? null, "themeId");
+        this._spanCssClass = themedValue({}, rangeTheme, "cssClass", "");
+        this._spanLabelCssClass = themedValue({}, rangeTheme, "labelCssClass", "");
+        this._dividerCssClass = themedValue({}, instantTheme, "cssClass", "");
+        this._dividerLabelCssClass = themedValue({}, instantTheme, "labelCssClass", "");
+        this._themeId = hasDefinedOwn(params, "themeId") ? params.themeId : eventTheme.id ?? null;
         this._themeCssPrefix = typeof this._themeId === "string" && this._themeId.trim() !== ""
             ? "timeline-narrative-" + this._themeId.trim()
             : null;
@@ -247,25 +297,25 @@
             ? params.labels
             : hasDefinedOwn(eventTheme, "labels")
                 ? eventTheme.labels
-                : hasDefinedOwn(labelTheme, "labels")
-                    ? labelTheme.labels
-                    : true;
+                : true;
         const bubblesValue = hasDefinedOwn(params, "bubbles")
             ? params.bubbles
             : hasDefinedOwn(eventTheme, "bubbles")
                 ? eventTheme.bubbles
                 : hasDefinedOwn(bubbleTheme, "enabled")
                     ? bubbleTheme.enabled
-                    : hasDefinedOwn(bubbleTheme, "bubbles")
-                        ? bubbleTheme.bubbles
-                        : false;
+                    : false;
 
         this._spans = enabledValue(
-            hasDefinedOwn(eventTheme, "spans") ? eventTheme.spans : true,
+            hasDefinedOwn(params, "spans")
+                ? params.spans
+                : hasDefinedOwn(eventTheme, "spans") ? eventTheme.spans : true,
             true
         );
         this._dividers = enabledValue(
-            hasDefinedOwn(eventTheme, "dividers") ? eventTheme.dividers : true,
+            hasDefinedOwn(params, "dividers")
+                ? params.dividers
+                : hasDefinedOwn(eventTheme, "dividers") ? eventTheme.dividers : true,
             true
         );
         this._labels = enabledValue(labelsValue, true);
@@ -274,15 +324,17 @@
             themedValue(params, eventTheme, "eventColorScope", "both", "eventColorScope"),
             "both"
         );
-        this._useEmphasis = enabledValue(
-            hasDefinedOwn(eventTheme, "useEmphasis") ? eventTheme.useEmphasis : false,
+        this._disableEmphasis = enabledValue(
+            themedValue(params, eventTheme, "disableEmphasis", false),
             false
         );
-        this._emphasisSpecs = isObject(eventTheme.emphasis)
-            ? eventTheme.emphasis
+        this._emphasisSpecs = isObject(params.emphasisSpecs)
+            ? params.emphasisSpecs
+            : isObject(timelineTheme?.emphasisSpecs)
+                ? timelineTheme.emphasisSpecs
             : {};
-        this._bubbleWidth = themedFinite(params, [bubbleTheme, eventTheme], ["width", "bubbleWidth"], 320, "bubbleWidth");
-        this._bubbleMaxHeight = themedValue(params, [bubbleTheme, eventTheme], ["maxHeight", "bubbleMaxHeight"], null, "bubbleMaxHeight");
+        this._bubbleWidth = themedFinite({}, bubbleTheme, "width", 320);
+        this._bubbleMaxHeight = themedValue({}, bubbleTheme, "maxHeight", null);
     };
 
     Timeline.NarrativeDecorator.prototype._themeCssClass = function (suffix) {
@@ -322,11 +374,7 @@
     };
 
     Timeline.NarrativeDecorator.prototype._resolveTrack = function (item, index) {
-        const track =
-            hasTrackValue(item.track) ? item.track :
-            hasTrackValue(item.narrativeTrack) ? item.narrativeTrack :
-            hasTrackValue(item.timelineNarrativeTrack) ? item.timelineNarrativeTrack :
-            null;
+        const track = hasTrackValue(item.track) ? item.track : null;
         const value = Number(track);
         return Number.isFinite(value)
             ? Math.max(0, Math.floor(value))
@@ -337,9 +385,7 @@
         if (item.trackExplicit === true) return true;
         if (item.trackExplicit === false) return false;
 
-        return hasTrackValue(item.track) ||
-            hasTrackValue(item.narrativeTrack) ||
-            hasTrackValue(item.timelineNarrativeTrack);
+        return hasTrackValue(item.track);
     };
 
     Timeline.NarrativeDecorator.prototype._itemValue = function (item, names) {
@@ -362,7 +408,7 @@
     };
 
     Timeline.NarrativeDecorator.prototype._itemEmphasisSpec = function (item) {
-        if (!this._useEmphasis) return null;
+        if (this._disableEmphasis) return null;
 
         const emphasisValue = this._itemValue(item, "emphasis");
         const key = emphasisValue.found ? stringValue(emphasisValue.value) : null;
@@ -386,12 +432,6 @@
     };
 
     Timeline.NarrativeDecorator.prototype._itemColor = function (item) {
-        const emphasisValue = ownValue(this._itemEmphasisSpec(item), "color");
-        if (emphasisValue.found) {
-            const color = stringValue(emphasisValue.value);
-            if (color != null) return color;
-        }
-
         return stringValue(item.color) ||
             stringValue(item.event?.getColor?.()) ||
             stringValue(item.event?.color);
@@ -409,7 +449,7 @@
     };
 
     Timeline.NarrativeDecorator.prototype._recordColorScope = function (record) {
-        const value = this._itemStyledValue(record.item, "eventColorScope");
+        const value = this._itemValue(record.item, "eventColorScope");
         return normalizeEventColorScope(
             value.found ? value.value : this._eventColorScope,
             this._eventColorScope
@@ -417,7 +457,14 @@
     };
 
     Timeline.NarrativeDecorator.prototype._recordGraphicColor = function (record, explicitNames, fallback) {
-        const explicit = this._itemStyledValue(record.item, explicitNames);
+        const emphasis = ownValue(
+            this._itemEmphasisSpec(record.item),
+            [...toNameList(explicitNames), "color"]
+        );
+        const emphasisColor = emphasis.found ? stringValue(emphasis.value) : null;
+        if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
+
+        const explicit = this._itemValue(record.item, explicitNames);
         const explicitColor = explicit.found ? stringValue(explicit.value) : null;
         if (explicitColor != null) return resolveCssColor(explicitColor) || explicitColor;
 
@@ -435,16 +482,34 @@
     };
 
     Timeline.NarrativeDecorator.prototype._recordLabelColor = function (record) {
-        const labelValue = this._itemStyledValue(record.item, ["labelColor", "textColor"]);
+        const emphasis = ownValue(
+            this._itemEmphasisSpec(record.item),
+            ["labelColor", "color"]
+        );
+        const emphasisColor = emphasis.found ? stringValue(emphasis.value) : null;
+        if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
+
+        const labelValue = this._itemValue(record.item, "labelColor");
         const labelColor = labelValue.found ? stringValue(labelValue.value) : null;
         if (labelColor != null) return resolveCssColor(labelColor) || labelColor;
 
         const scope = this._recordColorScope(record);
         const itemColor = this._itemColor(record.item);
 
-        return (scope === "label" || scope === "both") && itemColor != null
-            ? resolveCssColor(itemColor) || itemColor
-            : null;
+        if ((scope === "label" || scope === "both") && itemColor != null) {
+            return resolveCssColor(itemColor) || itemColor;
+        }
+
+        if (this._labelColorMode === "theme") {
+            const themeColor = stringValue(this._labelColor);
+            return themeColor != null ? resolveCssColor(themeColor) || themeColor : null;
+        }
+
+        if (this._labelColorMode === "inherit") return null;
+
+        return record.kind === "range"
+            ? deriveSpanLabelColor(record.graphicColor)
+            : record.graphicColor ?? null;
     };
 
     Timeline.NarrativeDecorator.prototype._setRect = function (elmt, rect) {
@@ -607,6 +672,7 @@
             const record = {
                 item,
                 index,
+                kind: "range",
                 startDate,
                 endDate,
                 baseTrack: this._resolveTrack(item, index),
@@ -617,6 +683,13 @@
             };
             record.track = record.baseTrack;
 
+            const spanColor = this._recordGraphicColor(
+                record,
+                "spanColor",
+                cycleValue(this._spanColors, index)
+            );
+            record.graphicColor = spanColor;
+
             if (this._spans) {
                 const span = doc.createElement("div");
                 span.className = [
@@ -626,11 +699,6 @@
                     item.cssClass
                 ].filter(Boolean).join(" ");
                 span.style.position = "absolute";
-                const spanColor = this._recordGraphicColor(
-                    record,
-                    "spanColor",
-                    cycleValue(this._spanColors, index)
-                );
                 if (spanColor) {
                     span.style.backgroundColor = spanColor;
                 }
@@ -656,6 +724,7 @@
             const record = {
                 item,
                 index,
+                kind: "instant",
                 date,
                 baseTrack: this._resolveTrack(item, index),
                 track: 0,
@@ -663,6 +732,13 @@
                 pixel: 0
             };
             record.track = record.baseTrack;
+
+            const lineColor = this._recordGraphicColor(
+                record,
+                "lineColor",
+                cycleValue(this._dividerColors, index) || "black"
+            );
+            record.graphicColor = lineColor;
 
             if (this._dividers) {
                 const line = doc.createElement("div");
@@ -673,11 +749,7 @@
                     item.cssClass
                 ].filter(Boolean).join(" ");
                 line.style.position = "absolute";
-                line.style.backgroundColor = this._recordGraphicColor(
-                    record,
-                    "lineColor",
-                    cycleValue(this._dividerColors, index) || "black"
-                );
+                line.style.backgroundColor = lineColor;
                 this._layerDiv.appendChild(line);
                 record.lineElmt = line;
             }
@@ -791,7 +863,11 @@
             record.pixel = Math.round(this._band.dateToPixelOffset(record.date));
 
             if (record.lineElmt) {
-                const dividerWidth = finiteOr(record.item.lineWidth, this._dividerWidth);
+                const lineWidth = this._itemStyledValue(record.item, "lineWidth");
+                const dividerWidth = finiteOr(
+                    lineWidth.found ? lineWidth.value : null,
+                    this._dividerWidth
+                );
                 const start = record.pixel - Math.round(dividerWidth / 2);
                 this._setRect(record.lineElmt, horizontal
                     ? { left: start, width: dividerWidth, top: this._spanOffset, height: crossSize }

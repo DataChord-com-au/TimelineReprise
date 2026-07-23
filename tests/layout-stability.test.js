@@ -974,7 +974,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             eventColor,
             eventIconColor,
             emphasisIconColor,
-            useEmphasis = true,
+            disableEmphasis = false,
             scope = "graphic",
             icon = null
         } = {}) {
@@ -988,14 +988,14 @@ for (const orientation of ["horizontal", "vertical"]) {
             });
 
             theme.event.instant.iconColor = themeColor;
+            theme.emphasisSpecs = {
+                critical: emphasisIconColor == null
+                    ? {}
+                    : { iconColor: emphasisIconColor }
+            };
             theme.eventTheme = {
                 eventColorScope: scope,
-                useEmphasis,
-                emphasis: {
-                    critical: emphasisIconColor == null
-                        ? {}
-                        : { iconColor: emphasisIconColor }
-                }
+                disableEmphasis
             };
 
             return painter._paintEventIcon(
@@ -1027,7 +1027,7 @@ for (const orientation of ["horizontal", "vertical"]) {
                 themeColor: "orange",
                 eventIconColor: "green",
                 emphasisIconColor: "red",
-                useEmphasis: false
+                disableEmphasis: true
             }),
             "theme-icon:green:10"
         );
@@ -1098,10 +1098,8 @@ test("duration emphasis iconColor overrides event tapeColor", () => {
         })[name]
     };
 
-    theme.eventTheme = {
-        useEmphasis: true,
-        emphasis: { critical: { iconColor: "red" } }
-    };
+    theme.emphasisSpecs = { critical: { iconColor: "red" } };
+    theme.eventTheme = {};
 
     const tape = painter._paintEventTape(
         evt,
@@ -1388,18 +1386,6 @@ test("narrative explicit track size is used verbatim regardless of band size", (
 
     assert.equal(decorator._trackSizeValue(), 22);
     assert.equal(decorator._trackStart(1), 10 + (22 + 4));
-});
-
-test("narrative track size accepts height (horizontal) and width (vertical) as orientation aliases", () => {
-    const horizontalAlias = makeConfiguredNarrative("horizontal", 400, { count: 2, offset: 0, gap: 0, height: 30 });
-    assert.equal(horizontalAlias._trackSizeValue(), 30);
-
-    const verticalAlias = makeConfiguredNarrative("vertical", 400, { count: 2, offset: 0, gap: 0, width: 95 });
-    assert.equal(verticalAlias._trackSizeValue(), 95);
-
-    // A vertical "height" (or horizontal "width") is the wrong-axis name and must not be picked up.
-    const wrongAxis = makeConfiguredNarrative("vertical", 400, { count: 1, offset: 0, gap: 0, height: 30 });
-    assert.notEqual(wrongAxis._trackSizeValue(), 30);
 });
 
 test("narrative vertical start vs end alignment mirror around the band, anchored by endPadding", () => {

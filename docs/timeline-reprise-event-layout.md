@@ -12,7 +12,15 @@ layout; unlisted fields do not configure this painter.
 
 ```js
 var theme = Timeline.ClassicTheme.create();
+var emphasisSpecs = Timeline.loadEmphasisStyles([
+    {
+        id: "critical",
+        labelColor: "red",
+        iconColor: "red"
+    }
+]);
 
+theme.emphasisSpecs = emphasisSpecs;
 theme.eventTheme = {
     labels: true,
     bubbles: true,
@@ -22,14 +30,6 @@ theme.eventTheme = {
         maxHeight: null
     },
     eventColorScope: "graphic",
-    useEmphasis: false,
-    emphasis: {
-        critical: {
-            labelColor: "red",
-            iconColor: "red",
-            eventColorScope: "both"
-        }
-    },
     track: {
         horizontal: {
             offset: 12
@@ -127,34 +127,38 @@ Values:
 
 Event-layout default: `graphic`.
 
-Without active emphasis, explicit event colours such as `iconColor`,
+Without an emphasis override, explicit event colours such as `iconColor`,
 `labelColor`, `textColor`, or `tapeColor` override this scope.
 
-### `eventTheme.useEmphasis`
-Set to `true` to allow events to reference reusable emphasis specs.
+### `eventTheme.disableEmphasis`
+Set to `true` to ignore named emphasis styles on this band.
 
 Default: `false`.
 
-### `eventTheme.emphasis`
-Map of named emphasis specs.
+### `theme.emphasisSpecs`
+Registry of `Timeline.EmphasisStyle` objects, normally produced by
+`Timeline.loadEmphasisStyles()`. This registry is separate from
+`theme.eventTheme`; the event theme only controls whether the registry is
+disabled for the band.
 
 An emphasis spec is applied only when all three are true:
 
-- `eventTheme.useEmphasis` is `true`
+- `eventTheme.disableEmphasis` is not `true`
 - the event has `emphasis: "key"`
-- `eventTheme.emphasis.key` exists
+- `theme.emphasisSpecs.key` exists
 
-When active, the emphasis spec overrides event-level style fields for the supported properties.
+When active, each defined emphasis property overrides the corresponding event
+and theme result. Undefined emphasis properties leave the lower-level result
+unchanged. An emphasis `color` applies to both the graphic and label and is not
+limited by `eventColorScope`.
 
 Supported emphasis properties:
 
 - `labels`
 - `bubbles`
-- `eventColorScope`
 - `color`
 - `iconColor`
 - `labelColor`
-- `textColor`
 
 `iconColor` is the emphasis graphic-colour override for both instant dots and
 range tapes/sparklines. The older emphasis-only `tapeColor` name is not used.
@@ -346,7 +350,8 @@ Sets one instant event's dot colour. An applied emphasis `iconColor` takes
 precedence. On range events, use `tapeColor` for an event-only override.
 
 ### `emphasis`
-References a named spec from `eventTheme.emphasis` when `eventTheme.useEmphasis` is `true`.
+References a named spec from `theme.emphasisSpecs`. It applies unless
+`eventTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
 Sets one event label colour.

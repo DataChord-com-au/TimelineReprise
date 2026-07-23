@@ -23,7 +23,7 @@ function loadNarrativeDecorator() {
 
 test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     const NarrativeDecorator = loadNarrativeDecorator();
-    const emphasis = { strong: { color: "purple", lineWidth: 4 } };
+    const emphasisSpecs = { strong: { color: "purple", lineWidth: 4 } };
     const rangeColors = ["green", "blue"];
     const instantColors = ["purple"];
     const eventTheme = {
@@ -33,8 +33,6 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
         labels: false,
         bubbles: true,
         eventColorScope: "label",
-        useEmphasis: true,
-        emphasis,
         track: {
             horizontal: {
                 count: 2,
@@ -61,7 +59,9 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
         label: {
             offset: 14,
             stickyInset: 16,
-            stickyGap: 17
+            stickyGap: 17,
+            colorSource: "theme",
+            color: "orange"
         },
         bubble: {
             width: 18,
@@ -75,7 +75,7 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     const decorator = new NarrativeDecorator({});
 
     decorator.initialize(
-        { _theme: { eventTheme } },
+        { _theme: { eventTheme, emphasisSpecs } },
         { isHorizontal: () => true, isVertical: () => false }
     );
 
@@ -107,8 +107,75 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     assert.equal(decorator._labels, false);
     assert.equal(decorator._bubbles, true);
     assert.equal(decorator._eventColorScope, "label");
-    assert.equal(decorator._useEmphasis, true);
-    assert.equal(decorator._emphasisSpecs, emphasis);
+    assert.equal(decorator._disableEmphasis, false);
+    assert.equal(decorator._emphasisSpecs, emphasisSpecs);
+    assert.equal(decorator._labelColorMode, "theme");
+    assert.equal(decorator._labelColor, "orange");
+});
+
+test("NarrativeDecorator uses a separate emphasis registry by default and honours the kill switch", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const emphasisSpecs = { strong: { color: "purple" } };
+    const item = { emphasis: "strong" };
+
+    const enabled = new NarrativeDecorator({ emphasisSpecs });
+    assert.equal(enabled._itemEmphasisSpec(item), emphasisSpecs.strong);
+
+    const disabled = new NarrativeDecorator({
+        emphasisSpecs,
+        theme: { eventTheme: { disableEmphasis: true } }
+    });
+    assert.equal(disabled._itemEmphasisSpec(item), null);
+
+    const themedRegistry = new NarrativeDecorator({
+        theme: { eventTheme: {}, emphasisSpecs }
+    });
+    assert.equal(themedRegistry._itemEmphasisSpec(item), emphasisSpecs.strong);
+});
+
+test("NarrativeDecorator resolves emphasis, event scope, and label fallback in one place", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const emphasisSpecs = { strong: { color: "purple" } };
+    const decorator = new NarrativeDecorator({ emphasisSpecs });
+    const item = {
+        emphasis: "strong",
+        color: "blue",
+        eventColorScope: "none",
+        spanColor: "green",
+        labelColor: "black"
+    };
+    const record = { item, kind: "range" };
+
+    record.graphicColor = decorator._recordGraphicColor(record, "spanColor", "red");
+    assert.equal(record.graphicColor, "purple");
+    assert.equal(decorator._recordLabelColor(record), "purple");
+
+    const scoped = new NarrativeDecorator({
+        theme: { eventTheme: { eventColorScope: "both" } }
+    });
+    const scopedRecord = { item: { color: "blue" }, kind: "range" };
+    scopedRecord.graphicColor = scoped._recordGraphicColor(scopedRecord, "spanColor", "red");
+    assert.equal(scopedRecord.graphicColor, "blue");
+    assert.equal(scoped._recordLabelColor(scopedRecord), "blue");
+
+    const derived = new NarrativeDecorator({});
+    const derivedRecord = { item: {}, kind: "range", graphicColor: "rgb(220, 38, 38)" };
+    assert.match(derived._recordLabelColor(derivedRecord), /^light-dark\(hsl\(0,/);
+
+    const themed = new NarrativeDecorator({
+        theme: { eventTheme: { label: { colorSource: "theme", color: "orange" } } }
+    });
+    assert.equal(themed._recordLabelColor({ item: {}, kind: "range", graphicColor: "red" }), "orange");
+
+    const inherited = new NarrativeDecorator({
+        theme: { eventTheme: { label: { colorSource: "inherit" } } }
+    });
+    assert.equal(inherited._recordLabelColor({ item: {}, kind: "range", graphicColor: "red" }), null);
+
+    const direct = new NarrativeDecorator({
+        label: { colorSource: "theme", color: "green" }
+    });
+    assert.equal(direct._recordLabelColor({ item: {}, kind: "range", graphicColor: "red" }), "green");
 });
 
 test("NarrativeDecorator does not accept separate narrative theme roots", () => {
@@ -116,7 +183,7 @@ test("NarrativeDecorator does not accept separate narrative theme roots", () => 
     const unwantedTheme = {
         labels: false,
         eventColorScope: "none",
-        trackCount: 9
+        track: { horizontal: { count: 9 } }
     };
     const cases = [
         { narrativeTheme: unwantedTheme },

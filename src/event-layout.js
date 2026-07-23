@@ -143,22 +143,18 @@
     function getEventEmphasisSpec(evt, theme) {
         const authoredTheme = theme?.eventTheme;
         const nativeEventTheme = theme?.event;
-        const useEmphasis = hasDefinedOwn(authoredTheme, "useEmphasis")
-            ? authoredTheme.useEmphasis
-            : hasDefinedOwn(nativeEventTheme, "useEmphasis")
-                ? nativeEventTheme.useEmphasis
+        const disableEmphasis = hasDefinedOwn(authoredTheme, "disableEmphasis")
+            ? authoredTheme.disableEmphasis
+            : hasDefinedOwn(nativeEventTheme, "disableEmphasis")
+                ? nativeEventTheme.disableEmphasis
                 : false;
 
-        if (!enabledValue(useEmphasis, false)) return null;
+        if (enabledValue(disableEmphasis, false)) return null;
 
         const key = stringValue(getEventProperty(evt, "emphasis"));
         if (key == null) return null;
 
-        const specs = isObject(authoredTheme?.emphasis)
-            ? authoredTheme.emphasis
-            : isObject(nativeEventTheme?.emphasis)
-                ? nativeEventTheme.emphasis
-                : null;
+        const specs = isObject(theme?.emphasisSpecs) ? theme.emphasisSpecs : null;
         const spec = specs?.[key];
 
         return isObject(spec) ? spec : null;
@@ -166,6 +162,14 @@
 
     function getEmphasisValue(evt, theme, names) {
         return objectValue(getEventEmphasisSpec(evt, theme), names);
+    }
+
+    function getEmphasisColor(evt, theme, names) {
+        const value = getEmphasisValue(evt, theme, [...(Array.isArray(names) ? names : [names]), "color"]);
+        if (!value.found) return null;
+
+        const color = stringValue(value.value);
+        return color != null ? resolveCssColor(color) || color : null;
     }
 
     function getThemeControl(theme, name, fallback) {
@@ -224,32 +228,20 @@
     }
 
     function getEventColorScope(evt, theme, fallback) {
-        const emphasisValue = getEmphasisValue(evt, theme, "eventColorScope");
-
         return normalizeEventColorScope(
-            (emphasisValue.found ? emphasisValue.value : null) ??
-                getEventProperty(evt, "eventColorScope") ??
+            getEventProperty(evt, "eventColorScope") ??
                 getThemeControl(theme, "eventColorScope", fallback),
             fallback
         );
     }
 
-    function getEventColor(evt, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, "color");
-        if (emphasisValue.found) {
-            const color = stringValue(emphasisValue.value);
-            if (color != null) return color;
-        }
-
+    function getEventColor(evt) {
         return stringValue(evt?.getColor?.());
     }
 
     function getExplicitLabelColor(evt, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, ["labelColor", "textColor"]);
-        if (emphasisValue.found) {
-            const color = stringValue(emphasisValue.value);
-            if (color != null) return color;
-        }
+        const emphasisColor = getEmphasisColor(evt, theme, "labelColor");
+        if (emphasisColor != null) return emphasisColor;
 
         return stringValue(getEventProperty(evt, "labelColor")) ||
             stringValue(evt?.getTextColor?.()) ||
@@ -261,7 +253,7 @@
         if (explicit != null) return resolveCssColor(explicit) || explicit;
 
         const scope = getEventColorScope(evt, theme, "graphic");
-        const eventColor = getEventColor(evt, theme);
+        const eventColor = getEventColor(evt);
 
         return (scope === "label" || scope === "both") && eventColor != null
             ? resolveCssColor(eventColor) || eventColor
@@ -272,16 +264,13 @@
         const scope = getEventColorScope(evt, theme, "graphic");
         if (scope !== "graphic" && scope !== "both") return null;
 
-        const color = getEventColor(evt, theme);
+        const color = getEventColor(evt);
         return color != null ? resolveCssColor(color) || color : null;
     }
 
     function getEventInstantIconColor(evt, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, "iconColor");
-        if (emphasisValue.found) {
-            const color = stringValue(emphasisValue.value);
-            if (color != null) return resolveCssColor(color) || color;
-        }
+        const emphasisColor = getEmphasisColor(evt, theme, "iconColor");
+        if (emphasisColor != null) return emphasisColor;
 
         const eventColor = stringValue(getEventProperty(evt, "iconColor"));
         if (eventColor != null) return resolveCssColor(eventColor) || eventColor;
@@ -409,12 +398,8 @@
             eventTheme.eventColorScope = authoredTheme.eventColorScope;
         }
 
-        if (hasDefinedOwn(authoredTheme, "useEmphasis")) {
-            eventTheme.useEmphasis = authoredTheme.useEmphasis;
-        }
-
-        if (isObject(authoredTheme.emphasis)) {
-            eventTheme.emphasis = authoredTheme.emphasis;
+        if (hasDefinedOwn(authoredTheme, "disableEmphasis")) {
+            eventTheme.disableEmphasis = authoredTheme.disableEmphasis;
         }
 
         if (isObject(track)) {
@@ -914,17 +899,14 @@
     }
 
     function getEventTapeColor(evt, fallback, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, "iconColor");
-        if (emphasisValue.found) {
-            const emphasisColor = stringValue(emphasisValue.value);
-            if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
-        }
+        const emphasisColor = getEmphasisColor(evt, theme, "iconColor");
+        if (emphasisColor != null) return emphasisColor;
 
         const tapeColor = stringValue(getEventProperty(evt, "tapeColor"));
         if (tapeColor != null) return resolveCssColor(tapeColor) || tapeColor;
 
         const scope = getEventColorScope(evt, theme, "graphic");
-        const eventColor = getEventColor(evt, theme);
+        const eventColor = getEventColor(evt);
 
         if ((scope === "graphic" || scope === "both") && eventColor != null) {
             return resolveCssColor(eventColor) || eventColor;

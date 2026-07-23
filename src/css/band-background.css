@@ -1,0 +1,3 @@
+.timeline-band-has-background .timeline-ether-bg {
+  background-color: var(--timeline-band-background-color);
+}

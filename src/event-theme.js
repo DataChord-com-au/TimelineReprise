@@ -1,5 +1,4 @@
 import { assertColorString } from "./color.js";
-import { EmphasisStyle } from "./emphasis-style.js";
 import { TIMELINE_ORIENTATIONS } from "./orientation.js";
 
 const _MODULE_LABEL = "TimelineReprise";
@@ -49,6 +48,23 @@ function validateThemeSpecId(value, caller) {
 }
 
 const _EVENT_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'both']);
+const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
+const _EVENT_THEME_FIELDS = new Set([
+    'id',
+    'disableEmphasis',
+    'eventColorScope',
+    'spans',
+    'dividers',
+    'labels',
+    'bubbles',
+    'track',
+    'instant',
+    'range',
+    'label',
+    'bubble',
+    'layer',
+    'tagsToIconColor'
+]);
 
 class EventTheme {
     static get displayName() { return 'EventTheme'; }
@@ -128,18 +144,10 @@ class EventTheme {
         this.#assertPlainObject(spec, caller);
 
         this.#assertNumber(spec.count, `${caller}.count`, { positive: true });
-        this.#assertNumber(spec.trackCount, `${caller}.trackCount`, { positive: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
-        this.#assertNumber(spec.trackOffset, `${caller}.trackOffset`);
         this.#assertNumber(spec.endPadding, `${caller}.endPadding`, { nonNegative: true });
-        this.#assertNumber(spec.trackEndPadding, `${caller}.trackEndPadding`, { nonNegative: true });
         this.#assertNumber(spec.size, `${caller}.size`, { positive: true });
-        this.#assertNumber(spec.trackSize, `${caller}.trackSize`, { positive: true });
-        this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
         this.#assertNumber(spec.gap, `${caller}.gap`, { nonNegative: true });
-        this.#assertNumber(spec.trackGap, `${caller}.trackGap`, { nonNegative: true });
-        this.#assertNumber(spec.spanOffset, `${caller}.spanOffset`, { nonNegative: true });
-        this.#assertNumber(spec.spanSize, `${caller}.spanSize`, { positive: true });
 
         if (spec.align !== undefined) {
             const align = String(spec.align).trim().toLowerCase();
@@ -148,12 +156,6 @@ class EventTheme {
             }
         }
 
-        if (spec.trackAlign !== undefined) {
-            const align = String(spec.trackAlign).trim().toLowerCase();
-            if (align !== 'start' && align !== 'end') {
-                throw new RangeError(`${caller}.trackAlign must be 'start' or 'end'.`);
-            }
-        }
     }
 
     static #assertInstantSpec(spec, caller) {
@@ -202,26 +204,22 @@ class EventTheme {
         this.#assertNumber(spec.stickyInset, `${caller}.stickyInset`, { nonNegative: true });
         this.#assertNumber(spec.stickyGap, `${caller}.stickyGap`, { nonNegative: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
-        this.#assertBoolean(spec.labels, `${caller}.labels`);
+        this.#assertColor(spec.color, `${caller}.color`);
+
+        if (spec.colorSource !== undefined && !_LABEL_COLOR_SOURCES.includes(spec.colorSource)) {
+            throw new RangeError(`${caller}.colorSource must be 'graphic', 'theme', or 'inherit'.`);
+        }
     }
 
     static #assertBubbleSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
 
         this.#assertBoolean(spec.enabled, `${caller}.enabled`);
-        this.#assertBoolean(spec.bubbles, `${caller}.bubbles`);
         this.#assertBoolean(spec.showTags, `${caller}.showTags`);
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         if (spec.maxHeight !== null) {
             this.#assertNumber(spec.maxHeight, `${caller}.maxHeight`, { positive: true });
         }
-    }
-
-    static #assertLayerSpec(spec, caller) {
-        this.#assertPlainObject(spec, caller);
-
-        this.#assertNumber(spec.zIndex, `${caller}.zIndex`);
-        this.#assertNumber(spec.labelZIndex, `${caller}.labelZIndex`);
     }
 
     static #assertOrientableSpec(spec, caller, validator) {
@@ -234,32 +232,11 @@ class EventTheme {
         }
     }
 
-    static #assertEmphasisSpec(spec, caller) {
-        if (spec instanceof EmphasisStyle) return;
-
-        this.#assertPlainObject(spec, caller);
-        this.#assertBoolean(spec.labels, `${caller}.labels`);
-        this.#assertBoolean(spec.bubbles, `${caller}.bubbles`);
-        this.#assertEventColorScope(spec.eventColorScope, `${caller}.eventColorScope`);
-        this.#assertColor(spec.color, `${caller}.color`);
-        this.#assertColor(spec.iconColor, `${caller}.iconColor`);
-        this.#assertColor(spec.labelColor, `${caller}.labelColor`);
-        this.#assertColor(spec.textColor, `${caller}.textColor`);
-        this.#assertColor(spec.spanColor, `${caller}.spanColor`);
-        this.#assertColor(spec.lineColor, `${caller}.lineColor`);
-        this.#assertNumber(spec.lineWidth, `${caller}.lineWidth`, { positive: true });
-    }
-
-    static #assertEmphasisMap(spec, caller) {
+    static #assertLayerSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
 
-        for (const [key, value] of Object.entries(spec)) {
-            if (key.trim() === '') {
-                throw new TypeError(`${caller} keys must not be empty.`);
-            }
-
-            this.#assertEmphasisSpec(value, `${caller}.${key}`);
-        }
+        this.#assertNumber(spec.zIndex, `${caller}.zIndex`);
+        this.#assertNumber(spec.labelZIndex, `${caller}.labelZIndex`);
     }
 
     static #assertTagsToIconColor(spec, caller) {
@@ -276,20 +253,18 @@ class EventTheme {
     }
 
     static #assertThemeShape(theme, caller) {
-        this.#assertBoolean(theme.useEmphasis, `${caller}.useEmphasis`);
+        for (const field of Object.keys(theme)) {
+            if (!_EVENT_THEME_FIELDS.has(field)) {
+                throw new TypeError(`${caller}.${field} is not a supported event theme field.`);
+            }
+        }
+
+        this.#assertBoolean(theme.disableEmphasis, `${caller}.disableEmphasis`);
         this.#assertEventColorScope(theme.eventColorScope, `${caller}.eventColorScope`);
         this.#assertBoolean(theme.spans, `${caller}.spans`);
         this.#assertBoolean(theme.dividers, `${caller}.dividers`);
         this.#assertBoolean(theme.labels, `${caller}.labels`);
         this.#assertBoolean(theme.bubbles, `${caller}.bubbles`);
-        this.#assertColorList(theme.spanColors, `${caller}.spanColors`);
-        this.#assertColorList(theme.dividerColors, `${caller}.dividerColors`);
-        this.#assertNumber(theme.dividerWidth, `${caller}.dividerWidth`, { positive: true });
-        this.#assertNumber(theme.bubbleWidth, `${caller}.bubbleWidth`, { positive: true });
-        if (theme.bubbleMaxHeight !== null) {
-            this.#assertNumber(theme.bubbleMaxHeight, `${caller}.bubbleMaxHeight`, { positive: true });
-        }
-
         if (theme.track !== undefined) {
             this.#assertOrientableSpec(theme.track, `${caller}.track`, this.#assertTrackSpec);
         }
@@ -312,10 +287,6 @@ class EventTheme {
 
         if (theme.layer !== undefined) {
             this.#assertLayerSpec(theme.layer, `${caller}.layer`);
-        }
-
-        if (theme.emphasis !== undefined) {
-            this.#assertEmphasisMap(theme.emphasis, `${caller}.emphasis`);
         }
 
         if (theme.tagsToIconColor !== undefined) {
