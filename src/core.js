@@ -8,7 +8,35 @@
     const originalDistributeWidths = proto._distributeWidths;
 
     if (!Timeline.EmptyEtherPainter) {
-        Timeline.EmptyEtherPainter = function () {};
+        Timeline.EmptyEtherPainter = function (options) {
+            if (options === undefined) options = {};
+            if (
+                options == null ||
+                typeof options !== "object" ||
+                Array.isArray(options)
+            ) {
+                throw new TypeError(
+                    "Timeline.EmptyEtherPainter options must be an object."
+                );
+            }
+
+            const backgroundColor = options.backgroundColor;
+            if (
+                backgroundColor != null &&
+                (
+                    typeof backgroundColor !== "string" ||
+                    backgroundColor.trim() === ""
+                )
+            ) {
+                throw new TypeError(
+                    "Timeline.EmptyEtherPainter backgroundColor must be null or a non-empty CSS color string."
+                );
+            }
+
+            this._backgroundColor = backgroundColor == null
+                ? null
+                : backgroundColor.trim();
+        };
 
         Timeline.EmptyEtherPainter.prototype.initialize = function (band, timeline) {
             this._band = band;
@@ -17,6 +45,10 @@
             this._backgroundLayer = band.createLayerDiv(0);
             this._backgroundLayer.setAttribute("name", "ether-background");
             this._backgroundLayer.className = "timeline-ether-bg";
+
+            if (this._backgroundColor != null) {
+                this._backgroundLayer.style.backgroundColor = this._backgroundColor;
+            }
         };
         Timeline.EmptyEtherPainter.prototype.setHighlight = function () {};
         Timeline.EmptyEtherPainter.prototype.paint = function () {};

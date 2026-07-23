@@ -68,6 +68,43 @@ function loadCore(Timeline) {
     vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
 }
 
+function loadEmptyEtherPainter() {
+    function Impl() {}
+
+    Impl.prototype._distributeWidths = function () {};
+
+    const Timeline = { _Impl: Impl };
+    loadCore(Timeline);
+    return Timeline.EmptyEtherPainter;
+}
+
+function initializeEmptyEtherPainter(options) {
+    const EmptyEtherPainter = loadEmptyEtherPainter();
+    const layer = {
+        attributes: {},
+        className: "",
+        style: {},
+        setAttribute(name, value) {
+            this.attributes[name] = value;
+        }
+    };
+    const createdLayers = [];
+    const band = {
+        createLayerDiv(zIndex) {
+            createdLayers.push(zIndex);
+            return layer;
+        }
+    };
+    const timeline = {};
+    const painter = options === undefined
+        ? new EmptyEtherPainter()
+        : new EmptyEtherPainter(options);
+
+    painter.initialize(band, timeline);
+
+    return { painter, band, timeline, layer, createdLayers };
+}
+
 function loadNarrativeDecorator() {
     const Timeline = { NativeDateUnit: {} };
     const context = vm.createContext({
@@ -237,6 +274,66 @@ test("native decorator layers are not remapped by Reprise", () => {
     band.createLayerDiv(105);
 
     assert.deepEqual(createdLayers, [1, 10, 100, 105]);
+});
+
+test("EmptyEtherPainter keeps the no-argument painter interface compatible", () => {
+    const { painter, band, timeline, layer, createdLayers } =
+        initializeEmptyEtherPainter();
+
+    assert.equal(painter._band, band);
+    assert.equal(painter._timeline, timeline);
+    assert.equal(painter._backgroundLayer, layer);
+    assert.deepEqual(createdLayers, [0]);
+    assert.equal(layer.attributes.name, "ether-background");
+    assert.equal(layer.className, "timeline-ether-bg");
+    assert.equal(painter.setHighlight(), undefined);
+    assert.equal(painter.paint(), undefined);
+    assert.equal(painter.softPaint(), undefined);
+});
+
+test("EmptyEtherPainter applies a configured background directly to its layer", () => {
+    const { layer } = initializeEmptyEtherPainter({
+        backgroundColor: "  #1e1e1e  "
+    });
+
+    assert.equal(layer.style.backgroundColor, "#1e1e1e");
+});
+
+test("EmptyEtherPainter does not force a layer color when backgroundColor is omitted", () => {
+    const { layer } = initializeEmptyEtherPainter({});
+
+    assert.equal(Object.hasOwn(layer.style, "backgroundColor"), false);
+});
+
+test("EmptyEtherPainter accepts nullish backgroundColor values", () => {
+    const EmptyEtherPainter = loadEmptyEtherPainter();
+
+    assert.doesNotThrow(() => new EmptyEtherPainter({
+        backgroundColor: null
+    }));
+    assert.doesNotThrow(() => new EmptyEtherPainter({
+        backgroundColor: undefined
+    }));
+});
+
+test("EmptyEtherPainter rejects invalid backgroundColor values", () => {
+    const EmptyEtherPainter = loadEmptyEtherPainter();
+
+    for (const backgroundColor of ["", "   ", 42, false, {}, []]) {
+        assert.throws(
+            () => new EmptyEtherPainter({ backgroundColor }),
+            /backgroundColor.*null or a non-empty CSS color string/
+        );
+    }
+});
+
+test("EmptyEtherPainter background rendering does not require the Reprise stylesheet", () => {
+    const { layer } = initializeEmptyEtherPainter({
+        backgroundColor: "rebeccapurple"
+    });
+
+    assert.equal(layer.className, "timeline-ether-bg");
+    assert.equal(layer.style.backgroundColor, "rebeccapurple");
 });
 
 test("event-layout theme mapping carries instant iconColor into the native painter theme", () => {
