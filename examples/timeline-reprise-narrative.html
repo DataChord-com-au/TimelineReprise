@@ -95,7 +95,7 @@
     <ul>
       <li>the same main events and narrative data are shown vertically</li>
       <li>the narrative band is still a separate decorator band</li>
-      <li>labels route independently from normal event labels</li>
+      <li>sticky span labels stack down their current column before using another column</li>
     </ul>
     <div id="timeline-vertical" class="timeline-frame"></div>
   </section>
@@ -107,37 +107,32 @@
           startDate: "2020-01-15",
           endDate: "2020-02-01",
           title: "Chapter 1: Frame",
-          caption: "Set the question and map the source material.",
-          track: 0
+          caption: "Set the question and map the source material."
         },
         {
           startDate: "2020-02-01",
           endDate: "2020-03-15",
           title: "Chapter 2: Build",
-          caption: "Turn the source material into a working timeline.",
-          track: 0
+          caption: "Turn the source material into a working timeline."
         },
         {
           startDate: "2020-03-15",
           endDate: "2020-04-25",
           title: "Chapter 3: Test",
-          caption: "Review the sequence and tune the presentation.",
-          track: 0
+          caption: "Review the sequence and tune the presentation."
         },
         {
           startDate: "2020-04-25",
           endDate: "2020-05-25",
           title: "Chapter 4: Publish",
-          caption: "Prepare the final narrative view.",
-          track: 0
+          caption: "Prepare the final narrative view."
         }
       ],
       instants: [
         {
           date: "2020-03-02",
           title: "Narrative turn",
-          caption: "A single event-line decorator inside the chapter flow.",
-          track: 1
+          caption: "A single event-line decorator inside the chapter flow."
         }
       ]
     };

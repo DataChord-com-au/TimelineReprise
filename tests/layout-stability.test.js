@@ -123,6 +123,7 @@ function element(width, height) {
         offsetHeight: height,
         scrollWidth: width,
         scrollHeight: height,
+        getBoundingClientRect: () => ({ width, height }),
         style: {}
     };
 }
@@ -1434,6 +1435,7 @@ function makeNarrative(orientation) {
     const NarrativeDecorator = loadNarrativeDecorator();
     const decorator = new NarrativeDecorator({});
     const horizontal = orientation === "horizontal";
+    let viewOffset = 0;
 
     decorator._timeline = {
         isHorizontal: () => horizontal,
@@ -1441,9 +1443,12 @@ function makeNarrative(orientation) {
     };
     decorator._band = {
         dateToPixelOffset: (value) => value,
-        getViewOffset: () => 0,
+        getViewOffset: () => viewOffset,
         getViewLength: () => 200,
         getViewWidth: () => 200
+    };
+    decorator.setViewOffset = (value) => {
+        viewOffset = value;
     };
     decorator._layerDiv = {};
     decorator._spanSize = 10;
@@ -1461,64 +1466,360 @@ function makeNarrative(orientation) {
     return decorator;
 }
 
-function narrativeRange(index, start, end, width, height) {
-    return {
-        item: {},
+function narrativeRange(
+    decorator,
+    index,
+    start,
+    end,
+    width,
+    renderedHeight,
+    { item = {}, lineBoxHeight = renderedHeight } = {}
+) {
+    const labelElmt = element(width, lineBoxHeight);
+    labelElmt.scrollHeight = renderedHeight;
+
+    const record = {
+        item,
         index,
         startDate: start,
         endDate: end,
-        baseTrack: 0,
-        track: 0,
-        trackExplicit: false,
+        baseTrack: decorator._resolveRangeTrack(item),
+        trackExplicit: decorator._trackIsExplicit(item),
         startPixel: 0,
         endPixel: 0,
-        width,
-        height,
-        labelElmt: element(width, height)
+        _verticalPlacement: decorator._rangePlacementState.get(item) || null,
+        labelElmt
     };
+
+    record.track = record.baseTrack;
+    decorator._measureLabel(record);
+    return record;
 }
 
-test("horizontal narrative labels reserve only rendered bounds", () => {
+function narrativePlacement(records) {
+    return records.map((record) => ({
+        track: record.track,
+        top: record.labelElmt.style.top,
+        left: record.labelElmt.style.left,
+        display: record.labelElmt.style.display
+    }));
+}
+
+test("horizontal narrative labels keep their existing themed routing without item track pins", () => {
     const decorator = makeNarrative("horizontal");
-    const open = narrativeRange(0, -100, 80, 30, 16);
-    const right = narrativeRange(1, 170, 260, 40, 16);
-    decorator._rangeRecords = [open, right];
+    decorator._trackOffset = 12;
+    decorator._trackSize = 22;
+    decorator._trackGap = 4;
+    const first = narrativeRange(decorator, 0, -100, 100, 30, 16);
+    const second = narrativeRange(decorator, 1, -80, 150, 30, 16);
+    decorator._rangeRecords = [first, second];
 
     decorator.softPaint();
 
-    assert.equal(open.track, 0);
-    assert.equal(right.track, 0);
+    assert.equal("track" in first.item, false);
+    assert.equal("track" in second.item, false);
+    assert.deepEqual(narrativePlacement([first, second]), [
+        { track: 0, top: "12px", left: "0px", display: "" },
+        { track: 1, top: "38px", left: "0px", display: "" }
+    ]);
 });
 
-test("vertical narrative ranges choose locally free side tracks", () => {
+test("horizontal narrative persistence includes the sticky edge inset in its contact threshold", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._stickyInset = 6;
+    const range = narrativeRange(decorator, 0, -100, 50, 20, 16);
+    decorator._rangeRecords = [range];
+
+    decorator.setViewOffset(-25);
+    decorator.softPaint();
+    assert.equal(range.labelElmt.style.display, "");
+
+    decorator.setViewOffset(-26);
+    decorator.softPaint();
+    assert.equal(range.labelElmt.style.display, "none");
+});
+
+test("vertical sticky narrative labels stack forward on their current track while they fit", () => {
     const decorator = makeNarrative("vertical");
-    const top = narrativeRange(0, 0, 50, 40, 20);
-    const lower = [
-        narrativeRange(1, 120, 150, 40, 25),
-        narrativeRange(2, 120, 150, 40, 25),
-        narrativeRange(3, 120, 150, 40, 25)
+    const ranges = [
+        narrativeRange(decorator, 0, -100, 120, 40, 20),
+        narrativeRange(decorator, 1, -90, 120, 40, 25),
+        narrativeRange(decorator, 2, -80, 120, 40, 15)
     ];
-    decorator._rangeRecords = [top, ...lower];
+    decorator._rangeRecords = ranges;
 
     decorator.softPaint();
 
-    assert.equal(top.track, 0);
-    assert.deepEqual(lower.map((record) => record.track), [0, 1, 2]);
-    assert.deepEqual(lower.map((record) => record.labelElmt.style.top), [
-        "120px",
-        "120px",
-        "120px"
-    ]);
-    assert.deepEqual(lower.map((record) => record.labelElmt.style.left), [
+    assert.deepEqual(ranges.map((record) => record.track), [0, 0, 0]);
+    assert.deepEqual(ranges.map((record) => record.labelElmt.style.top), [
         "0px",
-        "45px",
-        "90px"
+        "25px",
+        "55px"
     ]);
-    assert.deepEqual(lower.map((record) => record.labelElmt.style.width), [
-        "40px",
-        "40px",
-        "40px"
+    assert.deepEqual(ranges.map((record) => record.labelElmt.style.left), [
+        "0px",
+        "0px",
+        "0px"
     ]);
+});
+
+test("a multiline vertical narrative label alone reroutes when its full height cannot fit the stack", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelOffset = 2;
+
+    const first = narrativeRange(decorator, 0, -100, 100, 40, 20);
+    const multiline = narrativeRange(
+        decorator,
+        1,
+        -90,
+        80,
+        40,
+        55,
+        { lineBoxHeight: 20 }
+    );
+    const third = narrativeRange(decorator, 2, -80, 100, 40, 20);
+    decorator._rangeRecords = [first, multiline, third];
+
+    decorator.softPaint();
+
+    assert.equal(multiline.height, 55, "routing must use the rendered multiline scroll height");
+    assert.deepEqual([first.track, multiline.track, third.track], [0, 1, 0]);
+    assert.deepEqual(
+        [first.labelElmt.style.top, multiline.labelElmt.style.top, third.labelElmt.style.top],
+        ["2px", "2px", "27px"]
+    );
+    assert.equal(multiline.labelElmt.style.left, "45px");
+    assert.ok(
+        Number.parseInt(multiline.labelElmt.style.top, 10) + multiline.height <= multiline.endPixel,
+        "the complete rerouted label must remain within its own duration"
+    );
+});
+
+test("vertical narrative labels move together after a later label hits their same-track stack", () => {
+    const decorator = makeNarrative("vertical");
+    const first = narrativeRange(decorator, 0, -100, 100, 40, 20);
+    const second = narrativeRange(decorator, 1, 40, 100, 40, 20);
+    decorator._rangeRecords = [first, second];
+
+    decorator.softPaint();
+    assert.deepEqual(
+        [first.labelElmt.style.top, second.labelElmt.style.top],
+        ["0px", "40px"]
+    );
+
+    decorator.setViewOffset(-25);
+    decorator.softPaint();
+
+    assert.deepEqual([first.track, second.track], [0, 0]);
+    assert.deepEqual(
+        [first.labelElmt.style.top, second.labelElmt.style.top],
+        ["25px", "50px"]
+    );
+
+    decorator.setViewOffset(-30);
+    decorator.softPaint();
+    assert.deepEqual(
+        [first.labelElmt.style.top, second.labelElmt.style.top],
+        ["30px", "55px"],
+        "once collided, both labels must advance together down the span"
+    );
+});
+
+test("vertical narrative placement remains stable across scrolling and repeated soft paints", () => {
+    const decorator = makeNarrative("vertical");
+    const ranges = [
+        narrativeRange(decorator, 0, -100, 180, 40, 20),
+        narrativeRange(decorator, 1, -90, 180, 40, 25),
+        narrativeRange(decorator, 2, -80, 80, 40, 30)
+    ];
+    decorator._rangeRecords = ranges;
+
+    decorator.softPaint();
+    const original = narrativePlacement(ranges);
+    const originalTops = original.map((placement) => Number.parseInt(placement.top, 10));
+
+    decorator.setViewOffset(-20);
+    decorator.softPaint();
+    const scrolled = narrativePlacement(ranges);
+    decorator.softPaint();
+
+    assert.deepEqual(narrativePlacement(ranges), scrolled);
+    assert.deepEqual(scrolled.map((placement) => placement.track), [0, 0, 1]);
+    assert.deepEqual(scrolled.map((placement) => placement.top), ["20px", "45px", "20px"]);
+    assert.deepEqual(
+        scrolled.slice(0, 2).map(
+            (placement, index) => Number.parseInt(placement.top, 10) - originalTops[index]
+        ),
+        [20, 20],
+        "colliding labels on one track must move together as the sticky stack advances"
+    );
+
+    decorator.setViewOffset(0);
+    decorator.softPaint();
+    assert.deepEqual(
+        narrativePlacement(ranges),
+        original,
+        "reverse scrolling must favor each label's natural span-top placement"
+    );
+    decorator.softPaint();
+    assert.deepEqual(narrativePlacement(ranges), original);
+});
+
+test("a pushed vertical label returns to the top of its span when scrolling back", () => {
+    const decorator = makeNarrative("vertical");
+    const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
+    const follower = narrativeRange(decorator, 1, 40, 100, 40, 20);
+    decorator._rangeRecords = [leading, follower];
+
+    decorator.softPaint();
+    assert.equal(follower.labelElmt.style.top, "40px");
+
+    decorator.setViewOffset(-25);
+    decorator.softPaint();
+    assert.equal(follower.track, 0);
+    assert.equal(follower.labelElmt.style.top, "50px");
+
+    decorator.setViewOffset(0);
+    decorator.softPaint();
+    assert.equal(follower.track, 0);
+    assert.equal(follower.labelElmt.style.top, "40px");
+});
+
+test("reverse scrolling removes a bottom reroute when the label fits at its span top", () => {
+    const decorator = makeNarrative("vertical");
+    const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
+    const constrained = narrativeRange(decorator, 1, 40, 65, 40, 20);
+    decorator._rangeRecords = [leading, constrained];
+
+    decorator.setViewOffset(-21);
+    decorator.softPaint();
+    assert.equal(constrained.track, 1);
+    assert.equal(constrained.labelElmt.style.top, "40px");
+
+    decorator.setViewOffset(0);
+    decorator.softPaint();
+    assert.equal(constrained.track, 0);
+    assert.equal(constrained.labelElmt.style.top, "40px");
+});
+
+test("a departing vertical span releases the next stacked label without a jump", () => {
+    const decorator = makeNarrative("vertical");
+    const departingItem = {};
+    const followerItem = {};
+    let departing = narrativeRange(
+        decorator,
+        0,
+        -100,
+        50,
+        40,
+        20,
+        { item: departingItem }
+    );
+    let follower = narrativeRange(
+        decorator,
+        1,
+        -90,
+        200,
+        40,
+        20,
+        { item: followerItem }
+    );
+    decorator._rangeRecords = [departing, follower];
+
+    decorator.softPaint();
+    decorator.setViewOffset(-44);
+    decorator.softPaint();
+
+    assert.equal(departing.labelElmt.style.display, "");
+    assert.equal(departing.labelElmt.style.top, "44px");
+    assert.equal(follower.labelElmt.style.top, "69px");
+    assert.equal(Number.parseInt(follower.labelElmt.style.top, 10) - 44, 25);
+
+    decorator.setViewOffset(-45);
+    decorator.softPaint();
+
+    assert.equal(departing.labelElmt.style.display, "none");
+    assert.equal(follower.track, 0);
+    assert.equal(follower.labelElmt.style.top, "69px");
+    assert.equal(
+        Number.parseInt(follower.labelElmt.style.top, 10) - 45,
+        24,
+        "the released follower must resume normal upward scrolling from its pushed position"
+    );
+
+    departing = narrativeRange(
+        decorator,
+        0,
+        -100,
+        50,
+        40,
+        20,
+        { item: departingItem }
+    );
+    follower = narrativeRange(
+        decorator,
+        1,
+        -90,
+        200,
+        40,
+        20,
+        { item: followerItem }
+    );
+    decorator._rangeRecords = [departing, follower];
+    decorator.softPaint();
+    assert.equal(follower.labelElmt.style.top, "69px");
+
+    decorator.setViewOffset(-46);
+    decorator.softPaint();
+    assert.equal(follower.labelElmt.style.top, "69px");
+    assert.equal(Number.parseInt(follower.labelElmt.style.top, 10) - 46, 23);
+});
+
+test("vertical narrative persistence includes the sticky edge inset in its contact threshold", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._stickyInset = 6;
+    const range = narrativeRange(decorator, 0, -100, 50, 40, 20);
+    decorator._rangeRecords = [range];
+
+    decorator.setViewOffset(-32);
+    decorator.softPaint();
+    assert.equal(range.labelElmt.style.display, "");
+
+    decorator.setViewOffset(-33);
+    decorator.softPaint();
+    assert.equal(range.labelElmt.style.display, "none");
+});
+
+test("a vertical label reroutes before stacking can push it beyond its duration", () => {
+    const decorator = makeNarrative("vertical");
+    const leading = narrativeRange(decorator, 0, -100, 50, 40, 20);
+    const constrained = narrativeRange(decorator, 1, -90, 80, 40, 20);
+    decorator._rangeRecords = [leading, constrained];
+
+    decorator.setViewOffset(-35);
+    decorator.softPaint();
+    assert.equal(constrained.track, 0);
+    assert.equal(constrained.labelElmt.style.top, "60px");
+
+    decorator.setViewOffset(-36);
+    decorator.softPaint();
+    assert.equal(constrained.track, 1);
+    assert.equal(constrained.labelElmt.style.top, "36px");
+    assert.ok(
+        Number.parseInt(constrained.labelElmt.style.top, 10) + constrained.height <=
+            constrained.endPixel
+    );
+});
+
+test("the narrative example does not pin event data to routing tracks", () => {
+    const filename = path.join(__dirname, "..", "examples", "timeline-reprise-narrative.html");
+    const html = fs.readFileSync(filename, "utf8");
+    const narrativeData = html.match(
+        /var narrativeData = \{([\s\S]*?)\r?\n    \};\r?\n\r?\n    var mainEventData/
+    );
+
+    assert.ok(narrativeData, "expected to find the narrative example data");
+    assert.doesNotMatch(narrativeData[1], /^\s*track\s*:/m);
 });
 
 function makeConfiguredNarrative(orientation, viewWidth, trackTheme, extraParams = {}) {

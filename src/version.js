@@ -1,6 +1,6 @@
 const Reprise = Object.freeze({
     // timeline-reprise-version:start
-    version: "1.3.3",
+    version: "1.3.4",
     // timeline-reprise-version:end
     timelineVersion: "2.3.1"
 });
