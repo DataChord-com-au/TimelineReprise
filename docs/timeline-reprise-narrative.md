@@ -138,7 +138,7 @@ theme.eventTheme = {
     },
     instant: {
         width: 2,
-        colors: ["purple"]
+        iconColor: "purple"
     },
     label: {
         colorSource: "graphic",
@@ -268,8 +268,9 @@ Extra class added to range label elements.
 Width of instant graphics. Narrative uses it as the divider-line width; event
 layout uses the same value as the instant icon width.
 
-### `eventTheme.instant.colors`
-Array of fallback divider colours, cycled by instant index.
+### `eventTheme.instant.iconColor`
+Default colour of instant graphics. Event layout uses it for event dots;
+narrative decorators use it for instant divider lines.
 
 ### `eventTheme.instant.cssClass`
 Extra class added to instant divider-line elements.

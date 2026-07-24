@@ -25,7 +25,7 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     const NarrativeDecorator = loadNarrativeDecorator();
     const emphasisSpecs = { strong: { color: "purple", lineWidth: 4 } };
     const rangeColors = ["green", "blue"];
-    const instantColors = ["purple"];
+    const tagsToIconColor = { critical: "red" };
     const eventTheme = {
         id: "shared",
         spans: false,
@@ -52,7 +52,6 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
         },
         instant: {
             width: 13,
-            colors: instantColors,
             cssClass: "instant",
             labelCssClass: "instant-label"
         },
@@ -70,7 +69,8 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
         layer: {
             zIndex: 20,
             labelZIndex: 21
-        }
+        },
+        tagsToIconColor
     };
     const decorator = new NarrativeDecorator({});
 
@@ -96,7 +96,6 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     assert.equal(decorator._zIndex, 20);
     assert.equal(decorator._labelZIndex, 21);
     assert.equal(decorator._spanColors, rangeColors);
-    assert.equal(decorator._dividerColors, instantColors);
     assert.equal(decorator._spanCssClass, "range");
     assert.equal(decorator._spanLabelCssClass, "range-label");
     assert.equal(decorator._dividerCssClass, "instant");
@@ -109,6 +108,7 @@ test("NarrativeDecorator consumes the complete theme.eventTheme shape", () => {
     assert.equal(decorator._eventColorScope, "label");
     assert.equal(decorator._disableEmphasis, false);
     assert.equal(decorator._emphasisSpecs, emphasisSpecs);
+    assert.equal(decorator._tagsToIconColor, tagsToIconColor);
     assert.equal(decorator._labelColorMode, "theme");
     assert.equal(decorator._labelColor, "orange");
 });
@@ -176,6 +176,91 @@ test("NarrativeDecorator resolves emphasis, event scope, and label fallback in o
         label: { colorSource: "theme", color: "green" }
     });
     assert.equal(direct._recordLabelColor({ item: {}, kind: "range", graphicColor: "red" }), "green");
+});
+
+test("NarrativeDecorator instant lines use the first matching tag colour", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const decorator = new NarrativeDecorator({
+        theme: {
+            eventTheme: {
+                tagsToIconColor: {
+                    secondary: "blue",
+                    primary: "red"
+                },
+                instant: { iconColor: "gray" }
+            }
+        }
+    });
+    const source = {
+        tags: ["unmapped", "primary", "secondary"]
+    };
+    const record = {
+        item: { event: source },
+        kind: "instant"
+    };
+
+    assert.equal(decorator._recordInstantLineColor(record), "red");
+    assert.deepEqual(source.tags, ["unmapped", "primary", "secondary"]);
+});
+
+test("NarrativeDecorator instant lineColor overrides tag colour", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const decorator = new NarrativeDecorator({
+        theme: {
+            eventTheme: {
+                tagsToIconColor: { primary: "red" },
+                instant: { iconColor: "gray" }
+            }
+        }
+    });
+    const record = {
+        item: {
+            tags: ["primary"],
+            lineColor: "purple"
+        },
+        kind: "instant"
+    };
+
+    assert.equal(decorator._recordInstantLineColor(record), "purple");
+});
+
+test("NarrativeDecorator instant lines retain instant.iconColor fallback", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const decorator = new NarrativeDecorator({
+        theme: {
+            eventTheme: {
+                tagsToIconColor: { primary: "red" },
+                instant: { iconColor: "orange" }
+            }
+        }
+    });
+    const record = {
+        item: { tags: ["unmapped"] },
+        kind: "instant"
+    };
+
+    assert.equal(decorator._recordInstantLineColor(record), "orange");
+});
+
+test("NarrativeDecorator graphic labels inherit tag-resolved instant line colour", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const decorator = new NarrativeDecorator({
+        theme: {
+            eventTheme: {
+                tagsToIconColor: { primary: "red" },
+                label: { colorSource: "graphic" }
+            }
+        }
+    });
+    const record = {
+        item: { tags: ["primary"] },
+        kind: "instant"
+    };
+
+    record.graphicColor = decorator._recordInstantLineColor(record);
+
+    assert.equal(record.graphicColor, "red");
+    assert.equal(decorator._recordLabelColor(record), "red");
 });
 
 test("NarrativeDecorator does not accept separate narrative theme roots", () => {

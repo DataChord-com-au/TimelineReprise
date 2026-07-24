@@ -162,7 +162,6 @@ class EventTheme {
         this.#assertPlainObject(spec, caller);
 
         this.#assertColor(spec.iconColor, `${caller}.iconColor`);
-        this.#assertColorList(spec.colors, `${caller}.colors`);
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
         this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });

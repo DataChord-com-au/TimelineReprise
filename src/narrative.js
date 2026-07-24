@@ -229,6 +229,8 @@
         this._eventColorScope = "both";
         this._disableEmphasis = false;
         this._emphasisSpecs = {};
+        this._tagsToIconColor = {};
+        this._instantIconColor = null;
         this._labelColorMode = "graphic";
         this._labelColor = null;
 
@@ -285,7 +287,7 @@
         this._labelZIndex = themedFinite({}, layerTheme, "labelZIndex", 6);
 
         this._spanColors = themedValue({}, rangeTheme, "colors", null);
-        this._dividerColors = themedValue({}, instantTheme, "colors", null);
+        this._instantIconColor = themedValue({}, instantTheme, "iconColor", null);
 
         this._spanCssClass = themedValue({}, rangeTheme, "cssClass", "");
         this._spanLabelCssClass = themedValue({}, rangeTheme, "labelCssClass", "");
@@ -335,6 +337,9 @@
             ? params.emphasisSpecs
             : isObject(timelineTheme?.emphasisSpecs)
                 ? timelineTheme.emphasisSpecs
+            : {};
+        this._tagsToIconColor = isObject(eventTheme.tagsToIconColor)
+            ? eventTheme.tagsToIconColor
             : {};
         this._bubbleWidth = themedFinite({}, bubbleTheme, "width", 320);
         this._bubbleMaxHeight = themedValue({}, bubbleTheme, "maxHeight", null);
@@ -453,6 +458,22 @@
             stringValue(item.event?.color);
     };
 
+    Timeline.NarrativeDecorator.prototype._itemTagColor = function (item) {
+        const value = this._itemValue(item, "tags");
+        if (!value.found) return null;
+
+        const tags = Array.isArray(value.value) ? value.value : [value.value];
+        for (const tag of tags) {
+            const name = stringValue(tag);
+            if (name == null || !hasDefinedOwn(this._tagsToIconColor, name)) continue;
+
+            const color = stringValue(this._tagsToIconColor[name]);
+            if (color != null) return resolveCssColor(color) || color;
+        }
+
+        return null;
+    };
+
     Timeline.NarrativeDecorator.prototype._recordLabels = function (record) {
         return this._itemLabels(record.item);
     };
@@ -472,7 +493,12 @@
         );
     };
 
-    Timeline.NarrativeDecorator.prototype._recordGraphicColor = function (record, explicitNames, fallback) {
+    Timeline.NarrativeDecorator.prototype._recordGraphicColor = function (
+        record,
+        explicitNames,
+        fallback,
+        taggedFallback
+    ) {
         const emphasis = ownValue(
             this._itemEmphasisSpec(record.item),
             [...toNameList(explicitNames), "color"]
@@ -491,10 +517,24 @@
             return resolveCssColor(itemColor) || itemColor;
         }
 
+        const tagColor = stringValue(taggedFallback);
+        if (tagColor != null) return resolveCssColor(tagColor) || tagColor;
+
         const fallbackColor = stringValue(fallback);
         return fallbackColor != null
             ? resolveCssColor(fallbackColor) || fallbackColor
             : fallback;
+    };
+
+    Timeline.NarrativeDecorator.prototype._recordInstantLineColor = function (record) {
+        const fallback = stringValue(this._instantIconColor) || "black";
+
+        return this._recordGraphicColor(
+            record,
+            "lineColor",
+            fallback,
+            this._itemTagColor(record.item)
+        );
     };
 
     Timeline.NarrativeDecorator.prototype._recordLabelColor = function (record) {
@@ -750,11 +790,7 @@
             };
             record.track = record.baseTrack;
 
-            const lineColor = this._recordGraphicColor(
-                record,
-                "lineColor",
-                cycleValue(this._dividerColors, index) || "black"
-            );
+            const lineColor = this._recordInstantLineColor(record);
             record.graphicColor = lineColor;
 
             if (this._dividers) {
