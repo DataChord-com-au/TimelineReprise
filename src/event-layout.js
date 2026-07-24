@@ -732,12 +732,15 @@
             group.span.bottom
         );
 
-        const lane = physicalTrack - 1;
+        const lane = getTapeLaneCount(painter) > 0
+            ? Math.max(0, physicalTrack - 1)
+            : physicalTrack;
         const id = getEventId(group.evt);
         if (id != null) painter._repriseEventLanes[id] = lane;
 
         for (const item of group.items) {
             item.lane = lane;
+            item.physicalTrack = physicalTrack;
         }
     }
 
@@ -836,6 +839,17 @@
             tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
     }
 
+    function getVerticalEventTrackContentWidth(painter, metrics, theme) {
+        const markerWidth = Math.max(metrics.iconWidth, theme.event.tape.height);
+        const labelWidth = getVerticalTapeLabelWidth(painter, metrics);
+
+        return Math.max(
+            markerWidth,
+            labelWidth,
+            theme.event.tape.height + getTapeToLabelGap(painter) + labelWidth
+        );
+    }
+
     function getVerticalEventBaseLeft(painter, metrics, theme) {
         const tapeCount = getTapeLaneCount(painter);
         if (tapeCount === 0) return metrics.trackOffset;
@@ -843,23 +857,16 @@
         const tapeRight = metrics.trackOffset +
             tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics)) -
             getTapeLaneGap(painter, metrics);
-        const labelRight = getVerticalTapeLabelLeft(painter, metrics, theme) +
-            getVerticalTapeLabelWidth(painter, metrics);
+        const primaryTrackRight = getVerticalTapeLabelLeft(painter, metrics, theme) +
+            getVerticalEventTrackContentWidth(painter, metrics, theme);
         const gap = finiteOr(getTapeSpec(painter).toEventGap, 12);
 
-        return Math.max(tapeRight, labelRight) + gap;
+        return Math.max(tapeRight, primaryTrackRight) + gap;
     }
 
     function getVerticalEventLaneIncrement(painter, metrics, theme) {
-        const markerWidth = Math.max(metrics.iconWidth, theme.event.tape.height);
-        const labelWidth = getVerticalTapeLabelWidth(painter, metrics);
-        const contentWidth = Math.max(
-            markerWidth,
-            labelWidth,
-            theme.event.tape.height + getTapeToLabelGap(painter) + labelWidth
-        );
-
-        return contentWidth + getLabelTrackGap(painter);
+        return getVerticalEventTrackContentWidth(painter, metrics, theme) +
+            getLabelTrackGap(painter);
     }
 
     function getVerticalEventLaneLeft(painter, metrics, theme, lane) {
@@ -867,8 +874,31 @@
             lane * getVerticalEventLaneIncrement(painter, metrics, theme);
     }
 
+    function getVerticalPhysicalTrackLeft(painter, metrics, theme, physicalTrack) {
+        const track = normalizeLane(physicalTrack);
+
+        if (getTapeLaneCount(painter) === 0) {
+            return getVerticalEventLaneLeft(painter, metrics, theme, track);
+        }
+
+        return track === 0
+            ? getVerticalTapeLabelLeft(painter, metrics, theme)
+            : getVerticalEventLaneLeft(painter, metrics, theme, track - 1);
+    }
+
+    function getVerticalPointTrackLeft(painter, item, metrics, theme) {
+        return Number.isFinite(item.physicalTrack)
+            ? getVerticalPhysicalTrackLeft(
+                painter,
+                metrics,
+                theme,
+                item.physicalTrack
+            )
+            : getVerticalEventLaneLeft(painter, metrics, theme, item.lane);
+    }
+
     function getVerticalPointLabelLeft(painter, item, metrics, theme) {
-        const laneLeft = getVerticalEventLaneLeft(painter, metrics, theme, item.lane);
+        const laneLeft = getVerticalPointTrackLeft(painter, item, metrics, theme);
 
         if (item.evt?.isInstant?.()) return laneLeft;
 
@@ -1390,7 +1420,9 @@
         painter._repriseEventLanes = {};
 
         for (const group of pointGroups.filter((item) => item.fixedLane != null)) {
-            assignVerticalEventGroup(painter, tracks, group, group.fixedLane + 1);
+            const physicalTrack = group.fixedLane +
+                (getTapeLaneCount(painter) > 0 ? 1 : 0);
+            assignVerticalEventGroup(painter, tracks, group, physicalTrack);
         }
 
         const tapePlacements = [];
@@ -1455,7 +1487,7 @@
         tracks = shiftedTracks;
 
         for (const group of pointGroups.filter((item) => item.fixedLane == null)) {
-            let physicalTrack = 1;
+            let physicalTrack = 0;
 
             for (; physicalTrack < tracks.length; physicalTrack++) {
                 if (intervalIsFree(
@@ -1483,7 +1515,7 @@
                 : getEventLane(painter, item.evt);
 
             setPaintedRect(item.data, {
-                left: getVerticalEventLaneLeft(painter, metrics, theme, item.lane)
+                left: getVerticalPointTrackLeft(painter, item, metrics, theme)
             });
         }
 
@@ -1493,7 +1525,7 @@
                 : getEventLane(painter, item.evt);
 
             setPaintedRect(item.data, {
-                left: getVerticalEventLaneLeft(painter, metrics, theme, item.lane)
+                left: getVerticalPointTrackLeft(painter, item, metrics, theme)
             });
         }
 

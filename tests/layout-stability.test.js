@@ -1308,6 +1308,94 @@ test("horizontal stacked duration labels place the longest span outside", () => 
     assert.notEqual(long.data.left, short.data.left);
 });
 
+function verticalInstantGroup(id, top) {
+    const evt = {
+        ...untrackedEvent(id, top, top),
+        isInstant: () => true
+    };
+
+    return {
+        evt,
+        icon: {
+            evt,
+            data: paintedData(0, top, 10, 10),
+            width: 10,
+            height: 10
+        },
+        label: {
+            evt,
+            data: paintedData(0, top + 14, 80, 20),
+            width: 80,
+            height: 20
+        }
+    };
+}
+
+test("vertical point events reuse tape-label track zero when their labels do not collide", () => {
+    const painter = makeEventPainter("vertical");
+    const rangeLabel = tapeLabel(untrackedEvent("range", 0, 100), 0, 80, 20);
+    const point = verticalInstantGroup("point", 40);
+
+    painter._repriseTapeLabels.push(rangeLabel);
+    painter._reprisePointIcons.push(point.icon);
+    painter._reprisePointLabels.push(point.label);
+    painter.paint();
+
+    assert.equal(point.icon.physicalTrack, 0);
+    assert.equal(point.label.physicalTrack, 0);
+    assert.equal(point.icon.data.left, rangeLabel.data.left);
+    assert.equal(point.label.data.left, rangeLabel.data.left);
+});
+
+test("vertical point events leave track zero when their labels collide with a tape label", () => {
+    const painter = makeEventPainter("vertical");
+    const rangeLabel = tapeLabel(untrackedEvent("range", 0, 100), 0, 80, 20);
+    const point = verticalInstantGroup("point", 5);
+
+    painter._repriseTapeLabels.push(rangeLabel);
+    painter._reprisePointIcons.push(point.icon);
+    painter._reprisePointLabels.push(point.label);
+    painter.paint();
+
+    assert.equal(point.icon.physicalTrack, 1);
+    assert.equal(point.label.physicalTrack, 1);
+    assert.ok(point.label.data.left > rangeLabel.data.left);
+});
+
+test("a vertical short-duration tape occupying track zero routes a colliding point event outward", () => {
+    const painter = makeEventPainter("vertical");
+    const rangeLabel = tapeLabel(untrackedEvent("long-range", 0, 100), 0, 80, 20);
+    const shortEvent = untrackedEvent("short-range", 30, 40);
+    const shortTape = {
+        evt: shortEvent,
+        data: paintedData(0, 30, 4, 10),
+        width: 4,
+        height: 10
+    };
+    const shortLabel = {
+        evt: shortEvent,
+        data: paintedData(0, 30, 80, 20),
+        width: 80,
+        height: 20
+    };
+    const point = verticalInstantGroup("point", 35);
+
+    painter._repriseTapeLabels.push(rangeLabel);
+    painter._reprisePointTapes.push(shortTape);
+    painter._reprisePointLabels.push(shortLabel, point.label);
+    painter._reprisePointIcons.push(point.icon);
+    painter.paint();
+
+    assert.equal(shortTape.physicalTrack, 0);
+    assert.equal(shortLabel.physicalTrack, 0);
+    assert.equal(point.icon.physicalTrack, 1);
+    assert.equal(point.label.physicalTrack, 1);
+    assert.equal(
+        point.label.data.left - (shortLabel.data.left + shortLabel.data.width),
+        painter._params.theme.event.tape.vertical.toEventGap
+    );
+});
+
 test("vertical event duration labels use local side lanes", () => {
     const baseline = makeEventPainter("vertical");
     const baselineTop = tapeLabel(event("top", 0, 50), 0, 80, 25);

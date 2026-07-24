@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `1.3.2`
+Version: `1.3.3`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.3.2"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.3.3"
 ```
 <!-- timeline-reprise-install:end -->
 

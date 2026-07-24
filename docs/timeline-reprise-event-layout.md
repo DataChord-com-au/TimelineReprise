@@ -315,6 +315,9 @@ the same clamp.
 Minimum time-axis clearance used when routing long-range labels and
 point/short-duration event groups. It separates vertically adjacent labels
 within a column and can force a group into another column. Defaults to `4`.
+The primary long-range label column is also available to automatic point and
+short-duration events when their rendered groups do not collide with a label
+or short-duration tape already occupying that part of the column.
 
 ### `eventTheme.range.vertical.labelTrackGap`
 Horizontal-axis gap between routed side columns. The transition from the
@@ -326,10 +329,10 @@ Viewport inset used when long-range labels stick at the top edge. Defaults to
 `2`.
 
 ### `eventTheme.range.vertical.toEventGap`
-Horizontal gap from the right edge of the first long-range label column to the
-first side column used by point/short events and any additional routed
-long-range labels. It applies only when the layout contains a long-range tape
-block. Defaults to `12`.
+Horizontal gap from the right edge of the primary shared track's widest
+possible content to the first side column used by point/short events and any
+additional routed long-range labels. It applies only when the layout contains
+a long-range tape block. Defaults to `12`.
 
 ## Event Overrides
 
