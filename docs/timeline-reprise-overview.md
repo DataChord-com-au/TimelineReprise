@@ -17,7 +17,6 @@ theme.eventTheme = {
         }
     },
     instant: {
-        tickWidth: 8,
         iconColor: "orange"
     },
     range: {
@@ -30,6 +29,12 @@ theme.eventTheme = {
 Overview consumes the same resolved
 [`Timeline.EventTheme`](timeline-reprise-event-theme.md) as normal events and
 Narrative.
+
+Instant tick size remains a native SIMILE overview setting:
+
+```js
+theme.event.overviewTrack.tickHeight = 8;
+```
 
 ### `eventTheme.track`
 Sets overview track placement and spacing.
@@ -51,26 +56,26 @@ track: {
 `vertical` is used when the timeline is vertical.
 
 ### `eventTheme.track.horizontal.offset`
-Sets the outer offset before overview content for horizontal timelines.
+Sets the cross-axis edge where instant ticks end for horizontal timelines.
+Range tapes begin after `eventTheme.track.horizontal.gap`.
 
 ### `eventTheme.track.horizontal.gap`
 Sets spacing between instant ticks and the first range tape, and between range tape tracks, for horizontal timelines.
 
 ### `eventTheme.track.vertical.offset`
-Sets the outer offset before overview content for vertical timelines.
+Sets the cross-axis edge where instant ticks end for vertical timelines.
+Range tapes begin after `eventTheme.track.vertical.gap`.
 
 ### `eventTheme.track.vertical.gap`
 Sets spacing between instant ticks and the first range tape, and between range tape tracks, for vertical timelines.
 
 ## Instant Events
 
-### `eventTheme.instant.tickWidth`
+### `theme.event.overviewTrack.tickHeight`
 Sets the cross-axis length of overview ticks for instant events.
 
 ```js
-instant: {
-    tickWidth: 8
-}
+theme.event.overviewTrack.tickHeight = 8;
 ```
 
 ### `eventTheme.instant.iconColor`
@@ -84,8 +89,10 @@ instant: {
 
 Named colours are resolved through `Timeline.ThemeIcons` when available.
 
-Overview reads `tickWidth` and `iconColor` directly from `instant`.
-Orientation branches under `instant` are ignored by the overview painter.
+Overview reads `iconColor` directly from `instant`. It does not use
+`eventTheme.instant.tickWidth`; that option belongs to non-overview event
+presentation. Orientation branches under `instant` are ignored by the overview
+painter.
 
 ## Range Events
 
@@ -133,7 +140,8 @@ Sets the overview colour for one event.
 Overview support adapts Reprise theme data onto SIMILE's native overview painter. It does not replace the overview layout algorithm.
 
 For overview bands, `offset` and `gap` belong under `track`.
-`width` belongs under `instant` and `range`.
+Range tape thickness belongs under `range.width`; instant tick size remains
+under native `theme.event.overviewTrack.tickHeight`.
 
 ---
 [Back to top](#overview)<br>

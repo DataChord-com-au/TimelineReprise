@@ -8,9 +8,10 @@ import {
     if (Timeline._eventLayout23PatchApplied) return;
     Timeline._eventLayout23PatchApplied = true;
 
-    const HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET = 0;
+    const HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET = 1;
     const HORIZONTAL_INSTANT_LABEL_BASELINE_TOP_OFFSET = 1;
-    const VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET = 0;
+    const HORIZONTAL_INSTANT_EVENT_TOP_OFFSET = -3;
+    const VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET = 2;
     const DEFAULT_INSTANT_ICON_SIZE = 9;
     const DEFAULT_INSTANT_ICON_COLOR = "blue";
     const DEFAULT_RANGE_TAPE_COLOR = "blue";
@@ -405,11 +406,15 @@ import {
     }
 
     function getTapeLaneGap(painter, metrics) {
-        return finiteOr(getTapeSpec(painter).tapeGap, 2);
+        return finiteOr(getTapeSpec(painter).tapeGap, 6);
     }
 
     function getTapeToLabelGap(painter) {
         return finiteOr(getTapeSpec(painter).toLabelGap, 4);
+    }
+
+    function getMinTapeLabelGap(painter) {
+        return finiteOr(getTapeSpec(painter).minLabelGap, 15);
     }
 
     function getLabelRoutingGap(painter) {
@@ -651,7 +656,9 @@ import {
         if (tapeCount === 0) return metrics.trackOffset;
 
         return metrics.trackOffset +
-            tapeCount * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
+            tapeCount * getRangeWidth(painter) +
+            Math.max(0, tapeCount - 1) * getTapeLaneGap(painter, metrics) +
+            getMinTapeLabelGap(painter);
     }
 
     function getRoutedTrackCount(painter) {
@@ -726,7 +733,9 @@ import {
         if (tapeCount === 0) return metrics.trackOffset;
 
         return metrics.trackOffset +
-            tapeCount * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
+            tapeCount * getRangeWidth(painter) +
+            Math.max(0, tapeCount - 1) * getTapeLaneGap(painter, metrics) +
+            getMinTapeLabelGap(painter);
     }
 
     function getVerticalEventTrackContentWidth(painter, metrics, theme) {
@@ -950,8 +959,16 @@ import {
         return getItemLeft(item) + getDataWidth(item.data, item.width || 0);
     }
 
+    function getHorizontalPointEventTopOffset(item) {
+        return item.evt?.isInstant?.() ? HORIZONTAL_INSTANT_EVENT_TOP_OFFSET : 0;
+    }
+
+    function getItemTopOffset(item) {
+        return item.trackTopOffset + getHorizontalPointEventTopOffset(item);
+    }
+
     function getItemBottomOffset(item) {
-        return item.trackTopOffset + getDataHeight(item.data, item.height || 0);
+        return getItemTopOffset(item) + getDataHeight(item.data, item.height || 0);
     }
 
     function getLabelFontSize(data, fallback) {
@@ -1173,7 +1190,7 @@ import {
             if (kind === "label") group.label = item;
             group.left = Math.min(group.left, left);
             group.right = Math.max(group.right, right);
-            group.minTopOffset = Math.min(group.minTopOffset, item.trackTopOffset);
+            group.minTopOffset = Math.min(group.minTopOffset, getItemTopOffset(item));
             group.maxBottomOffset = Math.max(group.maxBottomOffset, getItemBottomOffset(item));
         }
 
@@ -1617,7 +1634,8 @@ import {
                 : getEventLane(painter, item.evt);
 
             setPaintedRect(item.data, {
-                top: getEventLaneTop(painter, metrics, theme, item.lane) + item.trackTopOffset
+                top: getEventLaneTop(painter, metrics, theme, item.lane) +
+                    getItemTopOffset(item)
             });
         }
 

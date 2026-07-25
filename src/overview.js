@@ -77,6 +77,28 @@
         return data;
     }
 
+    function positiveOr(value, fallback) {
+        return typeof value === "number" && Number.isFinite(value) && value > 0
+            ? value
+            : fallback;
+    }
+
+    function nonNegativeOr(value, fallback) {
+        return typeof value === "number" && Number.isFinite(value) && value >= 0
+            ? value
+            : fallback;
+    }
+
+    function getNativeOverviewTrack(painter, theme) {
+        return theme?.event?.overviewTrack ||
+            painter._nativeTheme?.event?.overviewTrack ||
+            {};
+    }
+
+    function getOverviewTickHeight(painter, theme) {
+        return positiveOr(getNativeOverviewTrack(painter, theme).tickHeight, 6);
+    }
+
     proto.initialize = function (band, timeline) {
         const result = originalInitialize.apply(this, arguments);
         resolvePainterEventTheme(this, band);
@@ -90,12 +112,15 @@
         this._prepareForPainting();
 
         const track = getOrientationSpec(this._eventTheme.track, this._timeline);
-        const tickWidth = this._eventTheme.instant.tickWidth;
+        const trackOffset = nonNegativeOr(track.offset, 0);
+        const trackGap = nonNegativeOr(track.gap, 0);
+        const rangeWidth = this._eventTheme.range.width;
         const metrics = {
-            trackOffset: track.offset + tickWidth,
-            trackHeight: this._eventTheme.range.width,
-            trackGap: track.gap,
-            trackIncrement: this._eventTheme.range.width + track.gap
+            tickOffset: trackOffset,
+            trackOffset: trackOffset + trackGap,
+            trackHeight: rangeWidth,
+            trackGap,
+            trackIncrement: rangeWidth + trackGap
         };
         const minDate = this._band.getMinDate();
         const maxDate = this._band.getMaxDate();
@@ -130,10 +155,11 @@
         }
 
         if (data?.elmt) {
-            data.top = metrics.trackOffset - this._eventTheme.instant.tickWidth;
-            data.height = this._eventTheme.instant.tickWidth;
+            const tickHeight = getOverviewTickHeight(this, theme);
+            data.top = metrics.tickOffset - tickHeight;
+            data.height = tickHeight;
             data.elmt.style.top = data.top + "px";
-            data.elmt.style.height = this._eventTheme.instant.tickWidth + "px";
+            data.elmt.style.height = tickHeight + "px";
         }
 
         if (isVertical(this) && data?.elmt) {

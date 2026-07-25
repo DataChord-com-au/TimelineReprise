@@ -159,7 +159,7 @@ theme.eventTheme = {
         colors: ["green", "blue"]
     },
     instant: {
-        width: 2,
+        lineWidth: 2,
         iconColor: "purple"
     },
     label: {
@@ -288,11 +288,24 @@ Extra class added to range span elements.
 ### `eventTheme.range.labelCssClass`
 Extra class added to range label elements.
 
+### `eventTheme.range.horizontal.toLabelGap`
+Horizontal inset between a range start edge and its label. Defaults to `4`.
+
+### `eventTheme.range.vertical.toLabelGap`
+Vertical inset between a range start edge and its label. Defaults to `4`.
+
 ## Instant Theme
 
-### `eventTheme.instant.width`
-Width of instant graphics. Narrative uses it as the divider-line width; event
-layout uses the same value as the instant icon width.
+### `eventTheme.instant.lineWidth`
+Width of narrative instant divider lines. Defaults to `1`.
+
+Item-level `lineWidth` overrides this value for a single instant.
+
+### `eventTheme.instant.horizontal.toLabelGap`
+Horizontal gap between an instant divider line and its label. Defaults to `4`.
+
+### `eventTheme.instant.vertical.toLabelGap`
+Vertical gap between an instant divider line and its label. Defaults to `4`.
 
 ### `eventTheme.instant.iconColor`
 Default colour of instant graphics. Event layout uses it for event dots;

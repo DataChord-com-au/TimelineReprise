@@ -284,7 +284,9 @@ import {
 
         this._spanOffset = themedFinite({}, rangeTheme, "offset", 0);
         this._spanSize = themedFiniteOrNull({}, rangeTheme, "size");
-        this._dividerWidth = themedFinite({}, instantTheme, "width", 1);
+        this._rangeToLabelGap = themedFinite({}, rangeTheme, "toLabelGap", 4);
+        this._dividerWidth = themedFinite({}, instantTheme, "lineWidth", 1);
+        this._instantToLabelGap = themedFinite({}, instantTheme, "toLabelGap", 4);
 
         this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
         this._stickyGap = themedFinite({}, labelTheme, "stickyGap", 4);
@@ -572,11 +574,14 @@ import {
         return this._isHorizontal() ? record.width : record.height;
     };
 
-    Timeline.NarrativeDecorator.prototype._instantDividerRightOffset = function (record) {
+    Timeline.NarrativeDecorator.prototype._instantDividerEndOffset = function (record) {
         if (!record.lineElmt) return 0;
 
         const dividerWidth = finiteOr(record.dividerWidth, this._dividerWidth);
-        return Math.max(0, Math.round(dividerWidth) - Math.round(dividerWidth / 2));
+        return Math.max(
+            0,
+            Math.round(dividerWidth) - Math.floor(dividerWidth / 2)
+        ) + this._instantToLabelGap;
     };
 
     Timeline.NarrativeDecorator.prototype._setLabelPosition = function (record, mainStart) {
@@ -851,7 +856,7 @@ import {
                     this._dividerWidth
                 );
                 record.dividerWidth = dividerWidth;
-                const start = record.pixel - Math.round(dividerWidth / 2);
+                const start = record.pixel - Math.floor(dividerWidth / 2);
                 this._setRect(record.lineElmt, horizontal
                     ? { left: start, width: dividerWidth, top: this._spanOffset, height: crossSize }
                     : { top: start, height: dividerWidth, left: this._spanOffset, width: crossSize });
@@ -952,7 +957,10 @@ import {
                 }
 
                 const size = this._labelMainSize(record);
-                const naturalLeft = Math.max(record.startPixel, stickyLeft);
+                const naturalLeft = Math.max(
+                    record.startPixel + this._rangeToLabelGap,
+                    stickyLeft
+                );
                 const maxContactLeft = record.endPixel - contactInset;
 
                 if (naturalLeft >= maxContactLeft) {
@@ -1011,7 +1019,7 @@ import {
             for (const record of instantLabels) {
                 const size = this._labelMainSize(record);
                 const preferredTrack = record.trackExplicit ? record.baseTrack : 0;
-                const labelStart = record.pixel + this._instantDividerRightOffset(record);
+                const labelStart = record.pixel + this._instantDividerEndOffset(record);
                 const track = placeFixedLabel(
                     tracks,
                     labelStart,
@@ -1132,7 +1140,7 @@ import {
         for (const record of ranges) {
             const size = this._labelMainSize(record);
             const main = Math.max(
-                record.startPixel,
+                record.startPixel + this._rangeToLabelGap,
                 stickyMain,
                 record.startPixel - this._labelOffset
             );
@@ -1194,16 +1202,17 @@ import {
         for (const record of instantLabels) {
             const size = this._labelMainSize(record);
             const preferredTrack = record.trackExplicit ? record.baseTrack : 0;
+            const labelStart = record.pixel + this._instantDividerEndOffset(record);
 
             record.track = firstFreeInstantTrackOrOverflow(
-                record.pixel,
+                labelStart,
                 size,
                 preferredTrack,
                 record
             );
             record.labelElmt.style.display = "";
-            this._setLabelPosition(record, record.pixel);
-            reserveLabel(record.track, record.pixel, size, record);
+            this._setLabelPosition(record, labelStart);
+            reserveLabel(record.track, labelStart, size, record);
         }
     };
 }());

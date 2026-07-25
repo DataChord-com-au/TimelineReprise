@@ -59,6 +59,7 @@ theme.eventTheme = {
         horizontal: {
             eventRoutingThreshold: 36,
             toLabelGap: 4,
+            minLabelGap: 15,
             labelRoutingGap: 8,
             labelTrackGap: 5,
             tapeGap: 5,
@@ -68,6 +69,7 @@ theme.eventTheme = {
         vertical: {
             eventRoutingThreshold: 36,
             toLabelGap: 4,
+            minLabelGap: 15,
             tapeGap: 5,
             labelWidth: 120,
             labelRoutingGap: 4,
@@ -255,9 +257,8 @@ Rendered duration length at which a range is treated as a long tape event.
 Defaults to `28`. A duration exactly equal to the threshold is long.
 
 ### `eventTheme.range.horizontal.tapeGap`
-Vertical-axis gap between long-duration tape lanes. The same value separates
-the complete tape block from the first routed label row. Defaults to `2`
-pixels. It does not affect time-axis lane assignment.
+Vertical-axis gap between long-duration tape lanes. Defaults to `6` pixels. It
+does not affect time-axis lane assignment.
 
 ### `eventTheme.range.horizontal.toLabelGap`
 Visible vertical gap between a long-range sparkline endpoint and its label. For
@@ -266,6 +267,10 @@ labels use the same value by moving the label below its tape; that offset is
 included when the short event's routed-row height is measured. Defaults to `4`.
 If a long-range value exceeds the available connector distance, the sparkline
 length clamps to zero.
+
+### `eventTheme.range.horizontal.minLabelGap`
+Minimum vertical-axis gap between the complete tape block and the first routed
+label row. Defaults to `15`.
 
 ### `eventTheme.range.horizontal.labelRoutingGap`
 Minimum time-axis clearance used when assigning long-range labels and
@@ -291,9 +296,8 @@ Rendered duration length at which a range is treated as a long tape event.
 Defaults to `28`. A duration exactly equal to the threshold is long.
 
 ### `eventTheme.range.vertical.tapeGap`
-Horizontal-axis gap between long-duration tape lanes. The same value separates
-the complete tape block from the first routed label column. Defaults to `2`
-pixels. It does not affect time-axis lane assignment.
+Horizontal-axis gap between long-duration tape lanes. Defaults to `6` pixels.
+It does not affect time-axis lane assignment.
 
 ### `eventTheme.range.vertical.toLabelGap`
 Visible horizontal gap between a long-range sparkline endpoint and its label.
@@ -302,6 +306,10 @@ Short-duration labels use the same value by moving the label to the right of
 its tape, and that offset is included in the computed event-column pitch.
 Defaults to `4`. If a long-range value exceeds the available connector
 distance, the sparkline length clamps to zero.
+
+### `eventTheme.range.vertical.minLabelGap`
+Minimum horizontal-axis gap between the complete tape block and the first routed
+label column. Defaults to `15`.
 
 ### `eventTheme.range.vertical.labelWidth`
 Width applied to all vertical event labels. If omitted, event layout uses 36%

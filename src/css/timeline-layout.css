@@ -3,10 +3,23 @@
   height: 24rem;
   height: var(--timeline-reprise-height, clamp(18rem, 40vh, 32rem));
   height: var(--timeline-reprise-height, clamp(18rem, 40svh, 32rem));
+  --timeline-reprise-ether-highlight-inset: 0px;
 }
 
 .timeline-container {
   color-scheme: light dark;
+}
+
+.timeline-horizontal .timeline-ether-highlight {
+  top: var(--timeline-reprise-ether-highlight-inset, 0px);
+  bottom: var(--timeline-reprise-ether-highlight-inset, 0px);
+  height: auto !important;
+}
+
+.timeline-vertical .timeline-ether-highlight {
+  left: var(--timeline-reprise-ether-highlight-inset, 0px);
+  right: var(--timeline-reprise-ether-highlight-inset, 0px);
+  width: auto !important;
 }
 
 .timeline-vertical .timeline-date-label {

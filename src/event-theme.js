@@ -119,6 +119,7 @@ const _INSTANT_FIELDS = new Set([
     'width',
     'height',
     'tickWidth',
+    'lineWidth',
     'toLabelGap',
     'cssClass',
     'labelCssClass',
@@ -134,6 +135,7 @@ const _RANGE_FIELDS = new Set([
     'eventRoutingThreshold',
     'tapeGap',
     'toLabelGap',
+    'minLabelGap',
     'labelRoutingGap',
     'labelTrackGap',
     'labelWidth',
@@ -198,6 +200,7 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
         width: 9,
         height: 9,
         tickWidth: 1,
+        lineWidth: 1,
         cssClass: '',
         labelCssClass: '',
         horizontal: { toLabelGap: 4 },
@@ -213,8 +216,9 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
         short: { minDisplayLength: 4 },
         horizontal: {
             eventRoutingThreshold: 28,
-            tapeGap: 2,
+            tapeGap: 6,
             toLabelGap: 4,
+            minLabelGap: 15,
             labelRoutingGap: 8,
             labelTrackGap: 2,
             sparklineStagger: 8,
@@ -222,8 +226,9 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
         },
         vertical: {
             eventRoutingThreshold: 28,
-            tapeGap: 2,
+            tapeGap: 6,
             toLabelGap: 4,
+            minLabelGap: 15,
             labelWidth: 120,
             labelRoutingGap: 4,
             labelTrackGap: 2,
@@ -352,6 +357,7 @@ class EventTheme {
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
         this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });
+        this.#assertNumber(spec.lineWidth, `${caller}.lineWidth`, { positive: true });
         this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
         this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
@@ -369,6 +375,7 @@ class EventTheme {
         this.#assertNumber(spec.eventRoutingThreshold, `${caller}.eventRoutingThreshold`, { positive: true });
         this.#assertNumber(spec.tapeGap, `${caller}.tapeGap`, { nonNegative: true });
         this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
+        this.#assertNumber(spec.minLabelGap, `${caller}.minLabelGap`, { nonNegative: true });
         this.#assertNumber(spec.labelRoutingGap, `${caller}.labelRoutingGap`, { nonNegative: true });
         this.#assertNumber(spec.labelTrackGap, `${caller}.labelTrackGap`, { nonNegative: true });
         this.#assertNumber(spec.labelWidth, `${caller}.labelWidth`, { positive: true });

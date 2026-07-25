@@ -26,6 +26,20 @@ Override only the custom property when a different nominal height is wanted:
 
 Plain percentage heights still depend on a definite parent height.
 
+## Synced Band Highlight Size
+
+SIMILE's synced-band ether highlight leaves a small cross-axis inset. Reprise
+defaults that highlight to span the full band cross-axis, which avoids edge
+artifacts when translucent decorators overlap it.
+
+Override the inset when the original gap, or another gap, is wanted:
+
+```css
+#timeline {
+    --timeline-reprise-ether-highlight-inset: 2px;
+}
+```
+
 ## Timeline.EmptyEtherPainter
 
 ```js

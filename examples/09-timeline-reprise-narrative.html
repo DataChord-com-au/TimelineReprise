@@ -39,38 +39,10 @@
       height: 560px;
     }
 
-    .timeline-narrative-span {
-      opacity: 0.2;
-      border-left: 1px solid rgba(0, 0, 0, 0.35);
-      border-radius: 3px;
-    }
-
-    .timeline-narrative-label {
-      padding: 2px 6px;
-      font-size: 13px;
-      line-height: 1.25;
-      color: #1f1f1f;
-      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
-      white-space: nowrap;
-    }
-
-    .timeline-narrative-instant-line {
-      opacity: 0.8;
-    }
-
     @media (prefers-color-scheme: dark) {
       body {
         background: #202124;
         color: #e8eaed;
-      }
-
-      .timeline-narrative-span {
-        border-left-color: rgba(255, 255, 255, 0.3);
-      }
-
-      .timeline-narrative-label {
-        color: #f1f3f4;
-        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
       }
     }
   </style>
@@ -199,7 +171,7 @@
           }
         },
         instant: {
-          width: 4,
+          lineWidth: 3,
           iconColor: "orange"
         },
         range: {
@@ -207,10 +179,10 @@
           iconColor: "green",
           offset: 0,
           colors: [
-            "rgba(76, 175, 80, 1)",
-            "rgba(66, 133, 244, 1)",
-            "rgba(251, 188, 5, 1)",
-            "rgba(217, 48, 37, 1)"
+            "rgba(76, 175, 80, 0.2)",
+            "rgba(66, 133, 244, 0.2)",
+            "rgba(251, 188, 5, 0.2)",
+            "rgba(217, 48, 37, 0.2)"
           ]
         },
         label: {
@@ -224,13 +196,6 @@
             stickyInset: 6,
             stickyGap: 4
           }
-        },
-        bubble: {
-          width: 300
-        },
-        layer: {
-          zIndex: 108,
-          labelZIndex: 118
         }
       };
 

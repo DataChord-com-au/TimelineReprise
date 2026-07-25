@@ -50,6 +50,7 @@ function testEventTheme(overrides = {}) {
             width: 9,
             height: 9,
             tickWidth: 1,
+            lineWidth: 1,
             horizontal: { toLabelGap: 4 },
             vertical: { toLabelGap: 4 }
         },
@@ -59,8 +60,9 @@ function testEventTheme(overrides = {}) {
             short: { minDisplayLength: 4 },
             horizontal: {
                 eventRoutingThreshold: 28,
-                tapeGap: 2,
+                tapeGap: 6,
                 toLabelGap: 4,
+                minLabelGap: 15,
                 labelRoutingGap: 8,
                 labelTrackGap: 2,
                 sparklineStagger: 8,
@@ -68,8 +70,9 @@ function testEventTheme(overrides = {}) {
             },
             vertical: {
                 eventRoutingThreshold: 28,
-                tapeGap: 2,
+                tapeGap: 6,
                 toLabelGap: 4,
+                minLabelGap: 15,
                 labelWidth: 120,
                 labelRoutingGap: 4,
                 labelTrackGap: 2,
@@ -449,6 +452,34 @@ test("the Reprise stylesheet gives an unsized timeline a responsive default heig
         defaultSizeRule[1],
         /height:\s*var\(--timeline-reprise-height,\s*clamp\(18rem,\s*40svh,\s*32rem\)\)/
     );
+    assert.match(defaultSizeRule[1], /--timeline-reprise-ether-highlight-inset:\s*0px/);
+});
+
+test("the Reprise stylesheet makes synced ether highlights span the band cross-axis", () => {
+    const filename = path.join(
+        __dirname,
+        "..",
+        "src",
+        "css",
+        "timeline-layout.css"
+    );
+    const css = fs.readFileSync(filename, "utf8");
+    const horizontalRule = css.match(
+        /\.timeline-horizontal\s+\.timeline-ether-highlight\s*\{([\s\S]*?)\}/
+    );
+    const verticalRule = css.match(
+        /\.timeline-vertical\s+\.timeline-ether-highlight\s*\{([\s\S]*?)\}/
+    );
+
+    assert.ok(horizontalRule, "expected horizontal ether highlight rule");
+    assert.match(horizontalRule[1], /top:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
+    assert.match(horizontalRule[1], /bottom:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
+    assert.match(horizontalRule[1], /height:\s*auto\s*!important/);
+
+    assert.ok(verticalRule, "expected vertical ether highlight rule");
+    assert.match(verticalRule[1], /left:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
+    assert.match(verticalRule[1], /right:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
+    assert.match(verticalRule[1], /width:\s*auto\s*!important/);
 });
 
 test("the default baseline example renders without authored presentation options", () => {
@@ -980,7 +1011,7 @@ test("vertical labelTrackGap controls spacing between routed side columns", () =
 
 function buildRangeGapFixture(
     orientation,
-    { toLabelGap, tapeGap = 2, tapeWidth = 4, trackGap = 2 } = {}
+    { toLabelGap, minLabelGap, tapeGap = 6, tapeWidth = 4, trackGap = 2 } = {}
 ) {
     const painter = makeEventPainter(orientation, 400);
     const theme = painter._params.theme;
@@ -999,6 +1030,11 @@ function buildRangeGapFixture(
     painter._eventTheme.track[orientation].gap = trackGap;
     painter._repriseMetrics.trackGap = trackGap;
     tapeSpec.tapeGap = tapeGap;
+    if (minLabelGap === undefined) {
+        delete tapeSpec.minLabelGap;
+    } else {
+        tapeSpec.minLabelGap = minLabelGap;
+    }
     if (toLabelGap === undefined) {
         delete tapeSpec.toLabelGap;
     } else {
@@ -1024,6 +1060,10 @@ function crossAxisPosition(orientation, data) {
 
 function crossAxisSize(orientation, data) {
     return orientation === "horizontal" ? data.height : data.width;
+}
+
+function sparklineTapeCenterPosition(orientation, label) {
+    return orientation === "horizontal" ? label.spark.top : label.spark.left;
 }
 
 for (const orientation of ["horizontal", "vertical"]) {
@@ -1084,8 +1124,20 @@ for (const orientation of ["horizontal", "vertical"]) {
         }
     });
 
-    test(`${orientation} range tapeGap controls tape-lane and tape-block spacing`, () => {
-        function build(tapeGap) {
+    test(`${orientation} range sparkline starts at the tape center`, () => {
+        const { label, tape } = buildRangeGapFixture(orientation, {
+            tapeWidth: 6,
+            minLabelGap: 15,
+            toLabelGap: 4
+        });
+        const tapeCenter = crossAxisPosition(orientation, tape.data) +
+            Math.round(crossAxisSize(orientation, tape.data) / 2);
+
+        assert.equal(sparklineTapeCenterPosition(orientation, label), tapeCenter);
+    });
+
+    test(`${orientation} range tapeGap controls tape lanes and minLabelGap controls label spacing`, () => {
+        function build(tapeGap, minLabelGap) {
             const painter = makeEventPainter(orientation, 500);
             const tapeSpec = painter._eventTheme.range[orientation];
             const events = [
@@ -1102,6 +1154,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             }));
 
             tapeSpec.tapeGap = tapeGap;
+            tapeSpec.minLabelGap = minLabelGap;
             tapeSpec.toLabelGap = 0;
             painter._repriseTapeLabels.push(...labels);
             painter._repriseTapeBars.push(...tapes);
@@ -1110,8 +1163,8 @@ for (const orientation of ["horizontal", "vertical"]) {
             return { labels, tapes };
         }
 
-        for (const tapeGap of [2, 9]) {
-            const { labels, tapes } = build(tapeGap);
+        for (const [tapeGap, minLabelGap] of [[2, 15], [9, 18]]) {
+            const { labels, tapes } = build(tapeGap, minLabelGap);
             const firstTapeEnd = crossAxisPosition(orientation, tapes[0].data) +
                 crossAxisSize(orientation, tapes[0].data);
             const secondTapeEnd = crossAxisPosition(orientation, tapes[1].data) +
@@ -1124,8 +1177,8 @@ for (const orientation of ["horizontal", "vertical"]) {
             );
             assert.equal(
                 crossAxisPosition(orientation, labels[0].data) - secondTapeEnd,
-                tapeGap,
-                "the tape block must use tapeGap before the first label row/column"
+                minLabelGap,
+                "the tape block must use minLabelGap before the first label row/column"
             );
         }
     });
@@ -1250,9 +1303,84 @@ test("horizontal instant icons use the adjusted timepoint baseline", () => {
         0
     );
 
-    assert.equal(icon.left, 20);
-    assert.equal(icon.elmt.style.left, "20px");
-    assert.equal(painter._reprisePointIcons[0].data.left, 20);
+    assert.equal(icon.left, 21);
+    assert.equal(icon.elmt.style.left, "21px");
+    assert.equal(painter._reprisePointIcons[0].data.left, 21);
+});
+
+test("vertical instant icons use the adjusted timepoint baseline", () => {
+    const painter = makeEventPainter("vertical");
+    const evt = instantEvent("instant", 20);
+    const icon = painter._paintEventIcon(
+        evt,
+        0,
+        20,
+        painter._repriseMetrics,
+        painter._params.theme,
+        0
+    );
+
+    assert.equal(icon.top, 22);
+    assert.equal(icon.elmt.style.top, "22px");
+    assert.equal(painter._reprisePointIcons[0].data.top, 22);
+});
+
+test("horizontal instant labels move from the adjusted icon baseline", () => {
+    const painter = makeEventPainter("horizontal");
+    const evt = instantEvent("instant", 20);
+    const theme = painter._params.theme;
+    const icon = painter._paintEventIcon(
+        evt,
+        0,
+        20,
+        painter._repriseMetrics,
+        theme,
+        0
+    );
+    const label = painter._paintEventLabel(
+        evt,
+        "instant",
+        0,
+        0,
+        60,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+
+    assert.equal(icon.left, 21);
+    assert.equal(label.left, 35);
+    assert.equal(label.left - (icon.left + icon.width), 4);
+});
+
+test("vertical instant labels move from the adjusted icon baseline", () => {
+    const painter = makeEventPainter("vertical");
+    const evt = instantEvent("instant", 20);
+    const theme = painter._params.theme;
+    const icon = painter._paintEventIcon(
+        evt,
+        0,
+        20,
+        painter._repriseMetrics,
+        theme,
+        0
+    );
+    const label = painter._paintEventLabel(
+        evt,
+        "instant",
+        20,
+        0,
+        60,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+
+    painter.paint();
+
+    assert.equal(icon.top, 22);
+    assert.equal(label.top, 36);
+    assert.equal(label.top - (icon.top + icon.height), 4);
 });
 
 for (const orientation of ["horizontal", "vertical"]) {
@@ -1458,6 +1586,34 @@ test("horizontal instant toLabelGap defaults to 4px", () => {
     assert.equal(label.left - (iconData.left + iconData.width), 4);
 });
 
+test("horizontal instant event icon and label sit 3px above the routed row baseline", () => {
+    const painter = makeEventPainter("horizontal");
+    const evt = instantEvent("instant", 20);
+    const iconData = paintedData(20, 10, 10, 10);
+
+    painter._reprisePointIcons.push({
+        evt,
+        lane: 0,
+        trackTopOffset: 8,
+        data: iconData
+    });
+
+    const label = painter._paintEventLabel(
+        evt,
+        "instant",
+        0,
+        0,
+        60,
+        8,
+        painter._params.theme,
+        "timeline-event-label"
+    );
+    painter.paint();
+
+    assert.equal(iconData.top, 7);
+    assert.equal(label.top, 8);
+});
+
 test("vertical instant toLabelGap is exact and defaults to 4px", () => {
     function measure(toLabelGap) {
         const painter = makeEventPainter("vertical");
@@ -1652,6 +1808,8 @@ function makeNarrative(orientation) {
     decorator._trackGap = 5;
     decorator._trackAlign = "start";
     decorator._labelOffset = 0;
+    decorator._rangeToLabelGap = 4;
+    decorator._instantToLabelGap = 4;
     decorator._instantRecords = [];
 
     return decorator;
@@ -1742,6 +1900,28 @@ test("horizontal narrative labels keep their existing themed routing without ite
     ]);
 });
 
+test("horizontal narrative range labels use range toLabelGap at the range edge", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._rangeToLabelGap = 6;
+    const range = narrativeRange(decorator, 0, 20, 100, 30, 16);
+    decorator._rangeRecords = [range];
+
+    decorator.softPaint();
+
+    assert.equal(range.labelElmt.style.left, "26px");
+});
+
+test("vertical narrative range labels use range toLabelGap at the range edge", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._rangeToLabelGap = 6;
+    const range = narrativeRange(decorator, 0, 20, 100, 30, 16);
+    decorator._rangeRecords = [range];
+
+    decorator.softPaint();
+
+    assert.equal(range.labelElmt.style.top, "26px");
+});
+
 test("horizontal narrative persistence includes the sticky edge inset in its contact threshold", () => {
     const decorator = makeNarrative("horizontal");
     decorator._stickyInset = 6;
@@ -1782,7 +1962,88 @@ test("horizontal narrative instant labels avoid their own divider width", () => 
 
     assert.equal(instant.lineElmt.style.left, "44px");
     assert.equal(instant.lineElmt.style.width, "12px");
-    assert.equal(instant.labelElmt.style.left, "56px");
+    assert.equal(instant.labelElmt.style.left, "60px");
+});
+
+test("horizontal narrative instant 1px dividers align to the event pixel", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._dividerWidth = 1;
+    const instant = narrativeInstant(decorator, 0, 50, 30, 16);
+    decorator._rangeRecords = [];
+    decorator._instantRecords = [instant];
+
+    decorator.softPaint();
+
+    assert.equal(instant.lineElmt.style.left, "50px");
+});
+
+test("vertical narrative instant labels avoid their own divider width", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._dividerWidth = 6;
+    decorator._instantToLabelGap = 2;
+    const instant = narrativeInstant(decorator, 0, 50, 30, 16);
+    decorator._rangeRecords = [];
+    decorator._instantRecords = [instant];
+
+    decorator.softPaint();
+
+    assert.equal(instant.lineElmt.style.top, "47px");
+    assert.equal(instant.lineElmt.style.height, "6px");
+    assert.equal(instant.labelElmt.style.top, "55px");
+});
+
+test("vertical narrative instant 1px dividers align to the event pixel", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._dividerWidth = 1;
+    const instant = narrativeInstant(decorator, 0, 50, 30, 16);
+    decorator._rangeRecords = [];
+    decorator._instantRecords = [instant];
+
+    decorator.softPaint();
+
+    assert.equal(instant.lineElmt.style.top, "50px");
+});
+
+test("narrative instant lineWidth is separate from event icon width", () => {
+    const decorator = makeConfiguredNarrative(
+        "horizontal",
+        200,
+        { count: 1, offset: 0, gap: 4 },
+        {
+            eventTheme: testEventTheme({
+                instant: {
+                    width: 12,
+                    lineWidth: 2,
+                    horizontal: {
+                        toLabelGap: 3
+                    }
+                }
+            })
+        }
+    );
+
+    assert.equal(decorator._eventTheme.instant.width, 12);
+    assert.equal(decorator._dividerWidth, 2);
+    assert.equal(decorator._instantToLabelGap, 3);
+});
+
+test("narrative range toLabelGap resolves from the oriented range theme", () => {
+    const decorator = makeConfiguredNarrative(
+        "horizontal",
+        200,
+        { count: 1, offset: 0, gap: 4 },
+        {
+            eventTheme: testEventTheme({
+                range: {
+                    horizontal: {
+                        toLabelGap: 7
+                    }
+                }
+            })
+        }
+    );
+
+    assert.equal(decorator._rangeToLabelGap, 7);
 });
 
 test("vertical sticky narrative labels stack forward on their current track while they fit", () => {
@@ -1850,7 +2111,7 @@ test("vertical narrative labels move together after a later label hits their sam
     decorator.softPaint();
     assert.deepEqual(
         [first.labelElmt.style.top, second.labelElmt.style.top],
-        ["0px", "40px"]
+        ["0px", "44px"]
     );
 
     decorator.setViewOffset(-25);
@@ -1918,7 +2179,7 @@ test("a pushed vertical label returns to the top of its span when scrolling back
     decorator._rangeRecords = [leading, follower];
 
     decorator.softPaint();
-    assert.equal(follower.labelElmt.style.top, "40px");
+    assert.equal(follower.labelElmt.style.top, "44px");
 
     decorator.setViewOffset(-25);
     decorator.softPaint();
@@ -1928,7 +2189,7 @@ test("a pushed vertical label returns to the top of its span when scrolling back
     decorator.setViewOffset(0);
     decorator.softPaint();
     assert.equal(follower.track, 0);
-    assert.equal(follower.labelElmt.style.top, "40px");
+    assert.equal(follower.labelElmt.style.top, "44px");
 });
 
 test("reverse scrolling removes a bottom reroute when the label fits at its span top", () => {
@@ -1940,12 +2201,12 @@ test("reverse scrolling removes a bottom reroute when the label fits at its span
     decorator.setViewOffset(-21);
     decorator.softPaint();
     assert.equal(constrained.track, 1);
-    assert.equal(constrained.labelElmt.style.top, "40px");
+    assert.equal(constrained.labelElmt.style.top, "44px");
 
     decorator.setViewOffset(0);
     decorator.softPaint();
     assert.equal(constrained.track, 0);
-    assert.equal(constrained.labelElmt.style.top, "40px");
+    assert.equal(constrained.labelElmt.style.top, "44px");
 });
 
 test("a departing vertical span releases the next stacked label without a jump", () => {

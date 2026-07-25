@@ -21,9 +21,34 @@ function loadTimeline() {
     OriginalEventPainter.prototype._showBubble = function () {};
     OriginalEventPainter.prototype.paint = function () {};
     OriginalEventPainter.prototype.softPaint = function () {};
-    OverviewEventPainter.prototype.initialize = function () {};
-    OverviewEventPainter.prototype._paintEventTick = function () {};
-    OverviewEventPainter.prototype._paintEventTape = function () {};
+    OverviewEventPainter.prototype.initialize = function (band, timeline) {
+        this._band = band;
+        this._timeline = timeline;
+    };
+    OverviewEventPainter.prototype._paintEventTick = function (evt, left, color, opacity, metrics, theme) {
+        const tickHeight = theme.event.overviewTrack.tickHeight;
+        const top = metrics.tickOffset - tickHeight;
+        const elmt = { style: { top: top + "px", height: tickHeight + "px" } };
+
+        return { left, top, width: 1, height: tickHeight, elmt };
+    };
+    OverviewEventPainter.prototype._paintEventTape = function (
+        evt, track, left, right, color, opacity, metrics
+    ) {
+        const top = metrics.trackOffset + track * metrics.trackIncrement;
+        const width = right - left;
+        const height = metrics.trackHeight;
+        const elmt = {
+            style: {
+                left: left + "px",
+                top: top + "px",
+                width: width + "px",
+                height: height + "px"
+            }
+        };
+
+        return { left, top, width, height, elmt };
+    };
     OverviewEventPainter.prototype.paint = function () {};
 
     const labeller = {
@@ -167,6 +192,108 @@ test("event painters and Narrative receive the same resolved EventTheme shape", 
     assert.equal(narrative._trackCount, 2);
     assert.equal(narrative._trackOffset, 8);
     assert.equal(narrative._trackSize, 24);
+});
+
+test("overview geometry separates instant ticks from tapes with track gap", () => {
+    const Timeline = loadTimeline();
+    const nativeTheme = {
+        event: {
+            overviewTrack: {
+                offset: 20,
+                tickHeight: 7,
+                height: 2,
+                gap: 1
+            },
+            duration: { color: "gray" }
+        },
+        eventTheme: {
+            track: {
+                horizontal: {
+                    offset: 12,
+                    gap: 5
+                }
+            },
+            instant: {
+                tickWidth: 11,
+                iconColor: "orange"
+            },
+            range: {
+                width: 4,
+                iconColor: "green"
+            }
+        }
+    };
+    let paintedMetrics = null;
+    const band = {
+        _theme: nativeTheme,
+        getEventSource: () => ({
+            getEventReverseIterator: () => {
+                let remaining = 1;
+                return {
+                    hasNext: () => remaining > 0,
+                    next: () => {
+                        remaining -= 1;
+                        return {};
+                    }
+                };
+            }
+        }),
+        getMinDate: () => new Date(0),
+        getMaxDate: () => new Date(1),
+        updateEventTrackInfo: () => {}
+    };
+    const timeline = {
+        isHorizontal: () => true,
+        isVertical: () => false
+    };
+    const overview = new Timeline.OverviewEventPainter({ theme: nativeTheme });
+
+    overview.initialize(band, timeline);
+    overview._prepareForPainting = function () {
+        this._tracks = [];
+        this._highlightLayer = { style: {} };
+        this._eventLayer = { style: {} };
+    };
+    overview.paintEvent = function (evt, metrics) {
+        paintedMetrics = metrics;
+    };
+
+    overview.paint();
+
+    assert.equal(paintedMetrics.tickOffset, 12);
+    assert.equal(paintedMetrics.trackOffset, 17);
+    assert.equal(paintedMetrics.trackHeight, 4);
+    assert.equal(paintedMetrics.trackGap, 5);
+    assert.equal(paintedMetrics.trackIncrement, 9);
+
+    const tick = overview._paintEventTick(
+        { getProperty: () => null, getClassName: () => null },
+        25,
+        null,
+        100,
+        paintedMetrics,
+        nativeTheme
+    );
+
+    assert.equal(tick.top, 5);
+    assert.equal(tick.height, 7);
+    assert.equal(tick.elmt.style.top, "5px");
+    assert.equal(tick.elmt.style.height, "7px");
+
+    const tape = overview._paintEventTape(
+        { getProperty: () => null },
+        0,
+        25,
+        45,
+        null,
+        100,
+        paintedMetrics,
+        nativeTheme
+    );
+
+    assert.equal(tape.top, 17);
+    assert.equal(tape.height, 4);
+    assert.equal(tape.top - (tick.top + tick.height), 5);
 });
 
 test("opaque presentation and template fields survive validation and resolution", () => {
