@@ -2,6 +2,30 @@
 
 Shared behaviour patches for Timeline Reprise.
 
+## Default Container Size
+
+Loading the Reprise stylesheet gives an otherwise unsized timeline container a
+responsive default height:
+
+```css
+height: var(--timeline-reprise-height, clamp(18rem, 40svh, 32rem));
+```
+
+SIMILE adds the `.timeline-container` class before it measures and lays out the
+bands, so no container-size CSS is required for a basic Reprise timeline.
+The fallback rule has zero selector specificity: an authored width or height
+wins through the normal cascade.
+
+Override only the custom property when a different nominal height is wanted:
+
+```css
+#timeline {
+    --timeline-reprise-height: 50svh;
+}
+```
+
+Plain percentage heights still depend on a definite parent height.
+
 ## Timeline.EmptyEtherPainter
 
 ```js

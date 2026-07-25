@@ -1,34 +1,10 @@
 (function () {
     if (!window.Timeline || !Timeline.OverviewEventPainter) return;
-    if (Timeline._overviewEventThemeShimApplied) return;
-    Timeline._overviewEventThemeShimApplied = true;
+    if (Timeline._overviewEventThemePatchApplied) return;
+    Timeline._overviewEventThemePatchApplied = true;
 
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
-    }
-
-    function toFiniteNumber(value) {
-        if (Number.isFinite(value)) return value;
-
-        if (typeof value === "string" && value.trim() !== "") {
-            const number = Number(value);
-            if (Number.isFinite(number)) return number;
-        }
-
-        return null;
-    }
-
-    function setNumber(target, key, value) {
-        const number = toFiniteNumber(value);
-        if (number != null) target[key] = number;
-    }
-
-    function setColor(target, key, value) {
-        if (typeof value !== "string" || value.trim() === "") return;
-
-        target[key] = Timeline.ThemeIcons?.getCssColor
-            ? Timeline.ThemeIcons.getCssColor(value)
-            : value;
     }
 
     function getOrientation(timeline) {
@@ -37,73 +13,26 @@
         return null;
     }
 
-    function getTrackSpec(authoredTheme, timeline) {
-        const track = authoredTheme?.track;
+    function getOrientationSpec(value, timeline) {
+        if (!isObject(value)) return {};
 
-        if (isObject(track)) {
-            const orientation = getOrientation(timeline);
-            if (orientation != null && isObject(track[orientation])) return track[orientation];
-
-            return isObject(track.horizontal) || isObject(track.vertical)
-                ? null
-                : track;
+        const orientation = getOrientation(timeline);
+        if (orientation != null && isObject(value[orientation])) {
+            return value[orientation];
         }
 
-        return null;
+        return isObject(value.horizontal) || isObject(value.vertical)
+            ? {}
+            : value;
     }
 
-    function getEventTheme(params, eventTheme) {
-        if (isObject(eventTheme)) return eventTheme;
-        if (isObject(params?.eventTheme)) return params.eventTheme;
-        if (isObject(params?.theme?.eventTheme)) return params.theme.eventTheme;
-        return null;
-    }
-
-    function ensureNativeEventTheme(theme) {
-        if (!isObject(theme.event)) theme.event = {};
-        if (!isObject(theme.event.overviewTrack)) theme.event.overviewTrack = {};
-        if (!isObject(theme.event.duration)) theme.event.duration = {};
-        if (!isObject(theme.event.instant)) theme.event.instant = {};
-        return theme.event;
-    }
-
-    function applyEventThemeToTheme(theme, authoredTheme, timeline) {
-        if (!isObject(theme) || !isObject(authoredTheme)) {
-            return theme;
-        }
-
-        const eventTheme = ensureNativeEventTheme(theme);
-        const track = getTrackSpec(authoredTheme, timeline);
-
-        const tickHeight = toFiniteNumber(authoredTheme.instant?.tickWidth);
-        const trackOffset = toFiniteNumber(track?.offset);
-
-        if (isObject(track)) {
-            setNumber(eventTheme.overviewTrack, "gap", track.gap);
-
-            if (trackOffset != null) {
-                eventTheme.overviewTrack.offset = trackOffset +
-                    (tickHeight ?? eventTheme.overviewTrack.tickHeight ?? 0);
-            }
-        }
-
-        if (isObject(authoredTheme.instant)) {
-            setNumber(eventTheme.overviewTrack, "tickHeight", authoredTheme.instant.tickWidth);
-            setColor(eventTheme.instant, "color", authoredTheme.instant.iconColor);
-        }
-
-        if (isObject(authoredTheme.range)) {
-            setNumber(eventTheme.overviewTrack, "height", authoredTheme.range.width);
-            setColor(eventTheme.duration, "color", authoredTheme.range.iconColor);
-        }
-
-        return theme;
-    }
-
-    function applyEventThemeToPainterParams(params, eventTheme, timeline) {
-        if (!isObject(params) || !isObject(params.theme)) return params;
-        applyEventThemeToTheme(params.theme, getEventTheme(params, eventTheme), timeline);
-        return params;
+    function resolvePainterEventTheme(painter, band) {
+        const nativeTheme = band?._theme || painter._params?.theme || null;
+        painter._nativeTheme = nativeTheme;
+        painter._eventTheme = Timeline.resolveEventTheme(
+            painter._params?.eventTheme ?? null,
+            nativeTheme
+        );
     }
 
     const proto = Timeline.OverviewEventPainter.prototype;
@@ -149,10 +78,41 @@
     }
 
     proto.initialize = function (band, timeline) {
-        applyEventThemeToPainterParams(this._params, null, timeline);
         const result = originalInitialize.apply(this, arguments);
-        applyEventThemeToPainterParams(this._params, null, timeline);
+        resolvePainterEventTheme(this, band);
         return result;
+    };
+
+    proto.paint = function () {
+        const eventSource = this._band.getEventSource();
+        if (eventSource == null) return;
+
+        this._prepareForPainting();
+
+        const track = getOrientationSpec(this._eventTheme.track, this._timeline);
+        const tickWidth = this._eventTheme.instant.tickWidth;
+        const metrics = {
+            trackOffset: track.offset + tickWidth,
+            trackHeight: this._eventTheme.range.width,
+            trackGap: track.gap,
+            trackIncrement: this._eventTheme.range.width + track.gap
+        };
+        const minDate = this._band.getMinDate();
+        const maxDate = this._band.getMaxDate();
+        const filter = this._filterMatcher || function () { return true; };
+        const highlight = this._highlightMatcher || function () { return -1; };
+        const iterator = eventSource.getEventReverseIterator(minDate, maxDate);
+
+        while (iterator.hasNext()) {
+            const evt = iterator.next();
+            if (filter(evt)) {
+                this.paintEvent(evt, metrics, this._nativeTheme, highlight(evt));
+            }
+        }
+
+        this._highlightLayer.style.display = "block";
+        this._eventLayer.style.display = "block";
+        this._band.updateEventTrackInfo(this._tracks.length, metrics.trackIncrement);
     };
 
     proto._paintEventTick = function (evt, left, color, opacity, metrics, theme) {
@@ -161,15 +121,19 @@
             ? evt.getClassName()
             : null;
         const eventColor = getEventOverviewColor(evt);
-        const tickColor = eventColor ?? theme?.event?.instant?.color;
+        const tickColor = eventColor ??
+            Timeline.ThemeIcons?.getCssColor?.(this._eventTheme.instant.iconColor) ??
+            this._eventTheme.instant.iconColor;
 
         if (data?.elmt && (!klassName || eventColor) && tickColor) {
             data.elmt.style.backgroundColor = tickColor;
         }
 
-        if (data?.elmt && theme?.event?.overviewTrack?.tickHeight) {
-            data.height = theme.event.overviewTrack.tickHeight;
-            data.elmt.style.height = theme.event.overviewTrack.tickHeight + "px";
+        if (data?.elmt) {
+            data.top = metrics.trackOffset - this._eventTheme.instant.tickWidth;
+            data.height = this._eventTheme.instant.tickWidth;
+            data.elmt.style.top = data.top + "px";
+            data.elmt.style.height = this._eventTheme.instant.tickWidth + "px";
         }
 
         if (isVertical(this) && data?.elmt) {
@@ -183,25 +147,21 @@
         evt, track, left, right, color, opacity, metrics, theme, klassName
     ) {
         const eventColor = getEventOverviewColor(evt);
+        const themeColor = Timeline.ThemeIcons?.getCssColor?.(
+            this._eventTheme.range.iconColor
+        ) ?? this._eventTheme.range.iconColor;
         const data = originalPaintEventTape.call(
             this,
             evt,
             track,
             left,
             right,
-            eventColor ?? color,
+            eventColor ?? themeColor,
             opacity,
             metrics,
             theme,
             klassName
         );
-        const gap = theme?.event?.overviewTrack?.gap || 0;
-
-        if (data?.elmt && gap) {
-            data.top += gap;
-            data.elmt.style.top = data.top + "px";
-        }
-
         if (isVertical(this) && data?.elmt) {
             return transposeVerticalPaintedRect(data, { swapSize: true });
         }
@@ -209,16 +169,4 @@
         return data;
     };
 
-    Timeline.OverviewThemeShim = Timeline.OverviewThemeShim || {};
-    Timeline.OverviewThemeShim.applyEventTheme = applyEventThemeToTheme;
-    Timeline.OverviewThemeShim.applyToPainterParams = applyEventThemeToPainterParams;
-
-    const NativeOverviewEventPainter = Timeline.OverviewEventPainter;
-
-    Timeline.OverviewEventPainter = function (params) {
-        applyEventThemeToPainterParams(params);
-        NativeOverviewEventPainter.call(this, params);
-    };
-    Timeline.OverviewEventPainter.prototype = NativeOverviewEventPainter.prototype;
-    Timeline.OverviewEventPainter._nativeOverviewEventPainter = NativeOverviewEventPainter;
 }());

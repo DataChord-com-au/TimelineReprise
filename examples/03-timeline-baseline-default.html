@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>SIMILE Timeline Reprise: Default Baseline</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Default Baseline</h1>
+  <p>This example shows a timeline created with Reprise's default settings.</p>
+
+  <div id="timeline"></div>
+
+  <script>
+    var eventSource = new Timeline.DefaultEventSource();
+
+    var timeline = Timeline.create(
+      document.getElementById("timeline"),
+      [
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Jan 1 2020",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 100
+        })
+      ]
+    );
+
+    eventSource.loadJSON({
+      dateTimeFormat: "iso8601",
+      events: [
+        {
+          start: "2020-01-01",
+          title: "Timeline Reprise loaded",
+          description: "The timeline is using Reprise defaults."
+        },
+        {
+          start: "2020-06-01",
+          end: "2020-09-01",
+          title: "Range event",
+          description: "No event presentation options were supplied."
+        }
+      ]
+    }, document.location.href);
+  </script>
+</body>
+</html>

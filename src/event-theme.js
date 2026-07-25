@@ -29,6 +29,34 @@ function deepFreezePlain(value) {
     return value;
 }
 
+function clonePlain(value) {
+    if (Array.isArray(value)) {
+        return value.map(clonePlain);
+    }
+
+    if (_isPlainObject(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [key, clonePlain(item)])
+        );
+    }
+
+    return value;
+}
+
+function mergePlain(base, override) {
+    const result = clonePlain(base);
+
+    for (const [key, value] of Object.entries(override)) {
+        if (value === undefined) continue;
+
+        result[key] = _isPlainObject(value) && _isPlainObject(result[key])
+            ? mergePlain(result[key], value)
+            : clonePlain(value);
+    }
+
+    return result;
+}
+
 function validateThemeSpecId(value, caller) {
     if (value == null) return undefined;
 
@@ -63,8 +91,171 @@ const _EVENT_THEME_FIELDS = new Set([
     'label',
     'bubble',
     'layer',
-    'tagsToIconColor'
+    'tagsToIconColor',
+    'presentation',
+    'template',
+    'templateId',
+    'templates'
 ]);
+const _OPAQUE_PRESENTATION_FIELDS = [
+    'presentation',
+    'template',
+    'templateId',
+    'templates'
+];
+const _ORIENTATION_FIELDS = [...TIMELINE_ORIENTATIONS];
+const _TRACK_FIELDS = new Set([
+    'count',
+    'offset',
+    'endPadding',
+    'size',
+    'gap',
+    'align',
+    ..._ORIENTATION_FIELDS,
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _INSTANT_FIELDS = new Set([
+    'iconColor',
+    'width',
+    'height',
+    'tickWidth',
+    'toLabelGap',
+    'cssClass',
+    'labelCssClass',
+    ..._ORIENTATION_FIELDS,
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _RANGE_FIELDS = new Set([
+    'iconColor',
+    'colors',
+    'width',
+    'offset',
+    'size',
+    'eventRoutingThreshold',
+    'tapeGap',
+    'toLabelGap',
+    'labelRoutingGap',
+    'labelTrackGap',
+    'labelWidth',
+    'sparklineStagger',
+    'stickyLeftInset',
+    'stickyTopInset',
+    'toEventGap',
+    'cssClass',
+    'labelCssClass',
+    'short',
+    ..._ORIENTATION_FIELDS,
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _SHORT_RANGE_FIELDS = new Set([
+    'minDisplayLength',
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _LABEL_FIELDS = new Set([
+    'stickyInset',
+    'stickyGap',
+    'offset',
+    'color',
+    'colorSource',
+    ..._ORIENTATION_FIELDS,
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _BUBBLE_FIELDS = new Set([
+    'width',
+    'maxHeight',
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _LAYER_FIELDS = new Set([
+    'zIndex',
+    'labelZIndex',
+    ..._OPAQUE_PRESENTATION_FIELDS
+]);
+const _EVENT_THEME_DEFAULTS = Object.freeze({
+    disableEmphasis: false,
+    eventColorScope: 'graphic',
+    spans: true,
+    dividers: true,
+    labels: true,
+    bubbles: true,
+    track: {
+        horizontal: {
+            count: 1,
+            offset: 2,
+            size: 18,
+            gap: 4,
+            align: 'start'
+        },
+        vertical: {
+            count: 1,
+            offset: 2,
+            size: 120,
+            gap: 4,
+            align: 'start'
+        }
+    },
+    instant: {
+        iconColor: 'blue',
+        width: 9,
+        height: 9,
+        tickWidth: 1,
+        cssClass: '',
+        labelCssClass: '',
+        horizontal: { toLabelGap: 4 },
+        vertical: { toLabelGap: 4 }
+    },
+    range: {
+        iconColor: 'blue',
+        colors: ['blue'],
+        width: 4,
+        offset: 0,
+        cssClass: '',
+        labelCssClass: '',
+        short: { minDisplayLength: 4 },
+        horizontal: {
+            eventRoutingThreshold: 28,
+            tapeGap: 2,
+            toLabelGap: 4,
+            labelRoutingGap: 8,
+            labelTrackGap: 2,
+            sparklineStagger: 8,
+            stickyLeftInset: 2
+        },
+        vertical: {
+            eventRoutingThreshold: 28,
+            tapeGap: 2,
+            toLabelGap: 4,
+            labelWidth: 120,
+            labelRoutingGap: 4,
+            labelTrackGap: 2,
+            stickyTopInset: 2,
+            toEventGap: 12
+        }
+    },
+    label: {
+        colorSource: 'graphic',
+        horizontal: {
+            stickyInset: 2,
+            stickyGap: 4,
+            offset: 0
+        },
+        vertical: {
+            stickyInset: 2,
+            stickyGap: 4,
+            offset: 0
+        }
+    },
+    bubble: {
+        width: 320,
+        maxHeight: null
+    },
+    layer: {
+        zIndex: 5,
+        labelZIndex: 6
+    },
+    tagsToIconColor: {},
+    presentation: {},
+    templates: {}
+});
 
 class EventTheme {
     static get displayName() { return 'EventTheme'; }
@@ -76,18 +267,12 @@ class EventTheme {
         }
     }
 
-    static #clonePlain(value) {
-        if (Array.isArray(value)) {
-            return value.map(item => this.#clonePlain(item));
+    static #assertKnownFields(value, fields, caller) {
+        for (const field of Object.keys(value)) {
+            if (!fields.has(field)) {
+                throw new TypeError(`${caller}.${field} is not supported.`);
+            }
         }
-
-        if (_isPlainObject(value)) {
-            return Object.fromEntries(
-                Object.entries(value).map(([key, item]) => [key, this.#clonePlain(item)])
-            );
-        }
-
-        return value;
     }
 
     static #assertNumber(value, caller, { positive = false, nonNegative = false } = {}) {
@@ -142,6 +327,7 @@ class EventTheme {
 
     static #assertTrackSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _TRACK_FIELDS, caller);
 
         this.#assertNumber(spec.count, `${caller}.count`, { positive: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
@@ -160,6 +346,7 @@ class EventTheme {
 
     static #assertInstantSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _INSTANT_FIELDS, caller);
 
         this.#assertColor(spec.iconColor, `${caller}.iconColor`);
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
@@ -172,6 +359,7 @@ class EventTheme {
 
     static #assertRangeSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _RANGE_FIELDS, caller);
 
         this.#assertColor(spec.iconColor, `${caller}.iconColor`);
         this.#assertColorList(spec.colors, `${caller}.colors`);
@@ -193,12 +381,14 @@ class EventTheme {
 
         if (spec.short !== undefined) {
             this.#assertPlainObject(spec.short, `${caller}.short`);
+            this.#assertKnownFields(spec.short, _SHORT_RANGE_FIELDS, `${caller}.short`);
             this.#assertNumber(spec.short.minDisplayLength, `${caller}.short.minDisplayLength`, { positive: true });
         }
     }
 
     static #assertLabelSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _LABEL_FIELDS, caller);
 
         this.#assertNumber(spec.stickyInset, `${caller}.stickyInset`, { nonNegative: true });
         this.#assertNumber(spec.stickyGap, `${caller}.stickyGap`, { nonNegative: true });
@@ -212,9 +402,8 @@ class EventTheme {
 
     static #assertBubbleSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _BUBBLE_FIELDS, caller);
 
-        this.#assertBoolean(spec.enabled, `${caller}.enabled`);
-        this.#assertBoolean(spec.showTags, `${caller}.showTags`);
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         if (spec.maxHeight !== null) {
             this.#assertNumber(spec.maxHeight, `${caller}.maxHeight`, { positive: true });
@@ -233,6 +422,7 @@ class EventTheme {
 
     static #assertLayerSpec(spec, caller) {
         this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _LAYER_FIELDS, caller);
 
         this.#assertNumber(spec.zIndex, `${caller}.zIndex`);
         this.#assertNumber(spec.labelZIndex, `${caller}.labelZIndex`);
@@ -297,8 +487,8 @@ class EventTheme {
         const caller = `${this.constructor.label}.ctor`;
         this.constructor.#assertPlainObject(config, caller);
 
-        const theme = this.constructor.#clonePlain(config);
-        const id = validateThemeSpecId(theme.id, `${caller}.id`);
+        const theme = mergePlain(_EVENT_THEME_DEFAULTS, config);
+        const id = validateThemeSpecId(config.id, `${caller}.id`);
 
         if (id === undefined) {
             delete theme.id;
@@ -313,4 +503,20 @@ class EventTheme {
     }
 }
 
-export { EventTheme };
+function deriveEventTheme(base, overrides = {}) {
+    if (!(base instanceof EventTheme)) {
+        throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`base\` must be an EventTheme.`);
+    }
+    if (!_isPlainObject(overrides)) {
+        throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`overrides\` must be an object.`);
+    }
+
+    return new EventTheme(mergePlain(
+        Object.fromEntries(Object.entries(base)),
+        overrides
+    ));
+}
+
+const defaultEventTheme = new EventTheme();
+
+export { EventTheme, defaultEventTheme, deriveEventTheme };

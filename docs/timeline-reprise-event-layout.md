@@ -3,10 +3,13 @@
 Event layout routing for Timeline Reprise. Unless stated otherwise, dimensions
 are CSS pixels.
 
-The properties belong on the SIMILE theme object passed to each band. Event
-layout and Narrative consume the same `theme.eventTheme` object. Properties
-used only by Narrative remain in that object and are ignored by event layout;
-see the [Narrative theme reference](timeline-reprise-narrative.md#theme).
+The properties belong to
+[`Timeline.EventTheme`](timeline-reprise-event-theme.md). A literal assigned to
+the SIMILE band theme's `eventTheme` field is validated and converted when the
+band is initialized. Event layout and Narrative consume the same resolved
+instance. Properties used only by Narrative remain in that model and are
+ignored by event layout; see the
+[Narrative theme reference](timeline-reprise-narrative.md#theme).
 The reference below lists the `eventTheme` properties consumed by event
 layout; unlisted fields do not configure this painter.
 
@@ -25,7 +28,6 @@ theme.eventTheme = {
     labels: true,
     bubbles: true,
     bubble: {
-        enabled: true,
         width: 320,
         maxHeight: null
     },
@@ -93,8 +95,7 @@ Timeline.createBandInfo({
 Create a fresh theme object for each timeline when a page shows horizontal and vertical timelines together.
 
 Orientation-specific properties are read from `horizontal` or `vertical` when
-the painter is initialised. A flat object is accepted as a fallback only when
-that object has no orientation branches.
+the painter is initialised.
 
 ## Event Display Controls
 
@@ -103,16 +104,14 @@ Set to `false` to hide event labels on the band. Defaults to `true`.
 
 ### `eventTheme.bubbles`
 Set to `false` to stop event bubble popups. Defaults to `true`.
-`eventTheme.bubble.enabled` is accepted when `bubbles` is not set.
 
 ### `eventTheme.bubble.width`
-Sets the event bubble width. Event layout maps it to SIMILE's native bubble
-theme; the native default is `250`. Narrative consumes the same property.
+Sets the event bubble width. The Reprise default is `320`. Narrative consumes
+the same property.
 
 ### `eventTheme.bubble.maxHeight`
-Sets the optional maximum event bubble height. `null` means no maximum. Event
-layout maps it to SIMILE's native bubble theme, and Narrative consumes the same
-property.
+Sets the optional maximum event bubble height. `null` means no maximum.
+Narrative consumes the same property.
 
 ### `eventTheme.eventColorScope`
 Controls whether an authored item `color` is applied to its label, graphic,
@@ -125,7 +124,7 @@ Values:
 - `graphic`
 - `both`
 
-Event-layout default: `graphic`.
+Reprise default: `graphic`.
 
 Without an emphasis override, explicit event colours such as `iconColor`,
 `labelColor`, `textColor`, or `tapeColor` override this scope.
@@ -169,7 +168,6 @@ Sets native SIMILE event track placement.
 
 `track.horizontal` is used on horizontal timelines.
 `track.vertical` is used on vertical timelines.
-A flat `track` object is also accepted as a fallback.
 
 ### `eventTheme.track.*.offset`
 Sets the cross-axis offset before event content. Defaults to `2`.
@@ -184,8 +182,8 @@ Currently has no meaningful visual effect in the Reprise vertical event
 layout and should normally be omitted. Use `range.vertical.labelTrackGap` for
 side-column spacing and `range.vertical.tapeGap` for tape-lane spacing.
 
-### `eventTheme.track.*.height`
-Sets the requested native track size. In a horizontal layout, the effective row
+### `eventTheme.track.*.size`
+Sets the requested Reprise track size. In a horizontal layout, the effective row
 height is the largest of this value, the instant icon height, the range
 thickness plus the rendered label line height, and the actual routed content.
 In a vertical Reprise layout, routed column width and spacing come from the
@@ -230,7 +228,7 @@ Sets the visible vertical gap between an instant dot and its label. Defaults to
 ## `eventTheme.range`
 
 ### `eventTheme.range.width`
-Sets range tape thickness. Defaults to the native theme value, normally `4`.
+Sets range tape thickness. Defaults to `4`.
 
 ### `eventTheme.range.iconColor`
 Sets the default range tape and sparkline colour. Named colours are resolved

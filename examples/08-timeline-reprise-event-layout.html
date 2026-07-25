@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en" translate="no">
 <head>
   <meta charset="utf-8">
   <title>SIMILE Timeline Reprise: Event Layout</title>
@@ -142,7 +142,7 @@
     function createEventLayoutTheme() {
       var theme = Timeline.ClassicTheme.create();
 
-      theme.eventTheme = {
+      theme.eventTheme = new Timeline.EventTheme({
         track: {
           horizontal: {
             offset: 12
@@ -185,17 +185,19 @@
             toEventGap: 12
           }
         }
-      };
+      });
 
       return theme;
     }
 
-    function createProjectStartDivider() {
+    function createProjectStartDivider(eventTheme) {
       return new Timeline.NarrativeDecorator({
-        labels: false,
-        instant: {
-          width: 1
-        },
+        eventTheme: Timeline.deriveEventTheme(eventTheme, {
+          labels: false,
+          instant: {
+            width: 1
+          }
+        }),
         instants: [
           {
             date: new Date(Date.UTC(2020, 0, 10)),
@@ -228,10 +230,10 @@
       ];
 
       bandInfos[0].decorators = [
-        createProjectStartDivider()
+        createProjectStartDivider(theme.eventTheme)
       ];
       bandInfos[1].decorators = [
-        createProjectStartDivider()
+        createProjectStartDivider(theme.eventTheme)
       ];
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
@@ -261,10 +263,10 @@
       ];
 
       bandInfos[0].decorators = [
-        createProjectStartDivider()
+        createProjectStartDivider(theme.eventTheme)
       ];
       bandInfos[1].decorators = [
-        createProjectStartDivider()
+        createProjectStartDivider(theme.eventTheme)
       ];
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;

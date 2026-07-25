@@ -1,8 +1,9 @@
 import { EmphasisStyle } from "./emphasis-style.js";
-import { EventTheme } from "./event-theme.js";
+import { EventTheme, defaultEventTheme } from "./event-theme.js";
 
 const REGISTRY_MODULE_LABEL = "TimelineReprise";
 const REGISTRY_SPEC_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
+let eventThemesById = Object.freeze({});
 
 function deepFreezeRegistryPlain(value) {
     if (value != null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -84,21 +85,67 @@ function loadEmphasisStyles(emphasisStyles) {
 function loadEventThemes(eventThemes) {
     const caller = `${REGISTRY_MODULE_LABEL}.loadEventThemes \`eventThemes\``;
 
-    if (eventThemes == null) return keyItemsById([], caller);
+    if (eventThemes == null) {
+        eventThemesById = keyItemsById([], caller);
+        return eventThemesById;
+    }
     if (!Array.isArray(eventThemes)) {
         throw new TypeError(`${caller} must be an array.`);
     }
 
-    return keyItemsById(
-        eventThemes.map(config => new EventTheme(config)),
+    eventThemesById = keyItemsById(
+        eventThemes.map(config =>
+            config instanceof EventTheme ? config : new EventTheme(config)
+        ),
         caller
     );
+
+    return eventThemesById;
+}
+
+function resolveEventTheme(explicit, nativeTheme) {
+    const caller = `${REGISTRY_MODULE_LABEL}.resolveEventTheme`;
+
+    if (typeof explicit === "string") {
+        const id = validateSpecId(explicit, caller, "explicit");
+        const namedTheme = eventThemesById[id];
+
+        if (namedTheme === undefined) {
+            throw new RangeError(`${caller} unknown EventTheme: ${id}.`);
+        }
+
+        return namedTheme;
+    }
+
+    if (explicit instanceof EventTheme) {
+        return explicit;
+    }
+
+    if (explicit != null) {
+        throw new TypeError(`${caller} \`explicit\` must be an EventTheme or registered theme id.`);
+    }
+
+    const authoredTheme = nativeTheme?.eventTheme;
+    if (authoredTheme instanceof EventTheme) {
+        return authoredTheme;
+    }
+
+    const resolved = authoredTheme == null
+        ? defaultEventTheme
+        : new EventTheme(authoredTheme);
+
+    if (nativeTheme != null && typeof nativeTheme === "object") {
+        nativeTheme.eventTheme = resolved;
+    }
+
+    return resolved;
 }
 
 export {
     keyItemsById,
     loadEmphasisStyles,
     loadEventThemes,
+    resolveEventTheme,
     selectItemsById,
     validateSpecId
 };

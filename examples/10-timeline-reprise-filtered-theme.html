@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en" translate="no">
 <head>
   <meta charset="utf-8">
   <title>SIMILE Timeline Reprise: Filtered Theme Data</title>
@@ -126,7 +126,6 @@
         }
       },
       "bubble": {
-        "enabled": true,
         "width": 320,
         "maxHeight": null
       }
@@ -263,14 +262,13 @@
   <script>
     var config = JSON.parse(document.getElementById("timeline-config").textContent);
     var emphasisSpecs = Timeline.loadEmphasisStyles(config.emphasisStyles);
-    var eventThemes = Timeline.loadEventThemes(config.eventThemes);
-    var selectedTheme = eventThemes[config.theme];
+    Timeline.loadEventThemes(config.eventThemes);
     var eventSource = new Timeline.DefaultEventSource();
     var theme = Timeline.ClassicTheme.create();
     var filteredEvents = Timeline.filterEvents(config.events, config.filter);
     var bands = config.bands;
 
-    theme.eventTheme = selectedTheme;
+    theme.eventTheme = Timeline.resolveEventTheme(config.theme);
     theme.emphasisSpecs = emphasisSpecs;
 
     var timelineEvents = filteredEvents.map(function (event) {

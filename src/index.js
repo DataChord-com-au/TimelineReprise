@@ -1,7 +1,7 @@
 import { assertColorString, normalizeColorString } from "./color.js";
 import { DATE_TIME_UNIT_NAMES, resolveTimelineDateTimeUnit } from "./date-time.js";
 import { EmphasisStyle } from "./emphasis-style.js";
-import { EventTheme } from "./event-theme.js";
+import { EventTheme, defaultEventTheme, deriveEventTheme } from "./event-theme.js";
 import { filterEvents } from "./event-filters.js";
 import {
     TIMELINE_ORIENTATIONS,
@@ -12,6 +12,7 @@ import {
     keyItemsById,
     loadEmphasisStyles,
     loadEventThemes,
+    resolveEventTheme,
     selectItemsById,
     validateSpecId
 } from "./theme-registry.js";
@@ -31,12 +32,15 @@ export {
     Reprise,
     assertColorString,
     assertTimelineOrientation,
+    defaultEventTheme,
+    deriveEventTheme,
     filterEvents,
     keyItemsById,
     loadEmphasisStyles,
     loadEventThemes,
     normalizeColorString,
     normalizeTimelineOrientation,
+    resolveEventTheme,
     resolveTimelineDateTimeUnit,
     selectItemsById,
     validateSpecId

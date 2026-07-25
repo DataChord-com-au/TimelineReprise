@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v1.3.5`
+Version: `v1.4.0`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -38,11 +38,17 @@ combined Reprise JavaScript file:
 <script src="../dist/timeline-reprise.js"></script>
 ```
 
+The Reprise stylesheet supplies a responsive default timeline height, so a
+basic container does not need its own sizing rule. Set
+`--timeline-reprise-height` or an explicit `height` when the page needs a
+different size.
+
 Run `npm run build` to regenerate the distribution. The CSS media remains as
 external files under `dist/images/`.
 
 ## Reference
 ### [Core](timeline-reprise-core.md)
+### [EventTheme](timeline-reprise-event-theme.md)
 ### [Overview](timeline-reprise-overview.md)
 ### [Cardinal Axis](timeline-reprise-cardinal-axis.md)
 ### [Scaled Zones](timeline-reprise-scaled-zones.md)
@@ -52,6 +58,7 @@ external files under `dist/images/`.
 
 ## Examples
 ### [simile-baseline.html](../examples/simile-baseline.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html)
+### [timeline-baseline-default.html](../examples/timeline-baseline-default.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-baseline-default.html)
 ### [timeline-dark-mode.html](../examples/timeline-dark-mode.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html)
 ### [timeline-reprise-colors.html](../examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html)
 ### [timeline-reprise-filtered-theme.html](../examples/timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-filtered-theme.html)

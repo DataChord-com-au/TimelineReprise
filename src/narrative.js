@@ -156,15 +156,6 @@
         return toFiniteNumber(value);
     }
 
-    function getTimelineTheme(params, bandTheme) {
-        return isObject(params?.theme) ? params.theme : bandTheme;
-    }
-
-    function getEventTheme(params, bandTheme) {
-        const theme = getTimelineTheme(params, bandTheme);
-        return isObject(theme?.eventTheme) ? theme.eventTheme : {};
-    }
-
     function getOrientation(timeline) {
         if (timeline?.isVertical?.()) return "vertical";
         if (timeline?.isHorizontal?.()) return "horizontal";
@@ -215,24 +206,13 @@
 
     Timeline.NarrativeDecorator = function (params) {
         params = params || {};
-        this._params = params;
-        this._theme = params.theme || null;
+        this._eventThemeSelection = params.eventTheme ?? null;
+        this._eventTheme = Timeline.resolveEventTheme(this._eventThemeSelection, null);
+        this._nativeTheme = null;
 
         this._unit = params.unit || window.SimileAjax?.NativeDateUnit || Timeline.NativeDateUnit;
         this._ranges = Array.isArray(params.ranges) ? params.ranges : [];
         this._instants = Array.isArray(params.instants) ? params.instants : [];
-
-        this._spans = true;
-        this._dividers = true;
-        this._labels = params.labels !== false;
-        this._bubbles = false;
-        this._eventColorScope = "both";
-        this._disableEmphasis = false;
-        this._emphasisSpecs = {};
-        this._tagsToIconColor = {};
-        this._instantIconColor = null;
-        this._labelColorMode = "graphic";
-        this._labelColor = null;
 
         this._band = null;
         this._timeline = null;
@@ -248,35 +228,37 @@
     Timeline.NarrativeDecorator.prototype.initialize = function (band, timeline) {
         this._band = band;
         this._timeline = timeline;
-        if (!this._theme) this._theme = band._theme || null;
+        this._nativeTheme = band._theme || null;
+        this._eventTheme = Timeline.resolveEventTheme(
+            this._eventThemeSelection,
+            this._nativeTheme
+        );
         this._configureTheme();
     };
 
     Timeline.NarrativeDecorator.prototype._configureTheme = function () {
-        const params = this._params;
-        const timelineTheme = getTimelineTheme(params, this._band?._theme);
-        const eventTheme = getEventTheme(params, this._band?._theme);
-        const paramTrackTheme = getOrientedObject(params.track, this._timeline);
+        const timelineTheme = this._nativeTheme;
+        const eventTheme = this._eventTheme;
         const trackTheme = getOrientedObject(eventTheme.track, this._timeline);
-        const rangeTheme = isObject(params.range) ? params.range : eventTheme.range;
-        const instantTheme = isObject(params.instant) ? params.instant : eventTheme.instant;
-        const labelTheme = isObject(params.label) ? params.label : eventTheme.label;
-        const bubbleTheme = isObject(params.bubble) ? params.bubble : eventTheme.bubble;
-        const layerTheme = isObject(params.layer) ? params.layer : eventTheme.layer;
+        const rangeTheme = [getOrientedObject(eventTheme.range, this._timeline), eventTheme.range];
+        const instantTheme = [getOrientedObject(eventTheme.instant, this._timeline), eventTheme.instant];
+        const labelTheme = [getOrientedObject(eventTheme.label, this._timeline), eventTheme.label];
+        const bubbleTheme = eventTheme.bubble;
+        const layerTheme = eventTheme.layer;
 
-        this._trackCount = Math.max(1, themedFinite({}, [paramTrackTheme, trackTheme], "count", 1));
-        this._trackOffset = themedFinite({}, [paramTrackTheme, trackTheme], "offset", 0);
-        this._trackEndPadding = themedFiniteOrNull({}, [paramTrackTheme, trackTheme], "endPadding");
-        this._trackSize = themedFiniteOrNull({}, [paramTrackTheme, trackTheme], "size");
-        this._trackGap = themedFinite({}, [paramTrackTheme, trackTheme], "gap", 4);
-        this._trackAlign = normalizeTrackAlign(themedValue({}, [paramTrackTheme, trackTheme], "align", "start"));
+        this._trackCount = Math.max(1, themedFinite({}, trackTheme, "count", 1));
+        this._trackOffset = themedFinite({}, trackTheme, "offset", 0);
+        this._trackEndPadding = themedFiniteOrNull({}, trackTheme, "endPadding");
+        this._trackSize = themedFiniteOrNull({}, trackTheme, "size");
+        this._trackGap = themedFinite({}, trackTheme, "gap", 4);
+        this._trackAlign = normalizeTrackAlign(themedValue({}, trackTheme, "align", "start"));
 
         this._spanOffset = themedFinite({}, rangeTheme, "offset", 0);
         this._spanSize = themedFiniteOrNull({}, rangeTheme, "size");
         this._dividerWidth = themedFinite({}, instantTheme, "width", 1);
 
-        this._stickyInset = themedFinite(params, [labelTheme, eventTheme], "stickyInset", 2);
-        this._stickyGap = themedFinite(params, [labelTheme, eventTheme], "stickyGap", 4);
+        this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
+        this._stickyGap = themedFinite({}, labelTheme, "stickyGap", 4);
         this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
         this._labelColorMode = normalizeLabelColorMode(
             themedValue({}, labelTheme, "colorSource", "graphic"),
@@ -293,50 +275,19 @@
         this._spanLabelCssClass = themedValue({}, rangeTheme, "labelCssClass", "");
         this._dividerCssClass = themedValue({}, instantTheme, "cssClass", "");
         this._dividerLabelCssClass = themedValue({}, instantTheme, "labelCssClass", "");
-        this._themeId = hasDefinedOwn(params, "themeId") ? params.themeId : eventTheme.id ?? null;
+        this._themeId = eventTheme.id ?? null;
         this._themeCssPrefix = typeof this._themeId === "string" && this._themeId.trim() !== ""
             ? "timeline-narrative-" + this._themeId.trim()
             : null;
 
-        const labelsValue = hasDefinedOwn(params, "labels")
-            ? params.labels
-            : hasDefinedOwn(eventTheme, "labels")
-                ? eventTheme.labels
-                : true;
-        const bubblesValue = hasDefinedOwn(params, "bubbles")
-            ? params.bubbles
-            : hasDefinedOwn(eventTheme, "bubbles")
-                ? eventTheme.bubbles
-                : hasDefinedOwn(bubbleTheme, "enabled")
-                    ? bubbleTheme.enabled
-                    : false;
-
-        this._spans = enabledValue(
-            hasDefinedOwn(params, "spans")
-                ? params.spans
-                : hasDefinedOwn(eventTheme, "spans") ? eventTheme.spans : true,
-            true
-        );
-        this._dividers = enabledValue(
-            hasDefinedOwn(params, "dividers")
-                ? params.dividers
-                : hasDefinedOwn(eventTheme, "dividers") ? eventTheme.dividers : true,
-            true
-        );
-        this._labels = enabledValue(labelsValue, true);
-        this._bubbles = enabledValue(bubblesValue, false);
-        this._eventColorScope = normalizeEventColorScope(
-            themedValue(params, eventTheme, "eventColorScope", "both", "eventColorScope"),
-            "both"
-        );
-        this._disableEmphasis = enabledValue(
-            themedValue(params, eventTheme, "disableEmphasis", false),
-            false
-        );
-        this._emphasisSpecs = isObject(params.emphasisSpecs)
-            ? params.emphasisSpecs
-            : isObject(timelineTheme?.emphasisSpecs)
-                ? timelineTheme.emphasisSpecs
+        this._spans = eventTheme.spans;
+        this._dividers = eventTheme.dividers;
+        this._labels = eventTheme.labels;
+        this._bubbles = eventTheme.bubbles;
+        this._eventColorScope = eventTheme.eventColorScope;
+        this._disableEmphasis = eventTheme.disableEmphasis;
+        this._emphasisSpecs = isObject(timelineTheme?.emphasisSpecs)
+            ? timelineTheme.emphasisSpecs
             : {};
         this._tagsToIconColor = isObject(eventTheme.tagsToIconColor)
             ? eventTheme.tagsToIconColor
@@ -622,7 +573,7 @@
         const source = record.item.event || record.item;
 
         const filler = Timeline._timelineUtilsFillInfoBubble;
-        const theme = this._theme || this._band._theme;
+        const theme = this._nativeTheme;
         const labeller = this._band.getLabeller();
 
         const bubbleEvent = {

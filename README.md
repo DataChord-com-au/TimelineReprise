@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `1.3.5`
+Version: `1.4.0`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.3.5"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.4.0"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -45,6 +45,10 @@ stylesheet and the single combined Reprise JavaScript file:
 <link rel="stylesheet" href="./dist/timeline-reprise.css">
 <script src="./dist/timeline-reprise.js"></script>
 ```
+
+The stylesheet gives unsized timeline containers a responsive default height.
+Override `--timeline-reprise-height` or set an explicit height only when the
+page needs different sizing.
 
 The distribution JavaScript contains the complete Reprise feature set. Its
 stylesheet is loaded explicitly and keeps media under `dist/images/`.
@@ -82,6 +86,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | <!-- --> | <!-- --> |
 |----------|----------|
 | [simile-baseline.html](examples/simile-baseline.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html) | Loads the original SIMILE Timeline library unpatched. |
+| [timeline-baseline-default.html](examples/timeline-baseline-default.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-baseline-default.html) | Creates a usable Reprise timeline without page CSS, a theme, an explicit container size, or painter options. |
 | [timeline-dark-mode.html](examples/timeline-dark-mode.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html) | Loads the original SIMILE Timeline library with CSS supporting dark mode styles. |
 | [timeline-reprise-colors.html](examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. |
 | [timeline-reprise-filtered-theme.html](examples/timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-filtered-theme.html) | Loads event theme configuration from embedded JSON and filters a larger event set by tags. |

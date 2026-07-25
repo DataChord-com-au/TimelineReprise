@@ -70,17 +70,6 @@
         return result;
     }
 
-    function setNumber(target, key, value) {
-        const number = toFiniteNumber(value);
-        if (number != null) target[key] = number;
-    }
-
-    function setColor(target, key, value) {
-        if (typeof value !== "string" || value.trim() === "") return;
-
-        target[key] = resolveCssColor(value);
-    }
-
     function resolveCssColor(value) {
         if (typeof value !== "string" || value.trim() === "") return null;
 
@@ -140,16 +129,8 @@
         return null;
     }
 
-    function getEventEmphasisSpec(evt, theme) {
-        const authoredTheme = theme?.eventTheme;
-        const nativeEventTheme = theme?.event;
-        const disableEmphasis = hasDefinedOwn(authoredTheme, "disableEmphasis")
-            ? authoredTheme.disableEmphasis
-            : hasDefinedOwn(nativeEventTheme, "disableEmphasis")
-                ? nativeEventTheme.disableEmphasis
-                : false;
-
-        if (enabledValue(disableEmphasis, false)) return null;
+    function getEventEmphasisSpec(evt, theme, eventTheme) {
+        if (eventTheme.disableEmphasis) return null;
 
         const key = stringValue(getEventProperty(evt, "emphasis"));
         if (key == null) return null;
@@ -160,58 +141,41 @@
         return isObject(spec) ? spec : null;
     }
 
-    function getEmphasisValue(evt, theme, names) {
-        return objectValue(getEventEmphasisSpec(evt, theme), names);
+    function getEmphasisValue(evt, theme, eventTheme, names) {
+        return objectValue(getEventEmphasisSpec(evt, theme, eventTheme), names);
     }
 
-    function getEmphasisColor(evt, theme, names) {
-        const value = getEmphasisValue(evt, theme, [...(Array.isArray(names) ? names : [names]), "color"]);
+    function getEmphasisColor(evt, theme, eventTheme, names) {
+        const value = getEmphasisValue(
+            evt,
+            theme,
+            eventTheme,
+            [...(Array.isArray(names) ? names : [names]), "color"]
+        );
         if (!value.found) return null;
 
         const color = stringValue(value.value);
         return color != null ? resolveCssColor(color) || color : null;
     }
 
-    function getThemeControl(theme, name, fallback) {
-        const authoredTheme = theme?.eventTheme;
-        if (hasDefinedOwn(authoredTheme, name)) return authoredTheme[name];
-
-        if (name === "bubbles" &&
-            isObject(authoredTheme?.bubble) &&
-            hasDefinedOwn(authoredTheme.bubble, "enabled")) {
-            return authoredTheme.bubble.enabled;
-        }
-
-        const nativeEventTheme = theme?.event;
-        if (hasDefinedOwn(nativeEventTheme, name)) return nativeEventTheme[name];
-
-        if (name === "bubbles" &&
-            isObject(nativeEventTheme?.bubble) &&
-            hasDefinedOwn(nativeEventTheme.bubble, "enabled")) {
-            return nativeEventTheme.bubble.enabled;
-        }
-
-        return fallback;
-    }
-
-    function labelsEnabled(evt, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, "labels");
+    function labelsEnabled(evt, theme, eventTheme) {
+        const emphasisValue = getEmphasisValue(evt, theme, eventTheme, "labels");
         if (emphasisValue.found) return enabledValue(emphasisValue.value, true);
 
         const eventValue = getEventProperty(evt, "labels");
         if (eventValue != null) return enabledValue(eventValue, true);
 
-        return enabledValue(getThemeControl(theme, "labels", true), true);
+        return eventTheme.labels;
     }
 
-    function bubblesEnabled(evt, theme) {
-        const emphasisValue = getEmphasisValue(evt, theme, "bubbles");
+    function bubblesEnabled(evt, theme, eventTheme) {
+        const emphasisValue = getEmphasisValue(evt, theme, eventTheme, "bubbles");
         if (emphasisValue.found) return enabledValue(emphasisValue.value, true);
 
         const eventValue = getEventProperty(evt, "bubbles");
         if (eventValue != null) return enabledValue(eventValue, true);
 
-        return enabledValue(getThemeControl(theme, "bubbles", true), true);
+        return eventTheme.bubbles;
     }
 
     function normalizeEventColorScope(value, fallback) {
@@ -227,11 +191,11 @@
             : fallback;
     }
 
-    function getEventColorScope(evt, theme, fallback) {
+    function getEventColorScope(evt, eventTheme) {
         return normalizeEventColorScope(
             getEventProperty(evt, "eventColorScope") ??
-                getThemeControl(theme, "eventColorScope", fallback),
-            fallback
+                eventTheme.eventColorScope,
+            eventTheme.eventColorScope
         );
     }
 
@@ -239,8 +203,8 @@
         return stringValue(evt?.getColor?.());
     }
 
-    function getExplicitLabelColor(evt, theme) {
-        const emphasisColor = getEmphasisColor(evt, theme, "labelColor");
+    function getExplicitLabelColor(evt, theme, eventTheme) {
+        const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "labelColor");
         if (emphasisColor != null) return emphasisColor;
 
         return stringValue(getEventProperty(evt, "labelColor")) ||
@@ -248,11 +212,11 @@
             stringValue(getEventProperty(evt, "textColor"));
     }
 
-    function getEventLabelColor(evt, theme) {
-        const explicit = getExplicitLabelColor(evt, theme);
+    function getEventLabelColor(evt, theme, eventTheme) {
+        const explicit = getExplicitLabelColor(evt, theme, eventTheme);
         if (explicit != null) return resolveCssColor(explicit) || explicit;
 
-        const scope = getEventColorScope(evt, theme, "graphic");
+        const scope = getEventColorScope(evt, eventTheme);
         const eventColor = getEventColor(evt);
 
         return (scope === "label" || scope === "both") && eventColor != null
@@ -260,22 +224,22 @@
             : null;
     }
 
-    function getScopedEventGraphicColor(evt, theme) {
-        const scope = getEventColorScope(evt, theme, "graphic");
+    function getScopedEventGraphicColor(evt, eventTheme) {
+        const scope = getEventColorScope(evt, eventTheme);
         if (scope !== "graphic" && scope !== "both") return null;
 
         const color = getEventColor(evt);
         return color != null ? resolveCssColor(color) || color : null;
     }
 
-    function getEventInstantIconColor(evt, theme) {
-        const emphasisColor = getEmphasisColor(evt, theme, "iconColor");
+    function getEventInstantIconColor(evt, theme, eventTheme) {
+        const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "iconColor");
         if (emphasisColor != null) return emphasisColor;
 
         const eventColor = stringValue(getEventProperty(evt, "iconColor"));
         if (eventColor != null) return resolveCssColor(eventColor) || eventColor;
 
-        const scopedColor = getScopedEventGraphicColor(evt, theme);
+        const scopedColor = getScopedEventGraphicColor(evt, eventTheme);
         if (scopedColor != null) return scopedColor;
 
         // An authored icon URL is already a more specific graphic than the
@@ -283,13 +247,13 @@
         // still replace it deliberately.
         if (stringValue(evt?.getIcon?.()) != null) return null;
 
-        return stringValue(theme?.event?.instant?.iconColor) ||
+        return stringValue(eventTheme.instant.iconColor) ||
             resolveCssColor(DEFAULT_INSTANT_ICON_COLOR) ||
             DEFAULT_INSTANT_ICON_COLOR;
     }
 
-    function getEventWithThemeIcon(evt, theme, metrics) {
-        const color = getEventInstantIconColor(evt, theme);
+    function getEventWithThemeIcon(evt, theme, eventTheme, metrics) {
+        const color = getEventInstantIconColor(evt, theme, eventTheme);
         if (color == null || typeof Timeline.ThemeIcons?.get !== "function") return evt;
 
         const width = positiveOr(metrics?.iconWidth, DEFAULT_INSTANT_ICON_SIZE);
@@ -335,127 +299,16 @@
             : value;
     }
 
-    function getEventTheme(params, eventTheme) {
-        if (isObject(eventTheme)) return eventTheme;
-        if (isObject(params?.eventTheme)) return params.eventTheme;
-        if (isObject(params?.theme?.eventTheme)) return params.theme.eventTheme;
-        return null;
-    }
-
-    function ensureNativeEventTheme(theme) {
-        if (!isObject(theme.event)) theme.event = {};
-        if (!isObject(theme.event.track)) theme.event.track = {};
-        if (!isObject(theme.event.tape)) theme.event.tape = {};
-        if (!isObject(theme.event.label)) theme.event.label = {};
-        if (!isObject(theme.event.duration)) theme.event.duration = {};
-        if (!isObject(theme.event.instant)) theme.event.instant = {};
-        if (!isObject(theme.event.bubble)) theme.event.bubble = {};
-        return theme.event;
-    }
-
-    function mergeObject(target, source) {
-        if (!isObject(source)) return;
-
-        for (const key in source) {
-            if (Object.prototype.hasOwnProperty.call(source, key)) {
-                target[key] = source[key];
-            }
-        }
-    }
-
-    function applyEventLayoutThemeToTheme(theme, authoredTheme, timeline) {
-        if (!isObject(theme) || !isObject(authoredTheme)) return theme;
-
-        const eventTheme = ensureNativeEventTheme(theme);
-        const track = getOrientationSpec(authoredTheme.track, timeline);
-        const instant = getOrientationSpec(authoredTheme.instant, timeline);
-        const range = getOrientationSpec(authoredTheme.range, timeline);
-        const label = getOrientationSpec(authoredTheme.label, timeline);
-
-        if (hasDefinedOwn(authoredTheme, "labels")) {
-            eventTheme.labels = authoredTheme.labels;
-        }
-
-        if (hasDefinedOwn(authoredTheme, "bubbles")) {
-            eventTheme.bubbles = authoredTheme.bubbles;
-        } else if (isObject(authoredTheme.bubble) && hasDefinedOwn(authoredTheme.bubble, "enabled")) {
-            eventTheme.bubbles = authoredTheme.bubble.enabled;
-        }
-
-        if (isObject(authoredTheme.bubble)) {
-            setNumber(eventTheme.bubble, "width", authoredTheme.bubble.width);
-
-            if (hasDefinedOwn(authoredTheme.bubble, "maxHeight")) {
-                if (authoredTheme.bubble.maxHeight === null) {
-                    eventTheme.bubble.maxHeight = null;
-                } else {
-                    setNumber(eventTheme.bubble, "maxHeight", authoredTheme.bubble.maxHeight);
-                }
-            }
-        }
-
-        if (hasDefinedOwn(authoredTheme, "eventColorScope")) {
-            eventTheme.eventColorScope = authoredTheme.eventColorScope;
-        }
-
-        if (hasDefinedOwn(authoredTheme, "disableEmphasis")) {
-            eventTheme.disableEmphasis = authoredTheme.disableEmphasis;
-        }
-
-        if (isObject(track)) {
-            setNumber(eventTheme.track, "offset", track.offset);
-            setNumber(eventTheme.track, "gap", track.gap);
-            setNumber(eventTheme.track, "height", track.height);
-        }
-
-        setNumber(eventTheme.instant, "iconWidth", authoredTheme.instant?.width ?? DEFAULT_INSTANT_ICON_SIZE);
-        setNumber(
-            eventTheme.instant,
-            "iconHeight",
-            authoredTheme.instant?.height ?? authoredTheme.instant?.width ?? DEFAULT_INSTANT_ICON_SIZE
-        );
-        setColor(eventTheme.instant, "iconColor", authoredTheme.instant?.iconColor);
-
-        eventTheme.track.height = Math.max(
-            finiteOr(eventTheme.track.height, 0),
-            eventTheme.instant.iconHeight
+    function resolvePainterEventTheme(painter, band) {
+        const nativeTheme = band?._theme || painter._params?.theme || null;
+        const eventTheme = Timeline.resolveEventTheme(
+            painter._params?.eventTheme ?? null,
+            nativeTheme
         );
 
-        if (isObject(instant)) {
-            const orientation = getOrientation(timeline) === "vertical" ? "vertical" : "horizontal";
-            if (!isObject(eventTheme.instant[orientation])) eventTheme.instant[orientation] = {};
-            mergeObject(eventTheme.instant[orientation], instant);
-        }
-
-        if (isObject(authoredTheme.range)) {
-            setNumber(eventTheme.tape, "height", authoredTheme.range.width);
-            setColor(eventTheme.duration, "color", authoredTheme.range.iconColor);
-
-            if (isObject(authoredTheme.range.short)) {
-                if (!isObject(eventTheme.tape.short)) eventTheme.tape.short = {};
-                mergeObject(eventTheme.tape.short, authoredTheme.range.short);
-            }
-        }
-
-        if (isObject(range)) {
-            const orientation = getOrientation(timeline) === "vertical" ? "vertical" : "horizontal";
-            if (!isObject(eventTheme.tape[orientation])) eventTheme.tape[orientation] = {};
-            mergeObject(eventTheme.tape[orientation], range);
-        }
-
-        if (isObject(label)) {
-            const orientation = getOrientation(timeline) === "vertical" ? "vertical" : "horizontal";
-            if (!isObject(eventTheme.label[orientation])) eventTheme.label[orientation] = {};
-            mergeObject(eventTheme.label[orientation], label);
-        }
-
-        return theme;
-    }
-
-    function applyEventLayoutThemeToPainterParams(params, eventTheme, timeline) {
-        if (!isObject(params) || !isObject(params.theme)) return params;
-        applyEventLayoutThemeToTheme(params.theme, getEventTheme(params, eventTheme), timeline);
-        return params;
+        painter._nativeTheme = nativeTheme;
+        painter._eventTheme = eventTheme;
+        return eventTheme;
     }
 
     function ensureTapeSparklineStyles(doc) {
@@ -511,19 +364,25 @@
     }
 
     function getTapeSpec(painter) {
-        const tape = painter._params?.theme?.event?.tape || {};
-        if (isVertical(painter)) return tape.vertical || tape.horizontal || {};
-        return tape.horizontal || {};
+        return getOrientationSpec(
+            painter._eventTheme?.range,
+            painter._timeline
+        ) || {};
     }
 
     function getInstantSpec(painter) {
-        const instant = painter._params?.theme?.event?.instant || {};
-        if (isVertical(painter)) return instant.vertical || instant.horizontal || {};
-        return instant.horizontal || {};
+        return getOrientationSpec(
+            painter._eventTheme?.instant,
+            painter._timeline
+        ) || {};
     }
 
     function getShortTapeSpec(painter) {
-        return painter._params?.theme?.event?.tape?.short || {};
+        return painter._eventTheme?.range?.short || {};
+    }
+
+    function getRangeWidth(painter) {
+        return positiveOr(painter._eventTheme?.range?.width, 4);
     }
 
     function getTapeLaneGap(painter, metrics) {
@@ -548,7 +407,7 @@
     function getShortDurationMinDisplayWidth(painter) {
         return finiteOr(
             getShortTapeSpec(painter).minDisplayLength,
-            painter._params?.theme?.event?.tape?.height || 4
+            getRangeWidth(painter)
         );
     }
 
@@ -589,24 +448,36 @@
     }
 
     function getOriginalPainterMetrics(painter) {
-        const eventTheme = painter._params?.theme?.event || {};
-        const track = eventTheme.track || {};
-        const tape = eventTheme.tape || {};
-        const instant = eventTheme.instant || {};
+        const nativeEventTheme = painter._params?.theme?.event || {};
+        const nativeTrack = nativeEventTheme.track || {};
+        const nativeInstant = nativeEventTheme.instant || {};
+        const track = getOrientationSpec(
+            painter._eventTheme?.track,
+            painter._timeline
+        ) || {};
+        const instant = painter._eventTheme?.instant || {};
         const lineHeight = positiveOr(painter._frc?.getLineHeight?.(), 12);
         const trackHeight = Math.max(
-            positiveOr(track.height, 10),
-            positiveOr(tape.height, 4) + lineHeight
+            positiveOr(track.size, positiveOr(nativeTrack.height, 10)),
+            getRangeWidth(painter) + lineHeight,
+            positiveOr(instant.height, positiveOr(instant.width, DEFAULT_INSTANT_ICON_SIZE))
         );
-        const trackGap = finiteOr(track.gap, 2);
+        const trackGap = finiteOr(track.gap, finiteOr(nativeTrack.gap, 2));
 
         return {
-            trackOffset: finiteOr(track.offset, 2),
+            trackOffset: finiteOr(track.offset, finiteOr(nativeTrack.offset, 2)),
             trackHeight,
             trackGap,
             trackIncrement: trackHeight + trackGap,
-            iconWidth: positiveOr(instant.iconWidth, DEFAULT_INSTANT_ICON_SIZE),
-            iconHeight: positiveOr(instant.iconHeight, positiveOr(instant.iconWidth, DEFAULT_INSTANT_ICON_SIZE))
+            icon: nativeInstant.icon,
+            iconWidth: positiveOr(instant.width, positiveOr(nativeInstant.iconWidth, DEFAULT_INSTANT_ICON_SIZE)),
+            iconHeight: positiveOr(
+                instant.height,
+                positiveOr(instant.width, positiveOr(nativeInstant.iconHeight, DEFAULT_INSTANT_ICON_SIZE))
+            ),
+            labelWidth: nativeEventTheme.label?.width,
+            maxLabelChar: nativeEventTheme.label?.maxLabelChar,
+            impreciseIconMargin: nativeInstant.impreciseIconMargin
         };
     }
 
@@ -746,7 +617,7 @@
 
     function getTapeLaneTop(painter, metrics, theme, lane) {
         return metrics.trackOffset +
-            lane * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
+            lane * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
     }
 
     function getTapeLaneCount(painter) {
@@ -761,7 +632,7 @@
         if (tapeCount === 0) return metrics.trackOffset;
 
         return metrics.trackOffset +
-            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
+            tapeCount * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
     }
 
     function getRoutedTrackCount(painter) {
@@ -820,7 +691,7 @@
 
     function getVerticalTapeLaneLeft(painter, metrics, theme, lane) {
         return metrics.trackOffset +
-            lane * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
+            lane * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
     }
 
     function getVerticalTapeLabelWidth(painter, metrics) {
@@ -836,17 +707,17 @@
         if (tapeCount === 0) return metrics.trackOffset;
 
         return metrics.trackOffset +
-            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics));
+            tapeCount * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
     }
 
     function getVerticalEventTrackContentWidth(painter, metrics, theme) {
-        const markerWidth = Math.max(metrics.iconWidth, theme.event.tape.height);
+        const markerWidth = Math.max(metrics.iconWidth, getRangeWidth(painter));
         const labelWidth = getVerticalTapeLabelWidth(painter, metrics);
 
         return Math.max(
             markerWidth,
             labelWidth,
-            theme.event.tape.height + getTapeToLabelGap(painter) + labelWidth
+            getRangeWidth(painter) + getTapeToLabelGap(painter) + labelWidth
         );
     }
 
@@ -855,7 +726,7 @@
         if (tapeCount === 0) return metrics.trackOffset;
 
         const tapeRight = metrics.trackOffset +
-            tapeCount * (theme.event.tape.height + getTapeLaneGap(painter, metrics)) -
+            tapeCount * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics)) -
             getTapeLaneGap(painter, metrics);
         const primaryTrackRight = getVerticalTapeLabelLeft(painter, metrics, theme) +
             getVerticalEventTrackContentWidth(painter, metrics, theme);
@@ -903,7 +774,7 @@
         if (item.evt?.isInstant?.()) return laneLeft;
 
         return laneLeft +
-            theme.event.tape.height +
+            getRangeWidth(painter) +
             getTapeToLabelGap(painter);
     }
 
@@ -928,23 +799,22 @@
         }
     }
 
-    function getEventTapeColor(evt, fallback, theme) {
-        const emphasisColor = getEmphasisColor(evt, theme, "iconColor");
+    function getEventTapeColor(evt, fallback, theme, eventTheme) {
+        const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "iconColor");
         if (emphasisColor != null) return emphasisColor;
 
         const tapeColor = stringValue(getEventProperty(evt, "tapeColor"));
         if (tapeColor != null) return resolveCssColor(tapeColor) || tapeColor;
 
-        const scope = getEventColorScope(evt, theme, "graphic");
+        const scope = getEventColorScope(evt, eventTheme);
         const eventColor = getEventColor(evt);
 
         if ((scope === "graphic" || scope === "both") && eventColor != null) {
             return resolveCssColor(eventColor) || eventColor;
         }
 
-        return eventColor != null && fallback === eventColor
-            ? getDefaultGraphicColor(evt, theme, fallback)
-            : fallback;
+        return resolveCssColor(eventTheme.range.iconColor) ||
+            getDefaultGraphicColor(evt, theme, fallback);
     }
 
     function createTapeSparkLine(painter) {
@@ -986,7 +856,7 @@
         }
 
         const tapeCenter = getTapeLaneTop(painter, metrics, theme, item.lane) +
-            Math.round(theme.event.tape.height / 2);
+            Math.round(getRangeWidth(painter) / 2);
         const sparkTop = tapeCenter;
         const sparkHeight = Math.max(
             0,
@@ -1017,7 +887,7 @@
         }
 
         const tapeCenter = getVerticalTapeLaneLeft(painter, metrics, theme, item.lane) +
-            Math.round(theme.event.tape.height / 2);
+            Math.round(getRangeWidth(painter) / 2);
         const fontSize = getLabelFontSize(item.data, getDataHeight(item.data, item.height || 12));
         const sparkTop = Math.round(item.data.top + fontSize / 2);
         const sparkWidth = Math.max(
@@ -1352,7 +1222,7 @@
         for (const item of painter._repriseTapeBars) {
             setPaintedRect(item.data, {
                 left: getVerticalTapeLaneLeft(painter, metrics, theme, item.lane),
-                width: theme.event.tape.height
+                width: getRangeWidth(painter)
             });
         }
 
@@ -1369,7 +1239,7 @@
 
         for (const item of painter._reprisePointTapes) {
             setPaintedRect(item.data, {
-                width: theme.event.tape.height,
+                width: getRangeWidth(painter),
                 height: Math.max(
                     getDataHeight(item.data, item.height || 0),
                     getShortDurationMinDisplayWidth(painter)
@@ -1714,7 +1584,7 @@
         for (const item of painter._repriseTapeBars) {
             setPaintedRect(item.data, {
                 top: getTapeLaneTop(painter, metrics, theme, item.lane),
-                height: theme.event.tape.height
+                height: getRangeWidth(painter)
             });
         }
 
@@ -1765,13 +1635,11 @@
     const originalPaintTape = proto._paintEventTape;
     const originalPaintLabel = proto._paintEventLabel;
     const originalShowBubble = proto._showBubble;
-    const originalPaint = proto.paint;
     const originalSoftPaint = proto.softPaint;
 
     proto.initialize = function (band, timeline) {
-        applyEventLayoutThemeToPainterParams(this._params, null, timeline);
         const result = originalInitialize.apply(this, arguments);
-        applyEventLayoutThemeToPainterParams(this._params, null, timeline);
+        resolvePainterEventTheme(this, band);
         return result;
     };
 
@@ -1897,7 +1765,7 @@
         this._repriseMetrics = metrics;
         const paintArguments = Array.from(arguments);
         paintArguments[0] = evt?.isInstant?.()
-            ? getEventWithThemeIcon(evt, theme, metrics)
+            ? getEventWithThemeIcon(evt, theme, this._eventTheme, metrics)
             : evt;
         const data = originalPaintIcon.apply(this, paintArguments);
         applyThemeIconSize(data, metrics);
@@ -1933,7 +1801,7 @@
         evt, iconTrack, startPixel, endPixel, color, opacity, metrics, theme, tapeIndex
     ) {
         this._repriseMetrics = metrics;
-        const tapeColor = getEventTapeColor(evt, color, theme);
+        const tapeColor = getEventTapeColor(evt, color, theme, this._eventTheme);
         const data = originalPaintTape.call(
             this,
             evt,
@@ -1952,7 +1820,7 @@
 
             if (!tapeEvent && !evt.isInstant()) {
                 setPaintedRect(verticalData, {
-                    width: theme.event.tape.height,
+                    width: getRangeWidth(this),
                     height: Math.max(
                         getDataHeight(verticalData, verticalData.height || 0),
                         getShortDurationMinDisplayWidth(this)
@@ -1985,7 +1853,7 @@
 
             setPaintedRect(data, {
                 top: getTapeLaneTop(this, metrics, theme, lane),
-                height: theme.event.tape.height
+                height: getRangeWidth(this)
             });
 
             this._repriseTapeBars.push({
@@ -2014,10 +1882,10 @@
         const data = originalPaintLabel.apply(this, arguments);
 
         if (data?.elmt) {
-            const labelColor = getEventLabelColor(evt, theme);
+            const labelColor = getEventLabelColor(evt, theme, this._eventTheme);
             data.elmt.style.color = labelColor || "";
 
-            if (!labelsEnabled(evt, theme)) {
+            if (!labelsEnabled(evt, theme, this._eventTheme)) {
                 hidePaintedLabel(data);
                 return data;
             }
@@ -2040,7 +1908,12 @@
                     naturalTop: verticalData.top,
                     startPixel: Math.min(startPixel, endPixel),
                     endPixel: Math.max(startPixel, endPixel),
-                    tapeColor: getEventTapeColor(evt, theme.event.duration.color, theme),
+                    tapeColor: getEventTapeColor(
+                        evt,
+                        theme.event.duration.color,
+                        theme,
+                        this._eventTheme
+                    ),
                     spark
                 });
 
@@ -2082,7 +1955,12 @@
                 naturalLeft: left,
                 startPixel: Math.min(startPixel, endPixel),
                 endPixel: Math.max(startPixel, endPixel),
-                tapeColor: getEventTapeColor(evt, theme.event.duration.color, theme),
+                tapeColor: getEventTapeColor(
+                    evt,
+                    theme.event.duration.color,
+                    theme,
+                    this._eventTheme
+                ),
                 spark
             });
 
@@ -2108,16 +1986,60 @@
     };
 
     proto._showBubble = function (x, y, evt) {
-        if (!bubblesEnabled(evt, this._params?.theme)) return;
+        const nativeTheme = this._nativeTheme || this._params?.theme;
+        if (!bubblesEnabled(evt, nativeTheme, this._eventTheme)) return;
 
-        return originalShowBubble.apply(this, arguments);
+        const graphics = window.SimileAjax?.Graphics;
+        const windowManager = window.SimileAjax?.WindowManager;
+        if (!graphics?.createBubbleForContentAndPoint || !windowManager?.cancelPopups) {
+            return originalShowBubble.apply(this, arguments);
+        }
+
+        const content = this._timeline.getDocument().createElement("div");
+        evt.fillInfoBubble(content, nativeTheme, this._band.getLabeller());
+        windowManager.cancelPopups();
+        return graphics.createBubbleForContentAndPoint(
+            content,
+            x,
+            y,
+            this._eventTheme.bubble.width,
+            null,
+            this._eventTheme.bubble.maxHeight
+        );
     };
 
     proto.paint = function () {
-        const result = originalPaint.apply(this, arguments);
+        const eventSource = this._band.getEventSource();
+        if (eventSource == null) return;
+
+        this._eventIdToElmt = {};
+        this._fireEventPaintListeners("paintStarting", null, null);
+        this._prepareForPainting();
+
+        const metrics = getOriginalPainterMetrics(this);
+        const nativeTheme = this._nativeTheme || this._params.theme;
+        const minDate = this._band.getMinDate();
+        const maxDate = this._band.getMaxDate();
+        const filter = this._filterMatcher || function () { return true; };
+        const highlight = this._highlightMatcher || function () { return -1; };
+        const iterator = eventSource.getEventReverseIterator(minDate, maxDate);
+
+        this._repriseMetrics = metrics;
+        while (iterator.hasNext()) {
+            const evt = iterator.next();
+            if (filter(evt)) {
+                this.paintEvent(evt, metrics, nativeTheme, highlight(evt));
+            }
+        }
+
+        this._highlightLayer.style.display = "block";
+        this._lineLayer.style.display = "block";
+        this._eventLayer.style.display = "block";
+        this._band.updateEventTrackInfo(this._tracks.length, metrics.trackIncrement);
+        this._fireEventPaintListeners("paintEnded", null, null);
+
         if (isHorizontal(this)) updateHorizontalLayout(this);
         if (isVertical(this)) updateVerticalLayout(this);
-        return result;
     };
 
     proto.softPaint = function () {
@@ -2129,8 +2051,4 @@
         return result;
     };
 
-    Timeline.EventLayoutThemeShim = Timeline.EventLayoutThemeShim || {};
-    Timeline.EventLayoutThemeShim.applyEventTheme = applyEventLayoutThemeToTheme;
-    Timeline.EventLayoutThemeShim.applyToPainterParams = applyEventLayoutThemeToPainterParams;
-    Timeline.EventLayoutThemeShim.getOriginalPainterMetrics = getOriginalPainterMetrics;
 }());

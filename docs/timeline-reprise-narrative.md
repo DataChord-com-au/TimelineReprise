@@ -99,9 +99,10 @@ Optional:
 
 ## Theme
 
-Narrative and event-layout options belong to the same `eventTheme` object on the
-band theme. Each feature reads the shared properties and the feature-specific
-properties it understands, ignoring the rest:
+Narrative and event layout consume the same resolved
+[`Timeline.EventTheme`](timeline-reprise-event-theme.md). A literal on the
+band's native `theme.eventTheme` is validated and converted during
+initialization:
 
 ```js
 theme.emphasisSpecs = Timeline.loadEmphasisStyles([
@@ -142,12 +143,18 @@ theme.eventTheme = {
     },
     label: {
         colorSource: "graphic",
-        offset: 2,
-        stickyInset: 6,
-        stickyGap: 4
+        horizontal: {
+            offset: 2,
+            stickyInset: 6,
+            stickyGap: 4
+        },
+        vertical: {
+            offset: 2,
+            stickyInset: 6,
+            stickyGap: 4
+        }
     },
     bubble: {
-        enabled: true,
         width: 300,
         maxHeight: null
     },
@@ -172,8 +179,6 @@ Set to `false` to hide narrative labels.
 ### `eventTheme.bubbles`
 Set to `false` to stop narrative bubble popups.
 
-`eventTheme.bubble.enabled` can also enable or disable bubbles.
-
 ### `eventTheme.eventColorScope`
 Controls where an item `color` is applied.
 
@@ -184,7 +189,7 @@ Values:
 - `graphic`
 - `both`
 
-Default: `both`.
+Default: `graphic`.
 
 Without an emphasis override, explicit item colours such as `labelColor`,
 `spanColor`, or `lineColor` override this scope.
@@ -196,8 +201,8 @@ Default: `false`.
 
 ### `theme.emphasisSpecs`
 Registry of `Timeline.EmphasisStyle` objects, normally produced by
-`Timeline.loadEmphasisStyles()`. It is separate from `eventTheme` and can also
-be supplied directly as the decorator's `emphasisSpecs` option.
+`Timeline.loadEmphasisStyles()`. It remains on the native band theme at
+`theme.emphasisSpecs`; it is not a Narrative decorator option.
 
 An emphasis spec is applied only when all three are true:
 
@@ -292,22 +297,19 @@ colour and a scoped item `color` does not apply to the label.
 ### `eventTheme.label.color`
 Theme label colour used when `colorSource` is `theme`.
 
-### `eventTheme.label.offset`
+### `eventTheme.label.*.offset`
 Offset applied along the timeline axis when placing labels.
 
-### `eventTheme.label.stickyInset`
+### `eventTheme.label.*.stickyInset`
 Inset from the visible viewport edge used by sticky range labels.
 It also contributes to the span-contact release threshold. The effective
 threshold is `12px + stickyInset` horizontally and `6px + stickyInset`
 vertically.
 
-### `eventTheme.label.stickyGap`
+### `eventTheme.label.*.stickyGap`
 Minimum gap used between routed labels.
 
 ## Bubble Theme
-
-### `eventTheme.bubble.enabled`
-Enables or disables narrative bubble popups.
 
 ### `eventTheme.bubble.width`
 Bubble popup width.
@@ -363,8 +365,8 @@ Set to `false` on one range or instant to stop only that bubble popup.
 Overrides `eventTheme.eventColorScope` for one range or instant.
 
 ### `emphasis`
-References a named spec from the decorator or band theme's `emphasisSpecs`
-registry. It applies unless `eventTheme.disableEmphasis` is `true`.
+References a named spec from the band theme's `emphasisSpecs` registry. It
+applies unless `eventTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
 Sets one narrative label colour.

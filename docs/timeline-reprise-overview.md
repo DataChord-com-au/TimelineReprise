@@ -27,7 +27,9 @@ theme.eventTheme = {
 };
 ```
 
-Adds a reprise theme shape for SIMILE overview bands.
+Overview consumes the same resolved
+[`Timeline.EventTheme`](timeline-reprise-event-theme.md) as normal events and
+Narrative.
 
 ### `eventTheme.track`
 Sets overview track placement and spacing.
@@ -47,15 +49,6 @@ track: {
 
 `horizontal` is used when the timeline is horizontal.
 `vertical` is used when the timeline is vertical.
-
-A flat track object is also accepted as a fallback:
-
-```js
-track: {
-    offset: 20,
-    gap: 4
-}
-```
 
 ### `eventTheme.track.horizontal.offset`
 Sets the outer offset before overview content for horizontal timelines.

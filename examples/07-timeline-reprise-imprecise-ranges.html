@@ -1,8 +1,8 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>SIMILE Timeline Reprise: Imprecise Ranges (Sparkline Regression)</title>
+  <title>SIMILE Timeline Reprise: Imprecise Ranges</title>
 
   <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
   <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
@@ -33,6 +33,12 @@
       height: 420px;
     }
 
+    #timeline-vertical {
+      width: 800px;
+      max-width: 100%;
+      height: 560px;
+    }
+
     @media (prefers-color-scheme: dark) {
       body {
         background: #202124;
@@ -44,30 +50,21 @@
 <body>
   <h1>SIMILE Timeline Reprise: Imprecise Ranges</h1>
   <p>
-    Regression example for a bug where collision handling correctly rerouted
-    duration labels across multiple label tracks, but some tape-to-label
-    sparklines lost their connection: retaining geometry from an earlier
-    placement, continuing past a label, or terminating away from it. The
-    events below overlap heavily and carry long labels, so they route across
-    several label tracks (and some labels stick to the right viewport edge),
-    which is exactly the situation that exposed the disconnect.
+    This example shows precise and imprecise ranges, including open, present,
+    unresolved, and dynamically dated boundaries.
   </p>
-  <ul>
-    <li>every sparkline should visibly touch its own label, in every label track</li>
-    <li>this holds after the initial layout, and continues to hold after resizing the window or panning the band</li>
-    <li>no sparkline should point at a different event's tape or label</li>
-  </ul>
 
   <section class="example-section">
+    <h2>Horizontal Timeline</h2>
     <div id="timeline-horizontal" class="timeline-frame"></div>
   </section>
 
+  <section class="example-section">
+    <h2>Vertical Timeline</h2>
+    <div id="timeline-vertical" class="timeline-frame"></div>
+  </section>
+
   <script>
-    // Mirrors scratch/demo-imprecise-ranges-events.js (the data that exposed
-    // the bug in the ChronicleTimelineDemo "Imprecise Ranges" example), with
-    // the "open" / "present" / "unresolved" sentinels resolved to concrete
-    // dates so the scenario can be reproduced without the consuming demo's
-    // sentinel-parsing layer.
     var today = new Date();
     var dynamicStart = new Date(today);
     var dynamicEnd = new Date(today);
@@ -158,6 +155,9 @@
         track: {
           horizontal: {
             offset: 12
+          },
+          vertical: {
+            offset: 12
           }
         },
         range: {
@@ -171,6 +171,15 @@
             tapeGap: 5,
             sparklineStagger: 8,
             stickyLeftInset: 4
+          },
+          vertical: {
+            eventRoutingThreshold: 28,
+            toLabelGap: 0,
+            labelRoutingGap: 4,
+            labelTrackGap: 6,
+            tapeGap: 5,
+            stickyTopInset: 4,
+            toEventGap: 12
           }
         }
       };
@@ -191,14 +200,38 @@
       ];
     }
 
-    var eventSource = new Timeline.DefaultEventSource();
+    function createVerticalBands(eventSource, theme) {
+      return [
+        Timeline.createBandInfo({
+          eventSource: eventSource,
+          date: "Apr 1 2026",
+          width: "100%",
+          intervalUnit: Timeline.DateTime.MONTH,
+          intervalPixels: 90,
+          theme: theme
+        })
+      ];
+    }
+
+    var horizontalEventSource = new Timeline.DefaultEventSource();
+    var verticalEventSource = new Timeline.DefaultEventSource();
 
     Timeline.create(
       document.getElementById("timeline-horizontal"),
-      createHorizontalBands(eventSource, createImpreciseRangesTheme())
+      createHorizontalBands(horizontalEventSource, createImpreciseRangesTheme())
     );
 
-    eventSource.loadJSON(
+    Timeline.create(
+      document.getElementById("timeline-vertical"),
+      createVerticalBands(verticalEventSource, createImpreciseRangesTheme()),
+      Timeline.VERTICAL
+    );
+
+    horizontalEventSource.loadJSON(
+      { dateTimeFormat: "iso8601", events: impreciseRangesEvents },
+      document.location.href
+    );
+    verticalEventSource.loadJSON(
       { dateTimeFormat: "iso8601", events: impreciseRangesEvents },
       document.location.href
     );

@@ -9,6 +9,10 @@ desktop.ini
 /node_modules/
 /coverage/
 /.tmp-build/
-/.agents/
 
+# AI Agents
+/.agents/
+/.claude/
+
+# Local Workflow
 /scratch/
