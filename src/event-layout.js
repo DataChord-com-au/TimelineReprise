@@ -1,3 +1,8 @@
+import {
+    fillRepriseBubble,
+    resolveRepriseRuntime
+} from "./presentation-runtime.js";
+
 (function () {
     if (!window.Timeline || !Timeline.OriginalEventPainter) return;
     if (Timeline._eventLayout23PatchApplied) return;
@@ -309,6 +314,20 @@
         painter._nativeTheme = nativeTheme;
         painter._eventTheme = eventTheme;
         return eventTheme;
+    }
+
+    function resolvePainterRuntime(painter, band, timeline) {
+        const unit = timeline?.getUnit?.() ??
+            window.SimileAjax?.NativeDateUnit ??
+            Timeline.NativeDateUnit;
+        const labeller = band?.getLabeller?.() ?? null;
+        const runtime = resolveRepriseRuntime(
+            painter._params?.runtime ?? null,
+            { unit, labeller }
+        );
+
+        painter._runtime = runtime;
+        return runtime;
     }
 
     function ensureTapeSparklineStyles(doc) {
@@ -1634,12 +1653,12 @@
     const originalPaintIcon = proto._paintEventIcon;
     const originalPaintTape = proto._paintEventTape;
     const originalPaintLabel = proto._paintEventLabel;
-    const originalShowBubble = proto._showBubble;
     const originalSoftPaint = proto.softPaint;
 
     proto.initialize = function (band, timeline) {
         const result = originalInitialize.apply(this, arguments);
         resolvePainterEventTheme(this, band);
+        resolvePainterRuntime(this, band, timeline);
         return result;
     };
 
@@ -1991,12 +2010,14 @@
 
         const graphics = window.SimileAjax?.Graphics;
         const windowManager = window.SimileAjax?.WindowManager;
-        if (!graphics?.createBubbleForContentAndPoint || !windowManager?.cancelPopups) {
-            return originalShowBubble.apply(this, arguments);
-        }
+        if (!graphics?.createBubbleForContentAndPoint || !windowManager?.cancelPopups) return;
 
         const content = this._timeline.getDocument().createElement("div");
-        evt.fillInfoBubble(content, nativeTheme, this._band.getLabeller());
+        fillRepriseBubble(content, evt, {
+            runtime: this._runtime,
+            eventTheme: this._eventTheme,
+            nativeTheme
+        });
         windowManager.cancelPopups();
         return graphics.createBubbleForContentAndPoint(
             content,

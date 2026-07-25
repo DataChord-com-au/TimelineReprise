@@ -16,3 +16,32 @@
   text-align: right;
   white-space: nowrap;
 }
+
+.timeline-event-bubble-image {
+  overflow: auto;
+  text-align: center;
+}
+
+.timeline-event-bubble-image > img {
+  float: none;
+}
+
+.timeline-event-bubble-byline-table th {
+  padding-right: 0.6em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.timeline-event-bubble-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  margin-top: 0.5em;
+}
+
+.timeline-event-bubble-tag {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 999px;
+  padding: 0.1em 0.55em;
+}

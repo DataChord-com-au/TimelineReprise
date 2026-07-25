@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v1.4.0`
+Version: `v1.4.1`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -49,6 +49,7 @@ external files under `dist/images/`.
 ## Reference
 ### [Core](timeline-reprise-core.md)
 ### [EventTheme](timeline-reprise-event-theme.md)
+### [Presentation Runtime](timeline-reprise-presentation-runtime.md)
 ### [Overview](timeline-reprise-overview.md)
 ### [Cardinal Axis](timeline-reprise-cardinal-axis.md)
 ### [Scaled Zones](timeline-reprise-scaled-zones.md)
@@ -57,16 +58,18 @@ external files under `dist/images/`.
 
 
 ## Examples
-### [simile-baseline.html](../examples/simile-baseline.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/simile-baseline.html)
-### [timeline-baseline-default.html](../examples/timeline-baseline-default.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-baseline-default.html)
-### [timeline-dark-mode.html](../examples/timeline-dark-mode.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-dark-mode.html)
-### [timeline-reprise-colors.html](../examples/timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-colors.html)
-### [timeline-reprise-filtered-theme.html](../examples/timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-filtered-theme.html)
-### [timeline-reprise-overview.html](../examples/timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-overview.html)
-### [timeline-reprise-scales.html](../examples/timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-scales.html)
-### [timeline-reprise-event-layout.html](../examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html)
-### [timeline-reprise-imprecise-ranges.html](examples\timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-imprecise-ranges.html)
-### [timeline-reprise-narrative.html](../examples/timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-narrative.html)
+### [01-simile-baseline.html](../examples/01-simile-baseline.html)
+### [02-timeline-dark-mode.html](../examples/02-timeline-dark-mode.html)
+### [03-timeline-baseline-default.html](../examples/03-timeline-baseline-default.html)
+### [04-timeline-reprise-colors.html](../examples/04-timeline-reprise-colors.html)
+### [05-timeline-reprise-overview.html](../examples/05-timeline-reprise-overview.html)
+### [06-timeline-reprise-scales.html](../examples/06-timeline-reprise-scales.html)
+### [07-timeline-reprise-imprecise-ranges.html](../examples/07-timeline-reprise-imprecise-ranges.html)
+### [08-timeline-reprise-event-layout.html](../examples/08-timeline-reprise-event-layout.html)
+### [09-timeline-reprise-narrative.html](../examples/09-timeline-reprise-narrative.html)
+### [10-timeline-reprise-filtered-theme.html](../examples/10-timeline-reprise-filtered-theme.html)
+### [11-timeline-reprise-planning-unit.html](../examples/11-timeline-reprise-planning-unit.html)
+### [12-timeline-reprise-geochrono-unit.html](../examples/12-timeline-reprise-geochrono-unit.html)
 
 
 ---

@@ -1,0 +1,276 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Planning Unit</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    #timeline {
+      height: 420px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Planning Unit</h1>
+  <p>
+    This example uses a numeric planning unit. Day zero, numeric strings, ranges,
+    labels, and bubbles are parsed and rendered through the Reprise runtime.
+  </p>
+
+  <div id="timeline"></div>
+
+  <script>
+    function createPlanningUnit() {
+      var unit = {
+        parseFromObject: function (value) {
+          if (value == null || value === "") return null;
+
+          var number = Number(value);
+          return Number.isFinite(number) ? number : null;
+        },
+        getParser: function () {
+          return this.parseFromObject;
+        },
+        makeDefaultValue: function () {
+          return 0;
+        },
+        cloneValue: function (value) {
+          return Number(value);
+        },
+        toNumber: function (value) {
+          return Number(value);
+        },
+        fromNumber: function (value) {
+          return value;
+        },
+        compare: function (a, b) {
+          return Number(a) - Number(b);
+        },
+        earlier: function (a, b) {
+          return this.compare(a, b) < 0 ? a : b;
+        },
+        later: function (a, b) {
+          return this.compare(a, b) > 0 ? a : b;
+        },
+        change: function (value, delta) {
+          return Number(value) + delta;
+        },
+        createLabeller: function () {
+          return {
+            labelPrecise: function (value) {
+              return "Day " + value;
+            },
+            labelInterval: function (value) {
+              return {
+                text: "Day " + value,
+                emphasized: value % 20 === 0
+              };
+            }
+          };
+        }
+      };
+
+      return unit;
+    }
+
+    function labelText(label) {
+      return label && typeof label === "object" && "text" in label
+        ? label.text
+        : label;
+    }
+
+    function UnitEtherPainter(options) {
+      this._interval = options.interval;
+    }
+
+    UnitEtherPainter.prototype.initialize = function (band, timeline) {
+      this._band = band;
+      this._timeline = timeline;
+      this._backgroundLayer = band.createLayerDiv(0);
+      this._backgroundLayer.setAttribute("name", "ether-background");
+      this._backgroundLayer.className = "timeline-ether-bg";
+      this._lineLayer = band.createLayerDiv(1);
+      this._lineLayer.setAttribute("name", "planning-lines");
+      this._markerLayer = band.createLayerDiv(100);
+      this._markerLayer.setAttribute("name", "planning-labels");
+    };
+
+    UnitEtherPainter.prototype.setHighlight = function () {};
+
+    UnitEtherPainter.prototype.paint = function () {
+      this.softPaint();
+    };
+
+    UnitEtherPainter.prototype.softPaint = function () {
+      var unit = this._timeline.getUnit();
+      var labeller = this._band.getLabeller();
+      var min = unit.toNumber(this._band.getMinDate());
+      var max = unit.toNumber(this._band.getMaxDate());
+      var start = Math.ceil(Math.min(min, max) / this._interval) * this._interval;
+      var end = Math.floor(Math.max(min, max) / this._interval) * this._interval;
+      var doc = this._timeline.getDocument();
+      var totalLength = this._band.getTotalViewLength();
+
+      this._lineLayer.innerHTML = "";
+      this._markerLayer.innerHTML = "";
+
+      for (var value = start; value <= end; value += this._interval) {
+        var unitValue = unit.fromNumber(value);
+        var pixel = Math.round(this._band.dateToPixelOffset(unitValue));
+
+        if (pixel < -80 || pixel > totalLength + 80) continue;
+
+        var marker = doc.createElement("div");
+        var label = doc.createElement("div");
+
+        marker.className = "timeline-ether-lines";
+        marker.style.left = pixel + "px";
+
+        label.className = "timeline-date-label";
+        label.style.left = pixel + "px";
+        label.textContent = labelText(labeller.labelInterval(unitValue, this._interval));
+
+        this._lineLayer.appendChild(marker);
+        this._markerLayer.appendChild(label);
+      }
+    };
+
+    function createTheme() {
+      var theme = Timeline.ClassicTheme.create();
+
+      theme.eventTheme = new Timeline.EventTheme({
+        track: {
+          horizontal: {
+            offset: 36
+          }
+        },
+        instant: {
+          iconColor: "orange",
+          horizontal: {
+            toLabelGap: 4
+          }
+        },
+        range: {
+          width: 4,
+          iconColor: "green",
+          horizontal: {
+            eventRoutingThreshold: 28,
+            toLabelGap: 0,
+            labelRoutingGap: 8,
+            labelTrackGap: 6,
+            tapeGap: 5,
+            sparklineStagger: 8,
+            stickyLeftInset: 4
+          }
+        },
+        bubble: {
+          width: 320
+        }
+      });
+
+      return theme;
+    }
+
+    function createBandInfo(eventSource, theme, unit, labeller, runtime) {
+      return {
+        width: "100%",
+        eventSource: eventSource,
+        timeZone: 0,
+        labeller: labeller,
+        ether: new Timeline.LinearEther({
+          centersOn: 20,
+          interval: 10,
+          pixelsPerInterval: 90,
+          theme: theme
+        }),
+        etherPainter: new UnitEtherPainter({
+          interval: 10
+        }),
+        eventPainter: new Timeline.OriginalEventPainter({
+          theme: theme,
+          runtime: runtime
+        }),
+        theme: theme,
+        zoomIndex: 0,
+        zoomSteps: null
+      };
+    }
+
+    var planningUnit = createPlanningUnit();
+    var planningLabeller = planningUnit.createLabeller();
+    var planningRuntime = new Timeline.RepriseRuntime({
+      unit: planningUnit,
+      labeller: planningLabeller
+    });
+    var eventSource = new Timeline.DefaultEventSource(
+      new SimileAjax.EventIndex(planningUnit)
+    );
+    var theme = createTheme();
+
+    Timeline.create(
+      document.getElementById("timeline"),
+      [
+        createBandInfo(
+          eventSource,
+          theme,
+          planningUnit,
+          planningLabeller,
+          planningRuntime
+        )
+      ],
+      Timeline.HORIZONTAL,
+      planningUnit
+    );
+
+    eventSource.loadJSON({
+      events: [
+        {
+          start: 0,
+          title: "Kickoff at day zero",
+          description: "The runtime accepts numeric zero as a real instant.",
+          iconColor: "orange"
+        },
+        {
+          start: "3",
+          end: 12,
+          title: "Range from string to number",
+          description: "The unit parses both wrapped strings and numbers through parseFromObject().",
+          color: Timeline.ThemeIcons.getCssColor("green"),
+          textColor: "inherit"
+        },
+        {
+          start: 18,
+          title: "Decision point",
+          description: "A normal numeric instant.",
+          iconColor: "blue"
+        },
+        {
+          start: 25,
+          end: "42",
+          title: "Delivery window",
+          description: "A numeric range ending with a string value.",
+          color: Timeline.ThemeIcons.getCssColor("purple"),
+          textColor: "inherit"
+        }
+      ]
+    }, document.location.href);
+  </script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { DATE_TIME_UNIT_NAMES, resolveTimelineDateTimeUnit } from "./date-time.j
 import { EmphasisStyle } from "./emphasis-style.js";
 import { EventTheme, defaultEventTheme, deriveEventTheme } from "./event-theme.js";
 import { filterEvents } from "./event-filters.js";
+import { RepriseRuntime } from "./presentation-runtime.js";
 import {
     TIMELINE_ORIENTATIONS,
     assertTimelineOrientation,
@@ -30,6 +31,7 @@ export {
     TIMELINE_ORIENTATIONS,
     EventTheme,
     Reprise,
+    RepriseRuntime,
     assertColorString,
     assertTimelineOrientation,
     defaultEventTheme,

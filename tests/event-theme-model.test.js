@@ -26,8 +26,17 @@ function loadTimeline() {
     OverviewEventPainter.prototype._paintEventTape = function () {};
     OverviewEventPainter.prototype.paint = function () {};
 
+    const labeller = {
+        labelPrecise: value => String(value),
+        labelInterval: value => ({ text: String(value), emphasized: false })
+    };
+    const NativeDateUnit = {
+        parseFromObject: value => value,
+        compare: (a, b) => Number(a) - Number(b),
+        createLabeller: () => labeller
+    };
     const Timeline = {
-        NativeDateUnit: {},
+        NativeDateUnit,
         OriginalEventPainter,
         OverviewEventPainter,
         ThemeIcons: {
@@ -134,10 +143,14 @@ test("event painters and Narrative receive the same resolved EventTheme shape", 
             }
         }
     };
-    const band = { _theme: nativeTheme };
+    const band = {
+        _theme: nativeTheme,
+        getLabeller: () => Timeline.NativeDateUnit.createLabeller()
+    };
     const timeline = {
         isHorizontal: () => true,
-        isVertical: () => false
+        isVertical: () => false,
+        getUnit: () => Timeline.NativeDateUnit
     };
     const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme });
     const overview = new Timeline.OverviewEventPainter({ theme: nativeTheme });

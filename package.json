@@ -1,11 +1,11 @@
 {
   "name": "timeline-reprise",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Extension layer for the SIMILE Timeline 2.3.1 browser widget.",
   "private": true,
   "scripts": {
     "build": "node scripts/build-dist.js",
-    "test": "npm run build && node --test tests/event-theme-model.test.js tests/layout-stability.test.js"
+    "test": "npm run build && node --test tests/event-theme-model.test.js tests/layout-stability.test.js tests/presentation-runtime.test.js"
   },
   "files": [
     "dist/",

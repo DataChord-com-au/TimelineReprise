@@ -1,3 +1,11 @@
+import {
+    fillRepriseBubble,
+    hasRenderedContent,
+    renderEventField,
+    resolveRepriseRuntime,
+    setRenderedContent
+} from "./presentation-runtime.js";
+
 (function () {
     if (!window.Timeline || Timeline.NarrativeDecorator) return;
 
@@ -79,13 +87,37 @@
             : fallback;
     }
 
-    function deriveSpanLabelColor(color) {
-        const match = String(color ?? "").match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
-        if (!match) return color ?? null;
+    function parseColorChannels(color) {
+        const source = String(color ?? "").trim();
+        const rgb = source.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+        if (rgb) {
+            return [
+                Number(rgb[1]) / 255,
+                Number(rgb[2]) / 255,
+                Number(rgb[3]) / 255
+            ];
+        }
 
-        const r = Number(match[1]) / 255;
-        const g = Number(match[2]) / 255;
-        const b = Number(match[3]) / 255;
+        const hex = source.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+        if (!hex) return null;
+
+        const value = hex[1];
+        const full = value.length === 3
+            ? value.split("").map(part => part + part).join("")
+            : value.slice(0, 6);
+
+        return [
+            parseInt(full.slice(0, 2), 16) / 255,
+            parseInt(full.slice(2, 4), 16) / 255,
+            parseInt(full.slice(4, 6), 16) / 255
+        ];
+    }
+
+    function deriveSpanLabelColor(color) {
+        const channels = parseColorChannels(color);
+        if (!channels) return color ?? null;
+
+        const [r, g, b] = channels;
         const max = Math.max(r, g, b);
         const min = Math.min(r, g, b);
         const light = (max + min) / 2;
@@ -175,19 +207,6 @@
             : source;
     }
 
-    function parseDate(unit, value) {
-        if (typeof value === "string") return unit.parseFromObject(value);
-        return value instanceof Date ? value : null;
-    }
-
-    function appendHtml(doc, parent, className, html) {
-        if (html == null || html === "") return;
-        const div = doc.createElement("div");
-        div.className = className;
-        div.innerHTML = html;
-        parent.appendChild(div);
-    }
-
     function cycleValue(values, index) {
         return Array.isArray(values) && values.length > 0
             ? values[index % values.length]
@@ -210,7 +229,8 @@
         this._eventTheme = Timeline.resolveEventTheme(this._eventThemeSelection, null);
         this._nativeTheme = null;
 
-        this._unit = params.unit || window.SimileAjax?.NativeDateUnit || Timeline.NativeDateUnit;
+        this._runtimeSelection = params.runtime ?? null;
+        this._runtime = null;
         this._ranges = Array.isArray(params.ranges) ? params.ranges : [];
         this._instants = Array.isArray(params.instants) ? params.instants : [];
 
@@ -229,6 +249,15 @@
         this._band = band;
         this._timeline = timeline;
         this._nativeTheme = band._theme || null;
+        this._runtime = resolveRepriseRuntime(
+            this._runtimeSelection,
+            {
+                unit: timeline?.getUnit?.() ??
+                    window.SimileAjax?.NativeDateUnit ??
+                    Timeline.NativeDateUnit,
+                labeller: band?.getLabeller?.() ?? null
+            }
+        );
         this._eventTheme = Timeline.resolveEventTheme(
             this._eventThemeSelection,
             this._nativeTheme
@@ -543,6 +572,13 @@
         return this._isHorizontal() ? record.width : record.height;
     };
 
+    Timeline.NarrativeDecorator.prototype._instantDividerRightOffset = function (record) {
+        if (!record.lineElmt) return 0;
+
+        const dividerWidth = finiteOr(record.dividerWidth, this._dividerWidth);
+        return Math.max(0, Math.round(dividerWidth) - Math.round(dividerWidth / 2));
+    };
+
     Timeline.NarrativeDecorator.prototype._setLabelPosition = function (record, mainStart) {
         const trackStart = this._trackStart(record.track);
         const trackSize = this._trackSizeValue();
@@ -570,28 +606,12 @@
 
         const doc = this._timeline.getDocument();
         const div = doc.createElement("div");
-        const source = record.item.event || record.item;
-
-        const filler = Timeline._timelineUtilsFillInfoBubble;
-        const theme = this._nativeTheme;
-        const labeller = this._band.getLabeller();
-
-        const bubbleEvent = {
-            getImage: () => source?.image ?? null,
-            getText: () => record.item.title ?? source?.title ?? "",
-            getLink: () => source?.link ?? null,
-            getDescription: () => record.item.description ?? source?.description ?? "",
-            getProperty: name => record.item[name] ?? source?.[name] ?? null
-        };
-
-        if (typeof filler === "function") {
-            filler.call(bubbleEvent, div, theme, labeller);
-        } else if (source && typeof source.fillInfoBubble === "function") {
-            source.fillInfoBubble(div, theme, labeller);
-        } else {
-            appendHtml(doc, div, "timeline-event-bubble-title", record.item.title);
-            appendHtml(doc, div, "timeline-event-bubble-description", record.item.caption || record.item.description);
-        }
+        fillRepriseBubble(div, record.item, {
+            runtime: this._runtime,
+            eventTheme: this._eventTheme,
+            nativeTheme: this._nativeTheme,
+            eventTime: record.eventTime
+        });
 
         const x = domEvt.pageX;
         const y = domEvt.pageY;
@@ -612,11 +632,30 @@
     };
 
     Timeline.NarrativeDecorator.prototype._makeLabel = function (record, cssClass) {
-        if (!this._recordLabels(record) || (record.item.title == null && record.item.caption == null)) return;
+        if (!this._recordLabels(record)) return;
 
         const doc = this._timeline.getDocument();
         const elmt = doc.createElement("div");
         const bubbles = this._recordBubbles(record);
+        const title = renderEventField(
+            this._runtime,
+            this._eventTheme,
+            record.eventTime,
+            record.item,
+            "title",
+            "html",
+            { surface: "label" }
+        );
+        const caption = renderEventField(
+            this._runtime,
+            this._eventTheme,
+            record.eventTime,
+            record.item,
+            "caption",
+            "text",
+            { surface: "label" }
+        );
+        if (!hasRenderedContent(title) && !hasRenderedContent(caption)) return;
 
         elmt.className = cssClass;
         elmt.style.position = "absolute";
@@ -624,10 +663,15 @@
         elmt.style.pointerEvents = bubbles ? "auto" : "none";
         elmt.style.cursor = bubbles ? "pointer" : "default";
 
-        appendHtml(doc, elmt, "timeline-narrative-label-title", record.item.title);
+        if (hasRenderedContent(title)) {
+            const titleElmt = doc.createElement("div");
+            titleElmt.className = "timeline-narrative-label-title";
+            setRenderedContent(titleElmt, title, "html");
+            elmt.appendChild(titleElmt);
+        }
 
-        if (record.item.caption != null && record.item.caption !== "") {
-            elmt.title = String(record.item.caption).replace(/<[^>]*>/g, "");
+        if (hasRenderedContent(caption)) {
+            elmt.title = String(caption).replace(/<[^>]*>/g, "");
         } else {
             elmt.removeAttribute("title");
         }
@@ -672,16 +716,16 @@
         const doc = this._timeline.getDocument();
 
         this._ranges.forEach((item, index) => {
-            const startDate = parseDate(this._unit, item.startDate);
-            const endDate = parseDate(this._unit, item.endDate);
-            if (!startDate || !endDate || this._unit.compare(startDate, endDate) >= 0) return;
+            const eventTime = this._runtime.readEventTime(item);
+            if (eventTime?.kind !== "range") return;
 
             const record = {
                 item,
                 index,
                 kind: "range",
-                startDate,
-                endDate,
+                eventTime,
+                startDate: eventTime.start,
+                endDate: eventTime.end,
                 baseTrack: this._resolveRangeTrack(item),
                 track: 0,
                 trackExplicit: this._trackIsExplicit(item),
@@ -726,14 +770,15 @@
         });
 
         this._instants.forEach((item, index) => {
-            const date = parseDate(this._unit, item.date);
-            if (!date) return;
+            const eventTime = this._runtime.readEventTime(item);
+            if (eventTime?.kind !== "instant") return;
 
             const record = {
                 item,
                 index,
                 kind: "instant",
-                date,
+                eventTime,
+                date: eventTime.value,
                 baseTrack: this._resolveTrack(item, index),
                 track: 0,
                 trackExplicit: this._trackIsExplicit(item),
@@ -805,6 +850,7 @@
                     lineWidth.found ? lineWidth.value : null,
                     this._dividerWidth
                 );
+                record.dividerWidth = dividerWidth;
                 const start = record.pixel - Math.round(dividerWidth / 2);
                 this._setRect(record.lineElmt, horizontal
                     ? { left: start, width: dividerWidth, top: this._spanOffset, height: crossSize }
@@ -965,17 +1011,18 @@
             for (const record of instantLabels) {
                 const size = this._labelMainSize(record);
                 const preferredTrack = record.trackExplicit ? record.baseTrack : 0;
+                const labelStart = record.pixel + this._instantDividerRightOffset(record);
                 const track = placeFixedLabel(
                     tracks,
-                    record.pixel,
-                    record.pixel + size,
+                    labelStart,
+                    labelStart + size,
                     preferredTrack
                 );
 
                 record.track = track;
                 record.labelElmt.style.display = "";
-                this._setLabelPosition(record, record.pixel);
-                reserveInterval(tracks, record.track, record.pixel, record.pixel + size);
+                this._setLabelPosition(record, labelStart);
+                reserveInterval(tracks, record.track, labelStart, labelStart + size);
             }
 
             return;

@@ -1,0 +1,345 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Geochrono Unit</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    #timeline {
+      height: 460px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Geochrono Unit</h1>
+  <p>
+    This example uses Ma wrapper objects. The lower narrative span is supplied
+    as 50 Ma to 100 Ma, and the runtime normalizes it to older-to-younger order.
+  </p>
+
+  <div id="timeline"></div>
+
+  <script>
+    function createGeochronoUnit() {
+      function MA(value) {
+        this.value = Number(value);
+      }
+
+      MA.prototype.valueOf = function () {
+        return -this.value;
+      };
+
+      MA.prototype.toString = function () {
+        return this.value + " Ma";
+      };
+
+      var unit = {
+        MA: MA,
+        parseFromObject: function (value) {
+          if (value instanceof MA) return value;
+          if (value && typeof value === "object" && "value" in value) {
+            return new MA(value.value);
+          }
+
+          var number = Number(value);
+          return Number.isFinite(number) ? new MA(number) : null;
+        },
+        getParser: function () {
+          return this.parseFromObject;
+        },
+        makeDefaultValue: function () {
+          return new MA(100);
+        },
+        cloneValue: function (value) {
+          return new MA(value.value);
+        },
+        toNumber: function (value) {
+          return -value.value;
+        },
+        fromNumber: function (value) {
+          return new MA(-value);
+        },
+        compare: function (a, b) {
+          return b.value - a.value;
+        },
+        earlier: function (a, b) {
+          return this.compare(a, b) < 0 ? a : b;
+        },
+        later: function (a, b) {
+          return this.compare(a, b) > 0 ? a : b;
+        },
+        change: function (value, delta) {
+          return new MA(value.value - delta);
+        },
+        createLabeller: function () {
+          return {
+            labelPrecise: function (value) {
+              return value.value + " Ma";
+            },
+            labelInterval: function (value) {
+              return {
+                text: value.value + " Ma",
+                emphasized: value.value % 50 === 0
+              };
+            }
+          };
+        }
+      };
+
+      return unit;
+    }
+
+    function labelText(label) {
+      return label && typeof label === "object" && "text" in label
+        ? label.text
+        : label;
+    }
+
+    function UnitEtherPainter(options) {
+      this._interval = options.interval;
+    }
+
+    UnitEtherPainter.prototype.initialize = function (band, timeline) {
+      this._band = band;
+      this._timeline = timeline;
+      this._backgroundLayer = band.createLayerDiv(0);
+      this._backgroundLayer.setAttribute("name", "ether-background");
+      this._backgroundLayer.className = "timeline-ether-bg";
+      this._lineLayer = band.createLayerDiv(1);
+      this._lineLayer.setAttribute("name", "geochrono-lines");
+      this._markerLayer = band.createLayerDiv(100);
+      this._markerLayer.setAttribute("name", "geochrono-labels");
+    };
+
+    UnitEtherPainter.prototype.setHighlight = function () {};
+
+    UnitEtherPainter.prototype.paint = function () {
+      this.softPaint();
+    };
+
+    UnitEtherPainter.prototype.softPaint = function () {
+      var unit = this._timeline.getUnit();
+      var labeller = this._band.getLabeller();
+      var min = unit.toNumber(this._band.getMinDate());
+      var max = unit.toNumber(this._band.getMaxDate());
+      var start = Math.ceil(Math.min(min, max) / this._interval) * this._interval;
+      var end = Math.floor(Math.max(min, max) / this._interval) * this._interval;
+      var doc = this._timeline.getDocument();
+      var totalLength = this._band.getTotalViewLength();
+
+      this._lineLayer.innerHTML = "";
+      this._markerLayer.innerHTML = "";
+
+      for (var value = start; value <= end; value += this._interval) {
+        var unitValue = unit.fromNumber(value);
+        var pixel = Math.round(this._band.dateToPixelOffset(unitValue));
+
+        if (pixel < -80 || pixel > totalLength + 80) continue;
+
+        var marker = doc.createElement("div");
+        var label = doc.createElement("div");
+
+        marker.className = "timeline-ether-lines";
+        marker.style.left = pixel + "px";
+
+        label.className = "timeline-date-label";
+        label.style.left = pixel + "px";
+        label.textContent = labelText(labeller.labelInterval(unitValue, this._interval));
+
+        this._lineLayer.appendChild(marker);
+        this._markerLayer.appendChild(label);
+      }
+    };
+
+    function createTheme() {
+      var theme = Timeline.ClassicTheme.create();
+
+      theme.eventTheme = new Timeline.EventTheme({
+        track: {
+          horizontal: {
+            count: 3,
+            offset: 36,
+            size: 22,
+            gap: 4
+          }
+        },
+        instant: {
+          iconColor: "orange",
+          horizontal: {
+            toLabelGap: 4
+          }
+        },
+        range: {
+          width: 5,
+          iconColor: "green",
+          colors: [
+            "rgba(76, 175, 80, 1)",
+            "rgba(66, 133, 244, 1)"
+          ],
+          horizontal: {
+            eventRoutingThreshold: 28,
+            toLabelGap: 0,
+            labelRoutingGap: 8,
+            labelTrackGap: 6,
+            tapeGap: 5,
+            sparklineStagger: 8,
+            stickyLeftInset: 4
+          }
+        },
+        label: {
+          horizontal: {
+            offset: 2,
+            stickyInset: 6,
+            stickyGap: 4
+          }
+        },
+        bubble: {
+          width: 340
+        },
+        layer: {
+          zIndex: 108,
+          labelZIndex: 118
+        }
+      });
+
+      return theme;
+    }
+
+    function createBandInfo(eventSource, theme, unit, labeller, runtime, narrativeData) {
+      var eventLayoutTheme = Timeline.deriveEventTheme(theme.eventTheme, {
+        track: {
+          horizontal: {
+            offset: 124
+          }
+        }
+      });
+
+      return {
+        width: "100%",
+        eventSource: eventSource,
+        timeZone: 0,
+        labeller: labeller,
+        ether: new Timeline.LinearEther({
+          centersOn: new unit.MA(100),
+          interval: 25,
+          pixelsPerInterval: 120,
+          theme: theme
+        }),
+        etherPainter: new UnitEtherPainter({
+          interval: 25
+        }),
+        eventPainter: new Timeline.OriginalEventPainter({
+          theme: theme,
+          eventTheme: eventLayoutTheme,
+          runtime: runtime
+        }),
+        decorators: [
+          new Timeline.NarrativeDecorator({
+            runtime: runtime,
+            ranges: narrativeData.ranges,
+            instants: narrativeData.instants
+          })
+        ],
+        theme: theme,
+        zoomIndex: 0,
+        zoomSteps: null
+      };
+    }
+
+    var geochronoUnit = createGeochronoUnit();
+    var geochronoLabeller = geochronoUnit.createLabeller();
+    var geochronoRuntime = new Timeline.RepriseRuntime({
+      unit: geochronoUnit,
+      labeller: geochronoLabeller
+    });
+    var eventSource = new Timeline.DefaultEventSource(
+      new SimileAjax.EventIndex(geochronoUnit)
+    );
+    var theme = createTheme();
+    var ma = function (value) {
+      return new geochronoUnit.MA(value);
+    };
+    var narrativeData = {
+      ranges: [
+        {
+          startDate: ma(50),
+          endDate: ma(100),
+          title: "Reversed wrapper range",
+          caption: "Input is 50 Ma to 100 Ma. The runtime renders it as 100 Ma to 50 Ma.",
+          spanColor: "rgba(155, 107, 211, 0.35)",
+          track: 2
+        }
+      ],
+      instants: [
+        {
+          date: ma(75),
+          title: "Wrapped instant",
+          caption: "A Narrative instant supplied as an MA wrapper.",
+          lineColor: "orange",
+          track: 1
+        }
+      ]
+    };
+
+    Timeline.create(
+      document.getElementById("timeline"),
+      [
+        createBandInfo(
+          eventSource,
+          theme,
+          geochronoUnit,
+          geochronoLabeller,
+          geochronoRuntime,
+          narrativeData
+        )
+      ],
+      Timeline.HORIZONTAL,
+      geochronoUnit
+    );
+
+    eventSource.loadJSON({
+      events: [
+        {
+          start: ma(150),
+          end: ma(135),
+          title: "Older interval",
+          description: "Event values are MA wrapper objects.",
+          color: Timeline.ThemeIcons.getCssColor("green"),
+          textColor: "inherit"
+        },
+        {
+          start: ma(118),
+          title: "Point sample",
+          description: "A point event using the same wrapper unit.",
+          iconColor: "blue"
+        },
+        {
+          start: ma(95),
+          end: ma(72),
+          title: "Younger interval",
+          description: "Chronology runs left to right from older to younger.",
+          color: Timeline.ThemeIcons.getCssColor("red"),
+          textColor: "inherit"
+        }
+      ]
+    }, document.location.href);
+  </script>
+</body>
+</html>

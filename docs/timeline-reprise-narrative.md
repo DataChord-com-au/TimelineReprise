@@ -28,6 +28,27 @@ bandInfo.decorators = [
 
 The decorator reads plain data objects. It does not require a `Timeline.DefaultEventSource`.
 
+Narrative parses and renders through the
+[presentation runtime](timeline-reprise-presentation-runtime.md). Without an
+explicit runtime it uses the timeline's configured unit and the band's active
+labeller. Supply `runtime` to replace rendering or to use a different SIMILE
+unit contract:
+
+```js
+new Timeline.NarrativeDecorator({
+    runtime: new Timeline.RepriseRuntime({
+        unit: planningUnit,
+        labeller: planningLabeller
+    }),
+    ranges: ranges,
+    instants: instants
+});
+```
+
+All date, numeric, and wrapped values are parsed by
+`runtime.unit.parseFromObject()`. Range chronology is normalized with
+`runtime.unit.compare()`.
+
 ### Range Items
 
 Range items create span decorators.

@@ -98,13 +98,17 @@ var compact = Timeline.deriveEventTheme(themes.editorial, {
 });
 ```
 
-## Opaque presentation values
+## Presentation values
 
-`presentation`, `template`, `templateId`, and `templates` are opaque fields at
-the theme root and inside presentation sections such as `instant`, `range`,
-`label`, and `bubble`. Reprise validates and preserves them but does not
-evaluate template expressions, resolve template ids, or interpret
-`TimelineUtils` macros.
+`presentation`, `template`, `templateId`, and `templates` remain opaque values
+during EventTheme validation. At render time, the
+[presentation runtime](timeline-reprise-presentation-runtime.md) resolves
+`eventTheme.presentation[field]`. A field spec can contain a direct `template`
+or a `templateId` that selects `eventTheme.templates[id]`.
+
+The default Reprise renderer does not evaluate template expressions or
+interpret `TimelineUtils` macros. An injected runtime renderer may interpret
+the selected template.
 
 ## Consumers
 

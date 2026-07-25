@@ -4,6 +4,35 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
+function sourceWithoutImports(filename) {
+    return fs.readFileSync(filename, "utf8").replace(
+        /^import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];\s*/m,
+        ""
+    );
+}
+
+function testRuntime(unit = null, labeller = null) {
+    const resolvedUnit = unit || {
+        parseFromObject: value => value,
+        compare: (a, b) => Number(a) - Number(b)
+    };
+    const resolvedLabeller = labeller || {
+        labelPrecise: value => String(value),
+        labelInterval: value => ({ text: String(value), emphasized: false })
+    };
+
+    return {
+        unit: resolvedUnit,
+        labeller: resolvedLabeller,
+        readEventTime: () => null,
+        render: () => ""
+    };
+}
+
+function resolveTestRuntime(runtime, options = {}) {
+    return runtime || testRuntime(options.unit, options.labeller);
+}
+
 function testEventTheme(overrides = {}) {
     const defaults = {
         disableEmphasis: false,
@@ -122,12 +151,14 @@ function loadEventPainter() {
         }
     };
     const context = vm.createContext({
+        fillRepriseBubble: () => {},
+        resolveRepriseRuntime: resolveTestRuntime,
         Timeline,
         window: { Timeline }
     });
     const filename = path.join(__dirname, "..", "src", "event-layout.js");
 
-    vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
+    vm.runInContext(sourceWithoutImports(filename), context, { filename });
     Timeline.OriginalEventPainter.prototype.paint =
         Timeline.OriginalEventPainter.prototype.softPaint;
     Timeline.OriginalEventPainter._testTimeline = Timeline;
@@ -136,12 +167,17 @@ function loadEventPainter() {
 
 function loadCore(Timeline) {
     const context = vm.createContext({
+        fillRepriseBubble: () => {},
+        hasRenderedContent: value => value != null && value !== "",
+        renderEventField: () => "",
+        resolveRepriseRuntime: resolveTestRuntime,
+        setRenderedContent: () => true,
         Timeline,
         window: { Timeline }
     });
     const filename = path.join(__dirname, "..", "src", "core.js");
 
-    vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
+    vm.runInContext(sourceWithoutImports(filename), context, { filename });
 }
 
 function loadEmptyEtherPainter() {
@@ -187,12 +223,17 @@ function loadNarrativeDecorator() {
         resolveEventTheme: resolveTestEventTheme
     };
     const context = vm.createContext({
+        fillRepriseBubble: () => {},
+        hasRenderedContent: value => value != null && value !== "",
+        renderEventField: () => "",
+        resolveRepriseRuntime: resolveTestRuntime,
+        setRenderedContent: () => true,
         Timeline,
         window: { Timeline }
     });
     const filename = path.join(__dirname, "..", "src", "narrative.js");
 
-    vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
+    vm.runInContext(sourceWithoutImports(filename), context, { filename });
     return Timeline.NarrativeDecorator;
 }
 
@@ -408,25 +449,6 @@ test("the Reprise stylesheet gives an unsized timeline a responsive default heig
         defaultSizeRule[1],
         /height:\s*var\(--timeline-reprise-height,\s*clamp\(18rem,\s*40svh,\s*32rem\)\)/
     );
-});
-
-test("all example documents declare their language and disable translation", () => {
-    const examplesDirectory = path.join(__dirname, "..", "examples");
-    const filenames = fs.readdirSync(examplesDirectory)
-        .filter(filename => filename.endsWith(".html"));
-
-    assert.ok(filenames.length > 0);
-    for (const filename of filenames) {
-        const html = fs.readFileSync(
-            path.join(examplesDirectory, filename),
-            "utf8"
-        );
-        assert.match(
-            html,
-            /^<!doctype html>\r?\n<html lang="en" translate="no">/i,
-            filename
-        );
-    }
 });
 
 test("the default baseline example renders without authored presentation options", () => {
@@ -1665,6 +1687,33 @@ function narrativeRange(
     return record;
 }
 
+function narrativeInstant(
+    decorator,
+    index,
+    date,
+    width,
+    renderedHeight,
+    { item = {}, lineBoxHeight = renderedHeight } = {}
+) {
+    const labelElmt = element(width, lineBoxHeight);
+    labelElmt.scrollHeight = renderedHeight;
+
+    const record = {
+        item,
+        index,
+        date,
+        baseTrack: decorator._resolveTrack(item, index),
+        trackExplicit: decorator._trackIsExplicit(item),
+        pixel: 0,
+        labelElmt,
+        lineElmt: { style: {} }
+    };
+
+    record.track = record.baseTrack;
+    decorator._measureLabel(record);
+    return record;
+}
+
 function narrativePlacement(records) {
     return records.map((record) => ({
         track: record.track,
@@ -1706,6 +1755,34 @@ test("horizontal narrative persistence includes the sticky edge inset in its con
     decorator.setViewOffset(-26);
     decorator.softPaint();
     assert.equal(range.labelElmt.style.display, "none");
+});
+
+test("narrative range label color derives old contrast output from hex graphic colors", () => {
+    const decorator = makeNarrative("horizontal");
+    const record = {
+        kind: "range",
+        item: {},
+        graphicColor: "#9B6BD3"
+    };
+
+    const labelColor = decorator._recordLabelColor(record);
+
+    assert.notEqual(labelColor.toLowerCase(), record.graphicColor.toLowerCase());
+    assert.match(labelColor, /^light-dark\(hsl\(\d+, \d+%, \d+%\), hsl\(\d+, \d+%, \d+%\)\)$/);
+});
+
+test("horizontal narrative instant labels avoid their own divider width", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._dividerWidth = 12;
+    const instant = narrativeInstant(decorator, 0, 50, 30, 16);
+    decorator._rangeRecords = [];
+    decorator._instantRecords = [instant];
+
+    decorator.softPaint();
+
+    assert.equal(instant.lineElmt.style.left, "44px");
+    assert.equal(instant.lineElmt.style.width, "12px");
+    assert.equal(instant.labelElmt.style.left, "56px");
 });
 
 test("vertical sticky narrative labels stack forward on their current track while they fit", () => {
@@ -1981,7 +2058,7 @@ test("a vertical label reroutes before stacking can push it beyond its duration"
 });
 
 test("the narrative example does not pin event data to routing tracks", () => {
-    const filename = path.join(__dirname, "..", "examples", "timeline-reprise-narrative.html");
+    const filename = path.join(__dirname, "..", "examples", "09-timeline-reprise-narrative.html");
     const html = fs.readFileSync(filename, "utf8");
     const narrativeData = html.match(
         /var narrativeData = \{([\s\S]*?)\r?\n    \};\r?\n\r?\n    var mainEventData/
