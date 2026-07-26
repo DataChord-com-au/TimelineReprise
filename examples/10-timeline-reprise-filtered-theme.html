@@ -249,7 +249,6 @@
     var filteredEvents = Timeline.filterEvents(config.events, config.filter);
     var bands = config.bands;
 
-    theme.eventTheme = Timeline.resolveEventTheme(config.theme);
     theme.emphasisSpecs = emphasisSpecs;
 
     var timelineEvents = filteredEvents.map(function (event) {
@@ -288,15 +287,16 @@
     bandInfos[1].syncWith = 0;
     bandInfos[1].highlight = true;
 
+    Timeline.attachEvents(
+      bandInfos[0],
+      timelineEvents,
+      { eventTheme: config.theme }
+    );
+
     Timeline.create(
       document.getElementById("timeline"),
       bandInfos
     );
-
-    eventSource.loadJSON({
-      dateTimeFormat: "iso8601",
-      events: timelineEvents
-    }, document.location.href);
 
     document.getElementById("summary").textContent =
       "Showing " + timelineEvents.length + " of " + config.events.length +

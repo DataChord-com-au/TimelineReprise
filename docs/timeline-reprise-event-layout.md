@@ -94,6 +94,12 @@ Timeline.createBandInfo({
 });
 ```
 
+Attach events through the Reprise workflow before creating the timeline:
+
+```js
+Timeline.attachEvents(bandInfo, events);
+```
+
 Create a fresh theme object for each timeline when a page shows horizontal and vertical timelines together.
 
 Orientation-specific properties are read from `horizontal` or `vertical` when

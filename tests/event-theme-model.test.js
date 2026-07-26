@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const test = require("node:test");
 const vm = require("node:vm");
+const { test } = require("@jest/globals");
 
 function loadTimeline() {
     function OriginalEventPainter(params) {

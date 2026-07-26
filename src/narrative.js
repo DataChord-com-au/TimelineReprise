@@ -5,6 +5,10 @@ import {
     resolveRepriseRuntime,
     setRenderedContent
 } from "./presentation-runtime.js";
+import {
+    getAttachedEventContext,
+    renderAttachedEventField
+} from "./attachments.js";
 
 (function () {
     if (!window.Timeline || Timeline.NarrativeDecorator) return;
@@ -611,11 +615,20 @@ import {
 
         const doc = this._timeline.getDocument();
         const div = doc.createElement("div");
-        fillRepriseBubble(div, record.item, {
-            runtime: this._runtime,
-            eventTheme: this._eventTheme,
+        const attachment = getAttachedEventContext(record.item);
+        fillRepriseBubble(div, attachment?.presentationEvent ?? record.item, {
+            runtime: attachment?.runtime ?? this._runtime,
+            eventTheme: attachment?.eventTheme ?? this._eventTheme,
             nativeTheme: this._nativeTheme,
-            eventTime: record.eventTime
+            eventTime: attachment?.eventTime ?? record.eventTime,
+            renderField: attachment == null
+                ? null
+                : (field, target) => renderAttachedEventField(
+                    record.item,
+                    field,
+                    target,
+                    { surface: "bubble" }
+                )
         });
 
         const x = domEvt.pageX;
@@ -642,24 +655,39 @@ import {
         const doc = this._timeline.getDocument();
         const elmt = doc.createElement("div");
         const bubbles = this._recordBubbles(record);
-        const title = renderEventField(
-            this._runtime,
-            this._eventTheme,
-            record.eventTime,
-            record.item,
-            "title",
-            "html",
-            { surface: "label" }
-        );
-        const caption = renderEventField(
-            this._runtime,
-            this._eventTheme,
-            record.eventTime,
-            record.item,
-            "caption",
-            "text",
-            { surface: "label" }
-        );
+        const attachment = getAttachedEventContext(record.item);
+        const title = attachment == null
+            ? renderEventField(
+                this._runtime,
+                this._eventTheme,
+                record.eventTime,
+                record.item,
+                "title",
+                "html",
+                { surface: "label" }
+            )
+            : renderAttachedEventField(
+                record.item,
+                "title",
+                "html",
+                { surface: "label" }
+            );
+        const caption = attachment == null
+            ? renderEventField(
+                this._runtime,
+                this._eventTheme,
+                record.eventTime,
+                record.item,
+                "caption",
+                "text",
+                { surface: "label" }
+            )
+            : renderAttachedEventField(
+                record.item,
+                "caption",
+                "text",
+                { surface: "label" }
+            );
         if (!hasRenderedContent(title) && !hasRenderedContent(caption)) return;
 
         elmt.className = cssClass;

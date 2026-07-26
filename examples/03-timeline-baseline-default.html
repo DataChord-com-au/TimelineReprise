@@ -19,21 +19,18 @@
   <script>
     var eventSource = new Timeline.DefaultEventSource();
 
-    var timeline = Timeline.create(
-      document.getElementById("timeline"),
-      [
-        Timeline.createBandInfo({
-          eventSource: eventSource,
-          date: "Jan 1 2020",
-          intervalUnit: Timeline.DateTime.MONTH,
-          intervalPixels: 100
-        })
-      ]
-    );
+    var bandInfos = [
+      Timeline.createBandInfo({
+        eventSource: eventSource,
+        date: "Jan 1 2020",
+        intervalUnit: Timeline.DateTime.MONTH,
+        intervalPixels: 100
+      })
+    ];
 
-    eventSource.loadJSON({
-      dateTimeFormat: "iso8601",
-      events: [
+    Timeline.attachEvents(
+      bandInfos[0],
+      [
         {
           start: "2020-01-01",
           title: "Timeline Reprise loaded",
@@ -46,7 +43,12 @@
           description: "No event presentation options were supplied."
         }
       ]
-    }, document.location.href);
+    );
+
+    var timeline = Timeline.create(
+      document.getElementById("timeline"),
+      bandInfos
+    );
   </script>
 </body>
 </html>

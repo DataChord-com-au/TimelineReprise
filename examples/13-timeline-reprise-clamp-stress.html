@@ -1,0 +1,240 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Clamp Stress</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    button {
+      padding: 6px 10px;
+    }
+
+    .scale-list {
+      line-height: 1.5;
+    }
+
+    .timeline-frame {
+      height: 460px;
+      border: 1px solid #5f6368;
+    }
+
+    .status {
+      box-sizing: border-box;
+      min-height: 8em;
+      margin-top: 16px;
+      padding: 12px;
+      overflow-x: auto;
+      border: 1px solid #9aa0a6;
+      background: rgba(127, 127, 127, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Clamp Stress</h1>
+
+  <p>
+    This deliberately extreme case puts three synchronized bands on one
+    Reprise center clamp. Drag any band quickly past either boundary and then
+    reverse direction. The coarse band moves through roughly one thousand
+    times more time per pixel than the detail band, exposing any snap feedback
+    or trampoline effect between synchronized bands.
+  </p>
+
+  <ul class="scale-list">
+    <li>Coarse follower: 50 pixels per year.</li>
+    <li>Medium follower: 90 pixels per month.</li>
+    <li>Detail master: 30 pixels per day.</li>
+  </ul>
+
+  <p>
+    Clamp centers: 2024-01-01 through 2028-01-01. Visible band extents differ
+    because the clamp constrains centers rather than viewport edges.
+  </p>
+
+  <div class="controls">
+    <button id="jump-start" type="button">Coarse jump to 2000</button>
+    <button id="jump-end" type="button">Coarse jump to 2050</button>
+    <button id="reset-center" type="button">Reset to 2026</button>
+    <button id="run-stress" type="button">Run alternating stress</button>
+  </div>
+
+  <div id="timeline" class="timeline-frame"></div>
+  <pre id="status" class="status"></pre>
+
+  <script>
+    var clampStart = new Date("2024-01-01T00:00:00Z");
+    var clampEnd = new Date("2028-01-01T00:00:00Z");
+    var resetDate = new Date("2026-01-01T00:00:00Z");
+    var eventSource = new Timeline.DefaultEventSource();
+    var theme = Timeline.ClassicTheme.create();
+
+    function createBand(width, intervalUnit, intervalPixels, multiple = 1) {
+      return Timeline.createBandInfo({
+        eventSource: eventSource,
+        date: resetDate,
+        width: width,
+        intervalUnit: intervalUnit,
+        intervalPixels: intervalPixels,
+        multiple: multiple,
+        theme: theme
+      });
+    }
+
+    var bandInfos = [
+      createBand("28%", Timeline.DateTime.YEAR, 50),
+      createBand("32%", Timeline.DateTime.MONTH, 90),
+      createBand("40%", Timeline.DateTime.DAY, 30, 7)
+    ];
+
+    bandInfos[0].syncWith = 2;
+    bandInfos[0].highlight = true;
+    bandInfos[1].syncWith = 2;
+    bandInfos[1].highlight = true;
+
+    var timeline = Timeline.create(
+      document.getElementById("timeline"),
+      bandInfos
+    );
+    var clamp = Timeline.clampBandChains(timeline, {
+      start: clampStart,
+      end: clampEnd
+    });
+    var bands = [
+      timeline.getBand(0),
+      timeline.getBand(1),
+      timeline.getBand(2)
+    ];
+    var scaleNames = ["coarse", "medium", "detail"];
+    var pendingStatusFrame = null;
+    var stressTimer = null;
+
+    function formatCenter(date) {
+      return date.toISOString().replace(".000Z", "Z");
+    }
+
+    function renderStatus() {
+      pendingStatusFrame = null;
+
+      var detailCenter = bands[2].getCenterVisibleDate();
+      var detailTime = detailCenter.getTime();
+      var lines = bands.map(function (band, index) {
+        var center = band.getCenterVisibleDate();
+        var offsetDays = (center.getTime() - detailTime) / 86400000;
+        var signedOffset = (offsetDays >= 0 ? "+" : "") +
+          offsetDays.toFixed(4);
+
+        return scaleNames[index].padEnd(8) +
+          " center " + formatCenter(center) +
+          "  offset from master " + signedOffset + " days";
+      });
+
+      var masterState = detailTime < clampStart.getTime()
+        ? "BEFORE START"
+        : detailTime > clampEnd.getTime()
+          ? "AFTER END"
+          : detailTime === clampStart.getTime()
+            ? "AT START"
+            : detailTime === clampEnd.getTime()
+              ? "AT END"
+              : "IN RANGE";
+
+      lines.push("");
+      lines.push("detail master: " + masterState);
+      lines.push("clamp disposed: " + clamp.disposed);
+      document.getElementById("status").textContent = lines.join("\n");
+    }
+
+    function scheduleStatus() {
+      if (pendingStatusFrame != null) {
+        cancelAnimationFrame(pendingStatusFrame);
+      }
+      pendingStatusFrame = requestAnimationFrame(renderStatus);
+    }
+
+    for (var bandIndex = 0; bandIndex < bands.length; bandIndex++) {
+      bands[bandIndex].addOnScrollListener(scheduleStatus);
+    }
+
+    document.getElementById("jump-start").addEventListener("click", function () {
+      bands[0].setCenterVisibleDate(new Date("2000-01-01T00:00:00Z"));
+      scheduleStatus();
+    });
+
+    document.getElementById("jump-end").addEventListener("click", function () {
+      bands[0].setCenterVisibleDate(new Date("2050-01-01T00:00:00Z"));
+      scheduleStatus();
+    });
+
+    document.getElementById("reset-center").addEventListener("click", function () {
+      bands[2].setCenterVisibleDate(resetDate);
+      scheduleStatus();
+    });
+
+    document.getElementById("run-stress").addEventListener("click", function () {
+      if (stressTimer != null) return;
+
+      var button = this;
+      var steps = [
+        { band: 0, date: "2000-01-01T00:00:00Z" },
+        { band: 0, date: "2026-01-01T00:00:00Z" },
+        { band: 1, date: "2050-01-01T00:00:00Z" },
+        { band: 1, date: "2026-01-01T00:00:00Z" },
+        { band: 2, date: "2000-01-01T00:00:00Z" },
+        { band: 2, date: "2050-01-01T00:00:00Z" },
+        { band: 2, date: "2026-01-01T00:00:00Z" }
+      ];
+      var stepIndex = 0;
+
+      button.disabled = true;
+      document.body.dataset.stressComplete = "false";
+
+      function runStep() {
+        var step = steps[stepIndex++];
+        bands[step.band].setCenterVisibleDate(new Date(step.date));
+        scheduleStatus();
+
+        if (stepIndex < steps.length) {
+          stressTimer = setTimeout(runStep, 180);
+        } else {
+          stressTimer = null;
+          button.disabled = false;
+          document.body.dataset.stressComplete = "true";
+        }
+      }
+
+      runStep();
+    });
+
+    window.addEventListener("resize", function () {
+      timeline.layout();
+      scheduleStatus();
+    });
+
+    renderStatus();
+  </script>
+</body>
+</html>

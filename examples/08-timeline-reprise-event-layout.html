@@ -192,22 +192,25 @@
       return theme;
     }
 
-    function createProjectStartDivider(eventTheme) {
-      return new Timeline.NarrativeDecorator({
-        eventTheme: Timeline.deriveEventTheme(eventTheme, {
-          labels: false,
-          instant: {
-            width: 1
-          }
-        }),
-        instants: [
+    function attachProjectStartDivider(bandInfo, eventTheme) {
+      Timeline.attachNarrativeDecorators(
+        bandInfo,
+        [
           {
             date: new Date(Date.UTC(2020, 0, 10)),
             title: "Project Starts",
             lineColor: Timeline.ThemeIcons.getCssColor(projectStartEvent.iconColor)
           }
-        ]
-      });
+        ],
+        {
+          eventTheme: Timeline.deriveEventTheme(eventTheme, {
+            labels: false,
+            instant: {
+              width: 1
+            }
+          })
+        }
+      );
     }
 
     function createHorizontalBands(eventSource, theme) {
@@ -231,12 +234,9 @@
         })
       ];
 
-      bandInfos[0].decorators = [
-        createProjectStartDivider(theme.eventTheme)
-      ];
-      bandInfos[1].decorators = [
-        createProjectStartDivider(theme.eventTheme)
-      ];
+      attachProjectStartDivider(bandInfos[0], theme.eventTheme);
+      attachProjectStartDivider(bandInfos[1], theme.eventTheme);
+      Timeline.attachEvents(bandInfos[0], eventData.events);
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
 
@@ -264,12 +264,9 @@
         })
       ];
 
-      bandInfos[0].decorators = [
-        createProjectStartDivider(theme.eventTheme)
-      ];
-      bandInfos[1].decorators = [
-        createProjectStartDivider(theme.eventTheme)
-      ];
+      attachProjectStartDivider(bandInfos[0], theme.eventTheme);
+      attachProjectStartDivider(bandInfos[1], theme.eventTheme);
+      Timeline.attachEvents(bandInfos[0], eventData.events);
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
 
@@ -289,9 +286,6 @@
       createVerticalBands(verticalEventSource, createEventLayoutTheme()),
       Timeline.VERTICAL
     );
-
-    horizontalEventSource.loadJSON(eventData, document.location.href);
-    verticalEventSource.loadJSON(eventData, document.location.href);
   </script>
 </body>
 </html>

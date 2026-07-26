@@ -194,15 +194,7 @@
       return theme;
     }
 
-    function createBandInfo(eventSource, theme, unit, labeller, runtime, narrativeData) {
-      var eventLayoutTheme = Timeline.deriveEventTheme(theme.eventTheme, {
-        track: {
-          horizontal: {
-            offset: 124
-          }
-        }
-      });
-
+    function createBandInfo(eventSource, theme, unit, labeller) {
       return {
         width: "100%",
         eventSource: eventSource,
@@ -218,17 +210,8 @@
           interval: 25
         }),
         eventPainter: new Timeline.OriginalEventPainter({
-          theme: theme,
-          eventTheme: eventLayoutTheme,
-          runtime: runtime
+          theme: theme
         }),
-        decorators: [
-          new Timeline.NarrativeDecorator({
-            runtime: runtime,
-            ranges: narrativeData.ranges,
-            instants: narrativeData.instants
-          })
-        ],
         theme: theme,
         zoomIndex: 0,
         zoomSteps: null
@@ -269,49 +252,64 @@
         }
       ]
     };
+    var eventLayoutTheme = Timeline.deriveEventTheme(theme.eventTheme, {
+      track: {
+        horizontal: {
+          offset: 124
+        }
+      }
+    });
+    var events = [
+      {
+        start: ma(150),
+        end: ma(135),
+        title: "Older interval",
+        description: "Event values are MA wrapper objects.",
+        color: Timeline.ThemeIcons.getCssColor("green"),
+        textColor: "inherit"
+      },
+      {
+        start: ma(118),
+        title: "Point sample",
+        description: "A point event using the same wrapper unit.",
+        iconColor: "blue"
+      },
+      {
+        start: ma(95),
+        end: ma(72),
+        title: "Younger interval",
+        description: "Chronology runs left to right from older to younger.",
+        color: Timeline.ThemeIcons.getCssColor("red"),
+        textColor: "inherit"
+      }
+    ];
+    var bandInfo = createBandInfo(
+      eventSource,
+      theme,
+      geochronoUnit,
+      geochronoLabeller
+    );
+
+    Timeline.attachEvents(
+      bandInfo,
+      events,
+      {
+        eventTheme: eventLayoutTheme,
+        runtime: geochronoRuntime
+      }
+    );
+    Timeline.attachNarrativeDecorators(
+      bandInfo,
+      narrativeData.ranges.concat(narrativeData.instants),
+      { runtime: geochronoRuntime }
+    );
 
     Timeline.create(
       document.getElementById("timeline"),
-      [
-        createBandInfo(
-          eventSource,
-          theme,
-          geochronoUnit,
-          geochronoLabeller,
-          geochronoRuntime,
-          narrativeData
-        )
-      ],
+      [bandInfo],
       Timeline.HORIZONTAL,
       geochronoUnit
     );
-
-    eventSource.loadJSON({
-      events: [
-        {
-          start: ma(150),
-          end: ma(135),
-          title: "Older interval",
-          description: "Event values are MA wrapper objects.",
-          color: Timeline.ThemeIcons.getCssColor("green"),
-          textColor: "inherit"
-        },
-        {
-          start: ma(118),
-          title: "Point sample",
-          description: "A point event using the same wrapper unit.",
-          iconColor: "blue"
-        },
-        {
-          start: ma(95),
-          end: ma(72),
-          title: "Younger interval",
-          description: "Chronology runs left to right from older to younger.",
-          color: Timeline.ThemeIcons.getCssColor("red"),
-          textColor: "inherit"
-        }
-      ]
-    }, document.location.href);
   </script>
 </body>
 </html>

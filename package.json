@@ -1,11 +1,13 @@
 {
   "name": "timeline-reprise",
-  "version": "1.4.2",
+  "version": "2.0.0",
   "description": "Extension layer for the SIMILE Timeline 2.3.1 browser widget.",
   "private": true,
   "scripts": {
     "build": "node scripts/build-dist.js",
-    "test": "npm run build && node --test tests/event-theme-model.test.js tests/layout-stability.test.js tests/presentation-runtime.test.js"
+    "pretest": "npm run build",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch"
   },
   "files": [
     "dist/",
@@ -23,5 +25,8 @@
     "timeline-reprise"
   ],
   "author": "DataChord",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "jest": "^30.4.2"
+  }
 }

@@ -2,6 +2,10 @@ import {
     fillRepriseBubble,
     resolveRepriseRuntime
 } from "./presentation-runtime.js";
+import {
+    getAttachedEventContext,
+    renderAttachedEventField
+} from "./attachments.js";
 
 (function () {
     if (!window.Timeline || !Timeline.OriginalEventPainter) return;
@@ -329,6 +333,10 @@ import {
 
         painter._runtime = runtime;
         return runtime;
+    }
+
+    function getPainterEventTheme(painter, evt) {
+        return getAttachedEventContext(evt)?.eventTheme ?? painter._eventTheme;
     }
 
     function ensureTapeSparklineStyles(doc) {
@@ -1801,8 +1809,9 @@ import {
     proto._paintEventIcon = function (evt, iconTrack, left, metrics, theme, tapeHeight) {
         this._repriseMetrics = metrics;
         const paintArguments = Array.from(arguments);
+        const eventTheme = getPainterEventTheme(this, evt);
         paintArguments[0] = evt?.isInstant?.()
-            ? getEventWithThemeIcon(evt, theme, this._eventTheme, metrics)
+            ? getEventWithThemeIcon(evt, theme, eventTheme, metrics)
             : evt;
         const data = originalPaintIcon.apply(this, paintArguments);
         applyThemeIconSize(data, metrics);
@@ -1838,7 +1847,8 @@ import {
         evt, iconTrack, startPixel, endPixel, color, opacity, metrics, theme, tapeIndex
     ) {
         this._repriseMetrics = metrics;
-        const tapeColor = getEventTapeColor(evt, color, theme, this._eventTheme);
+        const eventTheme = getPainterEventTheme(this, evt);
+        const tapeColor = getEventTapeColor(evt, color, theme, eventTheme);
         const data = originalPaintTape.call(
             this,
             evt,
@@ -1919,10 +1929,11 @@ import {
         const data = originalPaintLabel.apply(this, arguments);
 
         if (data?.elmt) {
-            const labelColor = getEventLabelColor(evt, theme, this._eventTheme);
+            const eventTheme = getPainterEventTheme(this, evt);
+            const labelColor = getEventLabelColor(evt, theme, eventTheme);
             data.elmt.style.color = labelColor || "";
 
-            if (!labelsEnabled(evt, theme, this._eventTheme)) {
+            if (!labelsEnabled(evt, theme, eventTheme)) {
                 hidePaintedLabel(data);
                 return data;
             }
@@ -1949,7 +1960,7 @@ import {
                         evt,
                         theme.event.duration.color,
                         theme,
-                        this._eventTheme
+                        getPainterEventTheme(this, evt)
                     ),
                     spark
                 });
@@ -1996,7 +2007,7 @@ import {
                     evt,
                     theme.event.duration.color,
                     theme,
-                    this._eventTheme
+                    getPainterEventTheme(this, evt)
                 ),
                 spark
             });
@@ -2024,26 +2035,38 @@ import {
 
     proto._showBubble = function (x, y, evt) {
         const nativeTheme = this._nativeTheme || this._params?.theme;
-        if (!bubblesEnabled(evt, nativeTheme, this._eventTheme)) return;
+        const attachment = getAttachedEventContext(evt);
+        const eventTheme = attachment?.eventTheme ?? this._eventTheme;
+        const runtime = attachment?.runtime ?? this._runtime;
+        if (!bubblesEnabled(evt, nativeTheme, eventTheme)) return;
 
         const graphics = window.SimileAjax?.Graphics;
         const windowManager = window.SimileAjax?.WindowManager;
         if (!graphics?.createBubbleForContentAndPoint || !windowManager?.cancelPopups) return;
 
         const content = this._timeline.getDocument().createElement("div");
-        fillRepriseBubble(content, evt, {
-            runtime: this._runtime,
-            eventTheme: this._eventTheme,
-            nativeTheme
+        fillRepriseBubble(content, attachment?.presentationEvent ?? evt, {
+            runtime,
+            eventTheme,
+            nativeTheme,
+            eventTime: attachment?.eventTime,
+            renderField: attachment == null
+                ? null
+                : (field, target) => renderAttachedEventField(
+                    evt,
+                    field,
+                    target,
+                    { surface: "bubble" }
+                )
         });
         windowManager.cancelPopups();
         return graphics.createBubbleForContentAndPoint(
             content,
             x,
             y,
-            this._eventTheme.bubble.width,
+            eventTheme.bubble.width,
             null,
-            this._eventTheme.bubble.maxHeight
+            eventTheme.bubble.maxHeight
         );
     };
 

@@ -21,10 +21,10 @@ var runtime = new Timeline.RepriseRuntime({
 });
 ```
 
-Normal Reprise consumers create this binding automatically. The timeline unit
-comes from `timeline.getUnit()` and the labeller comes from
-`band.getLabeller()`. An explicit band labeller is used directly; it is not
-replaced by `unit.createLabeller()`.
+The Reprise attachment methods create this binding automatically. Before the
+timeline is created, the unit comes from the band's event source and an
+explicit `bandInfo.labeller` is used directly. Otherwise the unit creates its
+default labeller.
 
 When constructing a runtime directly, omitting `labeller` asks the unit to
 create the default labeller. The unit must provide `parseFromObject(value)` and
@@ -101,23 +101,22 @@ Narrative label wrappers, bubble sections, tables, rows, cells, links, images,
 and tag chips. The renderer supplies only the content inserted into each field
 or cell.
 
-Use the runtime in painter or Narrative configuration:
+Inject the runtime through either attachment method:
 
 ```js
-eventPainterParams: {
+Timeline.attachEvents(bandInfo, events, {
     runtime: runtime
-}
+});
 
-new Timeline.NarrativeDecorator({
-    runtime: runtime,
-    ranges: ranges,
-    instants: instants
+Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
+    runtime: runtime
 });
 ```
 
-Event attachment and projection methods are outside this runtime. Callers may
-continue to place already-rendered values such as `bubbleStart`,
-`bubbleDuration`, `bubbleLocation`, and `bubblePeople` on their event data.
+Both attachment workflows use the same runtime binding and field preparation
+path. Callers may still provide fields such as `bubbleStart`,
+`bubbleDuration`, `bubbleLocation`, and `bubblePeople`; the renderer remains
+responsible only for their content.
 
 ---
 [Back to top](#presentation-runtime)<br>

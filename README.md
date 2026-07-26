@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `1.4.2`
+Version: `2.0.0`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v1.4.2"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v2.0.0"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -52,6 +52,29 @@ page needs different sizing.
 
 The distribution JavaScript contains the complete Reprise feature set. Its
 stylesheet is loaded explicitly and keeps media under `dist/images/`.
+
+Attach normal events or Narrative data to a band info before calling
+`Timeline.create()`:
+
+```js
+Timeline.attachEvents(bandInfo, events);
+Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents);
+```
+
+Both methods accept `{ eventTheme, runtime }`. `eventTheme` is a registered
+theme id or `Timeline.EventTheme` instance; otherwise the band theme is used.
+
+Clamp created timeline band chains to exact center boundaries with:
+
+```js
+var clamp = Timeline.clampBandChains(timeline, {
+    start: new Date("2024-01-01T00:00:00Z"),
+    end: new Date("2028-01-01T00:00:00Z")
+});
+```
+
+The timeline's unit parses and compares both boundaries. The returned
+controller provides `dispose()` when the clamp needs to be removed.
 
 For source development, `src/index.js` is the ordered browser ESM entry.
 Stylesheet inputs live under `src/css/` and are combined by the build.
@@ -95,5 +118,6 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [timeline-reprise-event-layout.html](examples/timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |
 | [timeline-reprise-imprecise-ranges.html](examples\timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-imprecise-ranges.html) | Stress-tests routed duration labels and their tape-to-label sparklines with heavily overlapping imprecise ranges. |
 | [timeline-reprise-narrative.html](examples/timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/timeline-reprise-narrative.html) | Reprise Narrative adds labelled spans and dividers above the event layer. |
+| [13-timeline-reprise-clamp-stress.html](examples/13-timeline-reprise-clamp-stress.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/13-timeline-reprise-clamp-stress.html) | Stresses one clamp with three synchronized bands whose temporal movement per pixel differs by several orders of magnitude. |
 
 <!-- EOF -->

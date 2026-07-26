@@ -173,7 +173,7 @@
       return theme;
     }
 
-    function createBandInfo(eventSource, theme, unit, labeller, runtime) {
+    function createBandInfo(eventSource, theme, unit, labeller) {
       return {
         width: "100%",
         eventSource: eventSource,
@@ -189,8 +189,7 @@
           interval: 10
         }),
         eventPainter: new Timeline.OriginalEventPainter({
-          theme: theme,
-          runtime: runtime
+          theme: theme
         }),
         theme: theme,
         zoomIndex: 0,
@@ -208,24 +207,16 @@
       new SimileAjax.EventIndex(planningUnit)
     );
     var theme = createTheme();
-
-    Timeline.create(
-      document.getElementById("timeline"),
-      [
-        createBandInfo(
-          eventSource,
-          theme,
-          planningUnit,
-          planningLabeller,
-          planningRuntime
-        )
-      ],
-      Timeline.HORIZONTAL,
-      planningUnit
+    var bandInfo = createBandInfo(
+      eventSource,
+      theme,
+      planningUnit,
+      planningLabeller
     );
 
-    eventSource.loadJSON({
-      events: [
+    Timeline.attachEvents(
+      bandInfo,
+      [
         {
           start: 0,
           title: "Kickoff at day zero",
@@ -254,8 +245,16 @@
           color: Timeline.ThemeIcons.getCssColor("purple"),
           textColor: "inherit"
         }
-      ]
-    }, document.location.href);
+      ],
+      { runtime: planningRuntime }
+    );
+
+    Timeline.create(
+      document.getElementById("timeline"),
+      [bandInfo],
+      Timeline.HORIZONTAL,
+      planningUnit
+    );
   </script>
 </body>
 </html>

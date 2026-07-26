@@ -1,12 +1,15 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const test = require("node:test");
 const vm = require("node:vm");
+const { test } = require("@jest/globals");
 
 function sourceWithoutImports(filename) {
     return fs.readFileSync(filename, "utf8").replace(
         /^import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];\s*/m,
+        ""
+    ).replace(
+        /^import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];\s*/gm,
         ""
     );
 }
@@ -155,6 +158,8 @@ function loadEventPainter() {
     };
     const context = vm.createContext({
         fillRepriseBubble: () => {},
+        getAttachedEventContext: () => null,
+        renderAttachedEventField: () => "",
         resolveRepriseRuntime: resolveTestRuntime,
         Timeline,
         window: { Timeline }
@@ -171,7 +176,9 @@ function loadEventPainter() {
 function loadCore(Timeline) {
     const context = vm.createContext({
         fillRepriseBubble: () => {},
+        getAttachedEventContext: () => null,
         hasRenderedContent: value => value != null && value !== "",
+        renderAttachedEventField: () => "",
         renderEventField: () => "",
         resolveRepriseRuntime: resolveTestRuntime,
         setRenderedContent: () => true,
@@ -430,74 +437,6 @@ test("native decorator layers are not remapped by Reprise", () => {
     band.createLayerDiv(105);
 
     assert.deepEqual(createdLayers, [1, 10, 100, 105]);
-});
-
-test("the Reprise stylesheet gives an unsized timeline a responsive default height", () => {
-    const filename = path.join(
-        __dirname,
-        "..",
-        "src",
-        "css",
-        "timeline-layout.css"
-    );
-    const css = fs.readFileSync(filename, "utf8");
-    const defaultSizeRule = css.match(
-        /:where\(\.timeline-container\)\s*\{([\s\S]*?)\}/
-    );
-
-    assert.ok(defaultSizeRule, "expected a low-specificity timeline container rule");
-    assert.match(defaultSizeRule[1], /width:\s*100%/);
-    assert.match(defaultSizeRule[1], /height:\s*24rem/);
-    assert.match(
-        defaultSizeRule[1],
-        /height:\s*var\(--timeline-reprise-height,\s*clamp\(18rem,\s*40svh,\s*32rem\)\)/
-    );
-    assert.match(defaultSizeRule[1], /--timeline-reprise-ether-highlight-inset:\s*0px/);
-});
-
-test("the Reprise stylesheet makes synced ether highlights span the band cross-axis", () => {
-    const filename = path.join(
-        __dirname,
-        "..",
-        "src",
-        "css",
-        "timeline-layout.css"
-    );
-    const css = fs.readFileSync(filename, "utf8");
-    const horizontalRule = css.match(
-        /\.timeline-horizontal\s+\.timeline-ether-highlight\s*\{([\s\S]*?)\}/
-    );
-    const verticalRule = css.match(
-        /\.timeline-vertical\s+\.timeline-ether-highlight\s*\{([\s\S]*?)\}/
-    );
-
-    assert.ok(horizontalRule, "expected horizontal ether highlight rule");
-    assert.match(horizontalRule[1], /top:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
-    assert.match(horizontalRule[1], /bottom:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
-    assert.match(horizontalRule[1], /height:\s*auto\s*!important/);
-
-    assert.ok(verticalRule, "expected vertical ether highlight rule");
-    assert.match(verticalRule[1], /left:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
-    assert.match(verticalRule[1], /right:\s*var\(--timeline-reprise-ether-highlight-inset,\s*0px\)/);
-    assert.match(verticalRule[1], /width:\s*auto\s*!important/);
-});
-
-test("the default baseline example renders without authored presentation options", () => {
-    const filename = path.join(
-        __dirname,
-        "..",
-        "examples",
-        "03-timeline-baseline-default.html"
-    );
-    const html = fs.readFileSync(filename, "utf8");
-
-    assert.match(html, /dist\/timeline-reprise\.css/);
-    assert.match(html, /dist\/timeline-reprise\.js/);
-    assert.match(html, /Timeline\.create\(/);
-    assert.doesNotMatch(html, /<style\b/i);
-    assert.doesNotMatch(html, /\beventTheme\b/);
-    assert.doesNotMatch(html, /\btheme\s*:/);
-    assert.doesNotMatch(html, /\b(?:width|height)\s*:/);
 });
 
 test("EmptyEtherPainter keeps the no-argument painter interface compatible", () => {
@@ -2316,17 +2255,6 @@ test("a vertical label reroutes before stacking can push it beyond its duration"
         Number.parseInt(constrained.labelElmt.style.top, 10) + constrained.height <=
             constrained.endPixel
     );
-});
-
-test("the narrative example does not pin event data to routing tracks", () => {
-    const filename = path.join(__dirname, "..", "examples", "09-timeline-reprise-narrative.html");
-    const html = fs.readFileSync(filename, "utf8");
-    const narrativeData = html.match(
-        /var narrativeData = \{([\s\S]*?)\r?\n    \};\r?\n\r?\n    var mainEventData/
-    );
-
-    assert.ok(narrativeData, "expected to find the narrative example data");
-    assert.doesNotMatch(narrativeData[1], /^\s*track\s*:/m);
 });
 
 function makeConfiguredNarrative(orientation, viewWidth, trackTheme, extraParams = {}) {

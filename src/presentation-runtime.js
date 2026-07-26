@@ -484,7 +484,13 @@ function _hasEventOrPresentationField(event, eventTheme, field, fallbackField = 
 function fillRepriseBubble(
     element,
     event,
-    { runtime, eventTheme = defaultEventTheme, nativeTheme = null, eventTime } = {}
+    {
+        runtime,
+        eventTheme = defaultEventTheme,
+        nativeTheme = null,
+        eventTime,
+        renderField = null
+    } = {}
 ) {
     assertRepriseRuntime(runtime, "TimelineReprise.fillRepriseBubble runtime");
 
@@ -492,16 +498,18 @@ function fillRepriseBubble(
     const canonicalTime = eventTime === undefined
         ? runtime.readEventTime(event)
         : eventTime;
-    const render = (field, target = "html") =>
-        renderEventField(
-            runtime,
-            eventTheme,
-            canonicalTime,
-            event,
-            field,
-            target,
-            { surface: "bubble" }
-        );
+    const render = typeof renderField === "function"
+        ? (field, target = "html") => renderField(field, target)
+        : (field, target = "html") =>
+            renderEventField(
+                runtime,
+                eventTheme,
+                canonicalTime,
+                event,
+                field,
+                target,
+                { surface: "bubble" }
+            );
 
     const image = render("image", "text");
     if (hasRenderedContent(image)) {

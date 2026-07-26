@@ -69,14 +69,9 @@
     bandInfos[1].syncWith = 0;
     bandInfos[1].highlight = true;
 
-    var timeline = Timeline.create(
-      document.getElementById("timeline"),
-      bandInfos
-    );
-
-    eventSource.loadJSON({
-      dateTimeFormat: "iso8601",
-      events: [
+    Timeline.attachEvents(
+      bandInfos[0],
+      [
         {
           start: "2020-01-01",
           title: "Local library loaded",
@@ -99,7 +94,12 @@
           color: Timeline.ThemeIcons.getCssColor("purple")
         }
       ]
-    }, document.location.href);
+    );
+
+    var timeline = Timeline.create(
+      document.getElementById("timeline"),
+      bandInfos
+    );
   </script>
 </body>
 </html>

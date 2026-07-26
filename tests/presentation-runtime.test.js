@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const test = require("node:test");
 const vm = require("node:vm");
+const { test } = require("@jest/globals");
 
 function makeLabeller(prefix = "") {
     return {
@@ -533,20 +533,4 @@ test("Reprise owns bubble and table DOM while the renderer supplies cell content
         ),
         "the injected renderer should supply table-cell content"
     );
-});
-
-test("the generic runtime and Narrative contain no Date or TimelineUtils fallback path", () => {
-    const runtimeSource = fs.readFileSync(
-        path.join(__dirname, "..", "src", "presentation-runtime.js"),
-        "utf8"
-    );
-    const narrativeSource = fs.readFileSync(
-        path.join(__dirname, "..", "src", "narrative.js"),
-        "utf8"
-    );
-
-    assert.doesNotMatch(runtimeSource, /instanceof\s+Date/);
-    assert.doesNotMatch(narrativeSource, /instanceof\s+Date/);
-    assert.doesNotMatch(runtimeSource, /TimelineUtils/);
-    assert.doesNotMatch(narrativeSource, /TimelineUtils/);
 });

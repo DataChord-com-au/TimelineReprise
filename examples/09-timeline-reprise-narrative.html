@@ -147,11 +147,6 @@
       ]
     };
 
-    var emptyEventData = {
-      dateTimeFormat: "iso8601",
-      events: []
-    };
-
     function createNarrativeTheme() {
       var theme = Timeline.ClassicTheme.create();
 
@@ -222,7 +217,11 @@
         })
       ];
 
-      bandInfos[1].decorators = [new Timeline.NarrativeDecorator(narrativeData)];
+      Timeline.attachEvents(bandInfos[0], mainEventData.events);
+      Timeline.attachNarrativeDecorators(
+        bandInfos[1],
+        narrativeData.ranges.concat(narrativeData.instants)
+      );
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
 
@@ -249,7 +248,11 @@
         })
       ];
 
-      bandInfos[1].decorators = [new Timeline.NarrativeDecorator(narrativeData)];
+      Timeline.attachEvents(bandInfos[0], mainEventData.events);
+      Timeline.attachNarrativeDecorators(
+        bandInfos[1],
+        narrativeData.ranges.concat(narrativeData.instants)
+      );
       bandInfos[1].syncWith = 0;
       bandInfos[1].highlight = true;
 
@@ -279,11 +282,6 @@
       ),
       Timeline.VERTICAL
     );
-
-    horizontalMainEventSource.loadJSON(mainEventData, document.location.href);
-    horizontalNarrativeEventSource.loadJSON(emptyEventData, document.location.href);
-    verticalMainEventSource.loadJSON(mainEventData, document.location.href);
-    verticalNarrativeEventSource.loadJSON(emptyEventData, document.location.href);
   </script>
 </body>
 </html>

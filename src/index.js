@@ -17,6 +17,11 @@ import {
     selectItemsById,
     validateSpecId
 } from "./theme-registry.js";
+import {
+    attachEvents,
+    attachNarrativeDecorators
+} from "./attachments.js";
+import { clampBandChains } from "./clamping.js";
 import { Reprise } from "./version.js";
 import "./core.js";
 import "./overview.js";
@@ -32,6 +37,9 @@ export {
     EventTheme,
     Reprise,
     RepriseRuntime,
+    attachEvents,
+    attachNarrativeDecorators,
+    clampBandChains,
     assertColorString,
     assertTimelineOrientation,
     defaultEventTheme,

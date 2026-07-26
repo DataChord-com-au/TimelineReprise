@@ -54,33 +54,25 @@ resolved instanceof Timeline.EventTheme;              // true
 nativeTheme.eventTheme === resolved;                   // true
 ```
 
-Normal and overview painters accept a single explicit selection through
-SIMILE's `eventPainterParams`:
+Select a theme for normal-event attachment with:
 
 ```js
-Timeline.createBandInfo({
-    eventSource: eventSource,
-    intervalUnit: Timeline.DateTime.MONTH,
-    intervalPixels: 100,
-    theme: nativeTheme,
-    eventPainterParams: {
-        eventTheme: "editorial"
-    }
+Timeline.attachEvents(bandInfo, events, {
+    eventTheme: "editorial"
 });
 ```
 
-Narrative accepts the same selection:
+Narrative attachment accepts the same selection:
 
 ```js
-new Timeline.NarrativeDecorator({
-    eventTheme: "editorial",
-    ranges: narrativeRanges,
-    instants: narrativeInstants
+Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
+    eventTheme: "editorial"
 });
 ```
 
 An explicit selection must be a registered id or an `EventTheme` instance.
 Object literals belong in the registry or at `nativeTheme.eventTheme`.
+The two methods may select different themes on the same band.
 
 ## Derivation
 

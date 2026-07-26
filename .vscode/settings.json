@@ -1,0 +1,7 @@
+{
+  "jest.jestCommandLine": "npm test --",
+  "jest.autoRun": {
+    "watch": true,
+    "onStartup": ["all-tests"]
+  }
+}

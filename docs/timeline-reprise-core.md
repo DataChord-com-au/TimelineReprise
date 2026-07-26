@@ -106,6 +106,43 @@ Timeline.createBandInfo({
 Event source URL handling accepts already-absolute URI schemes, including `data:` URLs.
 This supports generated SVG marker icons without SIMILE treating them as relative file paths.
 
+## Timeline.clampBandChains
+
+```js
+var clamp = Timeline.clampBandChains(timeline, {
+    start: new Date("2024-01-01T00:00:00Z"),
+    end: new Date("2028-01-01T00:00:00Z")
+});
+```
+
+Installs a Reprise-owned navigation clamp on an already-created timeline.
+`start` and `end` are optional individually, but at least one is required.
+They constrain the center of every band chain. When any master or synced
+follower attempts to cross a boundary, all chain masters land exactly on that
+boundary.
+
+Bounds are parsed with `timeline.getUnit().parseFromObject()` and ordered with
+the unit's `compare()` method. Native `Date` values, numeric units, and wrapped
+unit values therefore use the same unit contract as the timeline itself.
+
+The clamp intercepts SIMILE's common movement gate, covering dragging, wheel
+scrolling, keyboard navigation, animated page movement, HOME/END, and
+programmatic band movement. Zoom is allowed to complete its internal movement
+transaction before its final center is clamped.
+
+An initially out-of-range timeline is clamped immediately. The returned
+controller exposes:
+
+```js
+clamp.dispose();
+clamp.disposed;
+```
+
+Disposing the timeline also disposes its clamp. Do not combine this API with
+SIMILE's `theme.timeline_start` or `theme.timeline_stop`; Reprise rejects that
+configuration because the native clamp has different viewport-edge semantics
+and faulty movement prediction.
+
 ---
 [Back to top](#core)<br>
 [Back to main](TimelineReprise.md)

@@ -2,46 +2,39 @@
 
 Adds narrative span and divider decorators to a timeline band.
 
-Attach a decorator to a band:
+Attach Narrative data to a band info before `Timeline.create()`:
 
 ```js
-bandInfo.decorators = [
-    new Timeline.NarrativeDecorator({
-        ranges: [
-            {
-                startDate: "2020-01-01",
-                endDate: "2020-02-01",
-                title: "Chapter 1"
-            }
-        ],
-        instants: [
-            {
-                date: "2020-02-14",
-                title: "Turning point"
-            }
-        ]
-    })
-];
+Timeline.attachNarrativeDecorators(bandInfo, [
+    {
+        startDate: "2020-01-01",
+        endDate: "2020-02-01",
+        title: "Chapter 1"
+    },
+    {
+        date: "2020-02-14",
+        title: "Turning point"
+    }
+]);
 ```
 
 ## Data
 
-The decorator reads plain data objects. It does not require a `Timeline.DefaultEventSource`.
+The attachment workflow reads plain data objects. Narrative records are not
+added to `bandInfo.eventSource`.
 
 Narrative parses and renders through the
 [presentation runtime](timeline-reprise-presentation-runtime.md). Without an
-explicit runtime it uses the timeline's configured unit and the band's active
-labeller. Supply `runtime` to replace rendering or to use a different SIMILE
-unit contract:
+explicit runtime it uses the band event source's configured unit and an
+explicit `bandInfo.labeller`. Supply `runtime` in the attachment options to
+replace rendering or to use a different SIMILE unit contract:
 
 ```js
-new Timeline.NarrativeDecorator({
+Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
     runtime: new Timeline.RepriseRuntime({
         unit: planningUnit,
         labeller: planningLabeller
-    }),
-    ranges: ranges,
-    instants: instants
+    })
 });
 ```
 

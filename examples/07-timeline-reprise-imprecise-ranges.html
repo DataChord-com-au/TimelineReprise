@@ -105,10 +105,10 @@
         description: "Imprecision at end, no sentinels."
       },
       {
-        start: "2025-10-01",
+        start: "2000-01-01",
         end: "2026-07-01",
         title: "Open start example",
-        description: "Sentinel start resolved to an unbounded-looking early date."
+        description: "Sentinel start resolved before the timeline's visible range."
       },
       {
         start: isoDate(today),
@@ -124,9 +124,9 @@
       },
       {
         start: "2026-04-01",
-        end: "2027-06-01",
+        end: "2050-01-01",
         title: "Open end example",
-        description: "Sentinel end resolved to an unbounded-looking late date."
+        description: "Sentinel end resolved after the timeline's visible range."
       },
       {
         start: "2026-05-01",
@@ -215,26 +215,36 @@
 
     var horizontalEventSource = new Timeline.DefaultEventSource();
     var verticalEventSource = new Timeline.DefaultEventSource();
-
-    Timeline.create(
-      document.getElementById("timeline-horizontal"),
-      createHorizontalBands(horizontalEventSource, createImpreciseRangesTheme())
+    var horizontalBands = createHorizontalBands(
+      horizontalEventSource,
+      createImpreciseRangesTheme()
+    );
+    var verticalBands = createVerticalBands(
+      verticalEventSource,
+      createImpreciseRangesTheme()
     );
 
-    Timeline.create(
+    Timeline.attachEvents(horizontalBands[0], impreciseRangesEvents);
+    Timeline.attachEvents(verticalBands[0], impreciseRangesEvents);
+
+    var horizontalTimeline = Timeline.create(
+      document.getElementById("timeline-horizontal"),
+      horizontalBands
+    );
+
+    var verticalTimeline = Timeline.create(
       document.getElementById("timeline-vertical"),
-      createVerticalBands(verticalEventSource, createImpreciseRangesTheme()),
+      verticalBands,
       Timeline.VERTICAL
     );
 
-    horizontalEventSource.loadJSON(
-      { dateTimeFormat: "iso8601", events: impreciseRangesEvents },
-      document.location.href
-    );
-    verticalEventSource.loadJSON(
-      { dateTimeFormat: "iso8601", events: impreciseRangesEvents },
-      document.location.href
-    );
+    var clampRange = {
+      start: new Date("2024-01-01T00:00:00Z"),
+      end: new Date("2028-01-01T00:00:00Z")
+    };
+
+    Timeline.clampBandChains(horizontalTimeline, clampRange);
+    Timeline.clampBandChains(verticalTimeline, clampRange);
   </script>
 </body>
 </html>

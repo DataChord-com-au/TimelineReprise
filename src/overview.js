@@ -1,3 +1,5 @@
+import { getAttachedEventContext } from "./attachments.js";
+
 (function () {
     if (!window.Timeline || !Timeline.OverviewEventPainter) return;
     if (Timeline._overviewEventThemePatchApplied) return;
@@ -142,13 +144,15 @@
 
     proto._paintEventTick = function (evt, left, color, opacity, metrics, theme) {
         const data = originalPaintEventTick.apply(this, arguments);
+        const eventTheme = getAttachedEventContext(evt)?.eventTheme ??
+            this._eventTheme;
         const klassName = evt && typeof evt.getClassName === "function"
             ? evt.getClassName()
             : null;
         const eventColor = getEventOverviewColor(evt);
         const tickColor = eventColor ??
-            Timeline.ThemeIcons?.getCssColor?.(this._eventTheme.instant.iconColor) ??
-            this._eventTheme.instant.iconColor;
+            Timeline.ThemeIcons?.getCssColor?.(eventTheme.instant.iconColor) ??
+            eventTheme.instant.iconColor;
 
         if (data?.elmt && (!klassName || eventColor) && tickColor) {
             data.elmt.style.backgroundColor = tickColor;
@@ -173,9 +177,11 @@
         evt, track, left, right, color, opacity, metrics, theme, klassName
     ) {
         const eventColor = getEventOverviewColor(evt);
+        const eventTheme = getAttachedEventContext(evt)?.eventTheme ??
+            this._eventTheme;
         const themeColor = Timeline.ThemeIcons?.getCssColor?.(
-            this._eventTheme.range.iconColor
-        ) ?? this._eventTheme.range.iconColor;
+            eventTheme.range.iconColor
+        ) ?? eventTheme.range.iconColor;
         const data = originalPaintEventTape.call(
             this,
             evt,
