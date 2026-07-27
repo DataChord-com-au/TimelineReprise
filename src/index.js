@@ -10,6 +10,7 @@ import {
     normalizeTimelineOrientation
 } from "./orientation.js";
 import {
+    composeEventTheme,
     keyItemsById,
     loadEmphasisStyles,
     loadEventThemes,
@@ -40,6 +41,7 @@ export {
     attachEvents,
     attachNarrativeDecorators,
     clampBandChains,
+    composeEventTheme,
     assertColorString,
     assertTimelineOrientation,
     defaultEventTheme,

@@ -41,6 +41,18 @@ create the default labeller. The unit must provide `parseFromObject(value)` and
 { kind: "range", start: canonicalStart, end: canonicalEnd }
 ```
 
+Either result may also include canonical imprecision endpoints:
+
+```js
+{
+    kind: "range",
+    start: canonicalStart,
+    latestStart: canonicalLatestStart,
+    earliestEnd: canonicalEarliestEnd,
+    end: canonicalEnd
+}
+```
+
 Every input value is passed through `unit.parseFromObject()`. Validation and
 range ordering use `unit.compare()`; the runtime does not use JavaScript
 `Date` identity as generic validation. Reversed ranges are normalized according
@@ -54,6 +66,14 @@ Supported event inputs are:
 - Plain `start`/`end` event fields.
 - Canonical `eventTime` values with `kind: "instant"`, `kind: "value"`, or
   `kind: "range"`.
+- Optional `latestStart`/`earliestEnd` fields and
+  `getLatestStart()`/`getEarliestEnd()` methods.
+
+Attachments take every timeline value, including the optional imprecision
+endpoints, from this canonical result. An injected reader is therefore
+responsible for interpreting domain-specific values and projecting open or
+otherwise non-native ranges into values accepted by its configured unit.
+Attachments do not parse those source values a second time.
 
 ## Rendering
 

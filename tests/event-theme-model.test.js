@@ -98,12 +98,45 @@ test("resolver supports named and explicit EventTheme selections", () => {
     const Timeline = loadTimeline();
     const themes = Timeline.loadEventThemes([{ id: "named", spans: false }]);
     const instance = new Timeline.EventTheme({ dividers: false });
+    const namedNativeTheme = {};
+    const instanceNativeTheme = {};
 
-    assert.equal(Timeline.resolveEventTheme("named"), themes.named);
-    assert.equal(Timeline.resolveEventTheme(instance), instance);
+    assert.equal(
+        Timeline.resolveEventTheme("named", namedNativeTheme),
+        themes.named
+    );
+    assert.equal(namedNativeTheme.eventTheme, undefined);
+    assert.equal(
+        Timeline.resolveEventTheme(instance, instanceNativeTheme),
+        instance
+    );
+    assert.equal(instanceNativeTheme.eventTheme, undefined);
     assert.throws(
         () => Timeline.resolveEventTheme({ labels: false }),
         /must be an EventTheme or registered theme id/
+    );
+});
+
+test("band composition attaches an explicit resolved EventTheme", () => {
+    const Timeline = loadTimeline();
+    const themes = Timeline.loadEventThemes([{ id: "named", spans: false }]);
+    const namedNativeTheme = {};
+    const instance = new Timeline.EventTheme({ dividers: false });
+    const instanceNativeTheme = {};
+
+    assert.equal(
+        Timeline.composeEventTheme(namedNativeTheme, "named"),
+        themes.named
+    );
+    assert.equal(namedNativeTheme.eventTheme, themes.named);
+    assert.equal(
+        Timeline.composeEventTheme(instanceNativeTheme, instance),
+        instance
+    );
+    assert.equal(instanceNativeTheme.eventTheme, instance);
+    assert.throws(
+        () => Timeline.composeEventTheme(null, "named"),
+        /nativeTheme.*must be an object/
     );
 });
 

@@ -321,6 +321,43 @@ test("both methods use the same default and injected runtime path", () => {
     assert.equal(calls[0].context.unit, unit);
 });
 
+test("both workflows take auxiliary endpoints from injected canonical event time", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const { bandInfo, records } = makeBand(Timeline, unit);
+    const source = {
+        title: "Domain range",
+        latestStart: { domainValue: "latest start" },
+        earliestEnd: { domainValue: "earliest end" }
+    };
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readEventTime() {
+            return {
+                kind: "range",
+                start: 1,
+                latestStart: 3,
+                earliestEnd: 7,
+                end: 9
+            };
+        }
+    });
+
+    Timeline.attachEvents(bandInfo, [source], { runtime });
+    Timeline.attachNarrativeDecorators(bandInfo, [source], { runtime });
+
+    const eventRecord = records[0];
+    const narrativeRecord = bandInfo.decorators[0]._ranges[0];
+    for (const record of [eventRecord, narrativeRecord]) {
+        assert.equal(record.getStart(), 1);
+        assert.equal(record.getLatestStart(), 3);
+        assert.equal(record.getEarliestEnd(), 7);
+        assert.equal(record.getEnd(), 9);
+        assert.equal(record.isImprecise(), true);
+    }
+});
+
 test("default native attachment creates the band's Gregorian labeller", () => {
     const unit = makeNativeUnit();
     delete unit.createLabeller;

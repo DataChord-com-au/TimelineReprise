@@ -282,6 +282,50 @@ test("planning-style zero and numeric range values are valid event times", () =>
     assert.equal(range.end, 12);
 });
 
+test("default runtime includes parsed auxiliary endpoints in canonical event time", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+
+    const eventTime = runtime.readEventTime({
+        startDate: 3,
+        latestStart: "5",
+        earliestEnd: "9",
+        endDate: 12
+    });
+
+    assert.equal(eventTime.kind, "range");
+    assert.equal(eventTime.start, 3);
+    assert.equal(eventTime.latestStart, 5);
+    assert.equal(eventTime.earliestEnd, 9);
+    assert.equal(eventTime.end, 12);
+});
+
+test("default runtime reads auxiliary endpoints from canonical eventTime", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+
+    const eventTime = runtime.readEventTime({
+        eventTime: {
+            kind: "range",
+            start: 3,
+            latestStart: "5",
+            earliestEnd: "9",
+            end: 12
+        }
+    });
+
+    assert.equal(eventTime.latestStart, 5);
+    assert.equal(eventTime.earliestEnd, 9);
+});
+
 test("geochrono wrappers retain their shape and normalize reversed chronology with unit.compare", () => {
     const { Timeline } = loadTimeline();
     const unit = makeGeochronoUnit();
@@ -458,15 +502,17 @@ test("Narrative accepts ranges and instants for every supported unit shape", () 
     }
 });
 
-test("Reprise owns bubble and table DOM while the renderer supplies cell content", () => {
+test("Reprise image bubble stays above the title and retains structured content", () => {
     const { Timeline, bubbleCalls } = loadTimeline();
     const doc = makeDocument();
     const unit = makePlanningUnit();
+    let styledImage = null;
     const runtime = new Timeline.RepriseRuntime({
         unit,
         labeller: unit.createLabeller(),
         render(_template, event, context) {
             const values = {
+                image: event.image,
                 title: event.title,
                 bubbleLocation: event.location,
                 description: event.description
@@ -485,6 +531,10 @@ test("Reprise owns bubble and table DOM while the renderer supplies cell content
     });
     const eventTheme = new Timeline.EventTheme();
     const nativeTheme = makeNativeTheme(eventTheme);
+    nativeTheme.event.bubble.imageStyler = element => {
+        styledImage = element;
+        element.className = "native-image-hook";
+    };
     const band = {
         _theme: nativeTheme,
         getLabeller: () => runtime.labeller
@@ -496,6 +546,7 @@ test("Reprise owns bubble and table DOM while the renderer supplies cell content
         isVertical: () => false
     };
     const event = {
+        image: "event.png",
         title: "Rendered title",
         description: "Rendered body",
         location: "Adelaide",
@@ -523,9 +574,24 @@ test("Reprise owns bubble and table DOM while the renderer supplies cell content
 
     assert.equal(bubbleCalls.length, 1);
     const content = bubbleCalls[0][0];
+    const imageContainer = content.childNodes.find(node =>
+        node.className.split(/\s+/).includes("timeline-event-bubble-image")
+    );
+    const title = content.childNodes.find(node =>
+        node.className.split(/\s+/).includes("timeline-event-bubble-title")
+    );
+    const image = imageContainer?.childNodes.find(node => node.tagName === "IMG");
     const table = content.childNodes
         .flatMap(node => node.childNodes)
         .find(node => node.tagName === "TABLE");
+
+    assert.equal(imageContainer?.tagName, "DIV");
+    assert.ok(
+        content.childNodes.indexOf(imageContainer) < content.childNodes.indexOf(title),
+        "the image container should precede the title"
+    );
+    assert.equal(styledImage, image, "imageStyler should receive the actual img");
+    assert.equal(image.className, "native-image-hook");
     assert.ok(table, "Reprise should create the structured bubble table");
     assert.ok(
         table.childNodes.some(row =>
@@ -533,4 +599,18 @@ test("Reprise owns bubble and table DOM while the renderer supplies cell content
         ),
         "the injected renderer should supply table-cell content"
     );
+});
+
+test("Reprise CSS cancels the SIMILE image-container float", () => {
+    const css = fs.readFileSync(
+        path.join(__dirname, "..", "dist", "timeline-reprise.css"),
+        "utf8"
+    );
+    const rule = css.match(
+        /(?:^|\n)\.timeline-event-bubble-image\s*\{([^}]*)\}/
+    );
+
+    assert.ok(rule, "the Reprise bubble-image rule should be distributed");
+    assert.match(rule[1], /\bfloat\s*:\s*none\s*;/);
+    assert.match(rule[1], /\btext-align\s*:\s*center\s*;/);
 });

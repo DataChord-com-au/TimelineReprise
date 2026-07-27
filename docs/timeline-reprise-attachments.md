@@ -82,6 +82,12 @@ parsed through `unit.parseFromObject()` and ordered with `unit.compare()`.
 Native date values, numeric values including zero, and wrapper values use this
 same path.
 
+The canonical result may include `latestStart` and `earliestEnd`. Reprise uses
+those projected values directly for imprecise event layout. This lets an
+injected runtime interpret domain-specific or open ranges before projecting
+them into the configured unit; the attachment pipeline does not inspect and
+reparse the source endpoints.
+
 The runtime renderer receives opaque templates and the complete EventTheme
 context. Reprise's default renderer handles native unit labels; it does not
 implement TimelineUtils macros or ChronicleTime formatting.

@@ -39,9 +39,12 @@ must have a unique `id`.
 3. `nativeTheme.eventTheme`;
 4. `Timeline.defaultEventTheme`.
 
-The band fallback may be an authored literal. Resolution converts it and
-replaces `nativeTheme.eventTheme` with the resulting instance. When no band
-fallback exists, the defined Reprise default is attached there instead.
+Explicit ids and instances are resolved without modifying `nativeTheme`, so
+separate event and Narrative attachments can select different themes without
+changing the band's fallback. A band fallback may be an authored literal;
+fallback resolution converts it and replaces `nativeTheme.eventTheme` with the
+resulting instance. When no fallback exists, the defined Reprise default is
+attached instead.
 
 ```js
 var nativeTheme = Timeline.ClassicTheme.create();
@@ -51,6 +54,16 @@ nativeTheme.eventTheme = {
 
 var resolved = Timeline.resolveEventTheme(null, nativeTheme);
 resolved instanceof Timeline.EventTheme;              // true
+nativeTheme.eventTheme === resolved;                   // true
+```
+
+For band construction,
+`Timeline.composeEventTheme(nativeTheme, explicit)` resolves and attaches an
+explicit registry selection or instance:
+
+```js
+var nativeTheme = Timeline.ClassicTheme.create();
+var resolved = Timeline.composeEventTheme(nativeTheme, "editorial");
 nativeTheme.eventTheme === resolved;                   // true
 ```
 

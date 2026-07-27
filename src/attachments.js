@@ -194,32 +194,6 @@ function _attachmentPreparePresentationEvent(source, eventTime) {
     return data;
 }
 
-function _attachmentParseOptionalValue(runtime, source, fields, methods = []) {
-    const direct = _attachmentReadValue(source, fields);
-    let value = direct.found ? direct.value : undefined;
-
-    if (!direct.found) {
-        for (const method of methods) {
-            const result = _attachmentReadMethod(source, method);
-            if (result.found) {
-                value = result.value;
-                break;
-            }
-        }
-    }
-
-    if (value === undefined || value === null || value === "") return null;
-
-    let parsed;
-    try {
-        parsed = runtime.unit.parseFromObject(value);
-    } catch {
-        return null;
-    }
-
-    return parsed === undefined || parsed === null ? null : parsed;
-}
-
 function _attachmentMakeEventId(source) {
     const value = _attachmentReadValue(source, "id");
     if (value.found && value.value != null) {
@@ -265,18 +239,9 @@ class AttachedEvent {
         this._instant = eventTime.kind === "instant";
         this._start = this._instant ? eventTime.value : eventTime.start;
         this._end = this._instant ? eventTime.value : eventTime.end;
-        this._latestStart = _attachmentParseOptionalValue(
-            context.runtime,
-            source,
-            "latestStart",
-            ["getLatestStart"]
-        ) ?? (this._instant ? this._end : this._start);
-        this._earliestEnd = _attachmentParseOptionalValue(
-            context.runtime,
-            source,
-            "earliestEnd",
-            ["getEarliestEnd"]
-        ) ?? this._end;
+        this._latestStart = eventTime.latestStart ??
+            (this._instant ? this._end : this._start);
+        this._earliestEnd = eventTime.earliestEnd ?? this._end;
 
         Object.defineProperties(this, {
             eventTheme: {

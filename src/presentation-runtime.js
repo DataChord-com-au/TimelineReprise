@@ -72,14 +72,50 @@ function _parseUnitValue(unit, value) {
     return Number.isFinite(reflexive) && reflexive === 0 ? parsed : null;
 }
 
-function _canonicalInstant(unit, value) {
+function _readAuxiliaryEndpoint(unit, sources, field, method) {
+    for (const source of sources) {
+        const direct = _readDirectField(source, field);
+        if (direct.found) return _parseUnitValue(unit, direct.value);
+
+        const resolved = _readMethod(source, method);
+        if (resolved.found) return _parseUnitValue(unit, resolved.value);
+    }
+
+    return null;
+}
+
+function _canonicalAuxiliaryEndpoints(unit, sources) {
+    const latestStart = _readAuxiliaryEndpoint(
+        unit,
+        sources,
+        "latestStart",
+        "getLatestStart"
+    );
+    const earliestEnd = _readAuxiliaryEndpoint(
+        unit,
+        sources,
+        "earliestEnd",
+        "getEarliestEnd"
+    );
+
+    return {
+        ...(latestStart == null ? {} : { latestStart }),
+        ...(earliestEnd == null ? {} : { earliestEnd })
+    };
+}
+
+function _canonicalInstant(unit, value, auxiliarySources = []) {
     const parsed = _parseUnitValue(unit, value);
     return parsed == null
         ? null
-        : Object.freeze({ kind: "instant", value: parsed });
+        : Object.freeze({
+            kind: "instant",
+            value: parsed,
+            ..._canonicalAuxiliaryEndpoints(unit, auxiliarySources)
+        });
 }
 
-function _canonicalRange(unit, startValue, endValue) {
+function _canonicalRange(unit, startValue, endValue, auxiliarySources = []) {
     let start = _parseUnitValue(unit, startValue);
     let end = _parseUnitValue(unit, endValue);
     if (start == null || end == null) return null;
@@ -92,17 +128,27 @@ function _canonicalRange(unit, startValue, endValue) {
         end = swap;
     }
 
-    return Object.freeze({ kind: "range", start, end });
+    return Object.freeze({
+        kind: "range",
+        start,
+        end,
+        ..._canonicalAuxiliaryEndpoints(unit, auxiliarySources)
+    });
 }
 
-function _readCanonicalLike(unit, value) {
+function _readCanonicalLike(unit, value, auxiliarySources = [value]) {
     if (!_isObject(value)) return null;
 
     if (
         value.kind === "range" ||
         (_hasOwn(value, "start") && _hasOwn(value, "end"))
     ) {
-        return _canonicalRange(unit, value.start, value.end);
+        return _canonicalRange(
+            unit,
+            value.start,
+            value.end,
+            auxiliarySources
+        );
     }
 
     if (
@@ -110,7 +156,7 @@ function _readCanonicalLike(unit, value) {
         value.kind === "value" ||
         value.bounded === "instant"
     ) {
-        return _canonicalInstant(unit, value.value);
+        return _canonicalInstant(unit, value.value, auxiliarySources);
     }
 
     return null;
@@ -123,21 +169,21 @@ function _defaultReadEventTime(event) {
     const endDate = _readDirectField(event, "endDate");
     if (startDate.found || endDate.found) {
         return startDate.found && endDate.found
-            ? _canonicalRange(unit, startDate.value, endDate.value)
+            ? _canonicalRange(unit, startDate.value, endDate.value, [event])
             : null;
     }
 
     const date = _readDirectField(event, "date");
-    if (date.found) return _canonicalInstant(unit, date.value);
+    if (date.found) return _canonicalInstant(unit, date.value, [event]);
 
     const start = _readDirectField(event, "start");
     const end = _readDirectField(event, "end");
     if (start.found || end.found) {
         const instant = _readDirectField(event, "instant");
         return start.found && (!end.found || instant.value === true)
-            ? _canonicalInstant(unit, start.value)
+            ? _canonicalInstant(unit, start.value, [event])
             : start.found && end.found
-                ? _canonicalRange(unit, start.value, end.value)
+                ? _canonicalRange(unit, start.value, end.value, [event])
                 : null;
     }
 
@@ -145,19 +191,19 @@ function _defaultReadEventTime(event) {
     if (getStart.found) {
         const isInstant = _readMethod(event, "isInstant");
         if (!isInstant.found || isInstant.value === true) {
-            return _canonicalInstant(unit, getStart.value);
+            return _canonicalInstant(unit, getStart.value, [event]);
         }
 
         const getEnd = _readMethod(event, "getEnd");
         return getEnd.found
-            ? _canonicalRange(unit, getStart.value, getEnd.value)
+            ? _canonicalRange(unit, getStart.value, getEnd.value, [event])
             : null;
     }
 
     const eventTime = _readDirectField(event, "eventTime");
     const canonical = eventTime.found
-        ? _readCanonicalLike(unit, eventTime.value)
-        : _readCanonicalLike(unit, event);
+        ? _readCanonicalLike(unit, eventTime.value, [event, eventTime.value])
+        : _readCanonicalLike(unit, event, [event]);
     if (canonical != null) return canonical;
 
     const source = _readDirectField(event, "event");

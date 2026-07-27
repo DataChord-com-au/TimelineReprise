@@ -141,7 +141,24 @@ function resolveEventTheme(explicit, nativeTheme) {
     return resolved;
 }
 
+function composeEventTheme(nativeTheme, explicit = null) {
+    const caller = `${REGISTRY_MODULE_LABEL}.composeEventTheme`;
+
+    if (
+        nativeTheme == null ||
+        typeof nativeTheme !== "object" ||
+        Array.isArray(nativeTheme)
+    ) {
+        throw new TypeError(`${caller} \`nativeTheme\` must be an object.`);
+    }
+
+    const resolved = resolveEventTheme(explicit, nativeTheme);
+    nativeTheme.eventTheme = resolved;
+    return resolved;
+}
+
 export {
+    composeEventTheme,
     keyItemsById,
     loadEmphasisStyles,
     loadEventThemes,
