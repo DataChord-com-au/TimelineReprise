@@ -28,6 +28,11 @@ declare namespace Timeline {
         | CanonicalInstant<T>
         | CanonicalRange<T>;
 
+    interface RepriseDuration {
+        readonly value: number;
+        readonly text: string;
+    }
+
     interface RenderContext<T = unknown> {
         readonly field: string;
         readonly target: RenderTarget;
@@ -35,6 +40,8 @@ declare namespace Timeline {
         readonly eventTheme: EventTheme;
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
+        readonly duration?: RepriseDuration;
+        readonly minimumDuration?: RepriseDuration;
         readonly intervalUnit?: number;
         readonly surface?: string;
         readonly [key: string]: unknown;

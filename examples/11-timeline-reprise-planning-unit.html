@@ -30,66 +30,13 @@
 <body>
   <h1>SIMILE Timeline Reprise: Planning Unit</h1>
   <p>
-    This example uses a numeric planning unit. Day zero, numeric strings, ranges,
-    labels, and bubbles are parsed and rendered through the Reprise runtime.
+    This example uses Timeline.PlanningDayUnit. Day zero, numeric strings,
+    ranges, labels, durations, and bubbles are handled by the Reprise runtime.
   </p>
 
   <div id="timeline"></div>
 
   <script>
-    function createPlanningUnit() {
-      var unit = {
-        parseFromObject: function (value) {
-          if (value == null || value === "") return null;
-
-          var number = Number(value);
-          return Number.isFinite(number) ? number : null;
-        },
-        getParser: function () {
-          return this.parseFromObject;
-        },
-        makeDefaultValue: function () {
-          return 0;
-        },
-        cloneValue: function (value) {
-          return Number(value);
-        },
-        toNumber: function (value) {
-          return Number(value);
-        },
-        fromNumber: function (value) {
-          return value;
-        },
-        compare: function (a, b) {
-          return Number(a) - Number(b);
-        },
-        earlier: function (a, b) {
-          return this.compare(a, b) < 0 ? a : b;
-        },
-        later: function (a, b) {
-          return this.compare(a, b) > 0 ? a : b;
-        },
-        change: function (value, delta) {
-          return Number(value) + delta;
-        },
-        createLabeller: function () {
-          return {
-            labelPrecise: function (value) {
-              return "Day " + value;
-            },
-            labelInterval: function (value) {
-              return {
-                text: "Day " + value,
-                emphasized: value % 20 === 0
-              };
-            }
-          };
-        }
-      };
-
-      return unit;
-    }
-
     function labelText(label) {
       return label && typeof label === "object" && "text" in label
         ? label.text
@@ -197,12 +144,8 @@
       };
     }
 
-    var planningUnit = createPlanningUnit();
+    var planningUnit = Timeline.PlanningDayUnit;
     var planningLabeller = planningUnit.createLabeller();
-    var planningRuntime = new Timeline.RepriseRuntime({
-      unit: planningUnit,
-      labeller: planningLabeller
-    });
     var eventSource = new Timeline.DefaultEventSource(
       new SimileAjax.EventIndex(planningUnit)
     );
@@ -245,8 +188,7 @@
           color: Timeline.ThemeIcons.getCssColor("purple"),
           textColor: "inherit"
         }
-      ],
-      { runtime: planningRuntime }
+      ]
     );
 
     Timeline.create(

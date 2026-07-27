@@ -30,82 +30,14 @@
 <body>
   <h1>SIMILE Timeline Reprise: Geochrono Unit</h1>
   <p>
-    This example uses Ma wrapper objects. The lower narrative span is supplied
-    as 50 Ma to 100 Ma, and the runtime normalizes it to older-to-younger order.
+    This example uses Timeline.Ma and Timeline.MaUnit. The lower narrative span
+    is supplied as 50 Ma to 100 Ma, and the runtime normalizes it to
+    older-to-younger order.
   </p>
 
   <div id="timeline"></div>
 
   <script>
-    function createGeochronoUnit() {
-      function MA(value) {
-        this.value = Number(value);
-      }
-
-      MA.prototype.valueOf = function () {
-        return -this.value;
-      };
-
-      MA.prototype.toString = function () {
-        return this.value + " Ma";
-      };
-
-      var unit = {
-        MA: MA,
-        parseFromObject: function (value) {
-          if (value instanceof MA) return value;
-          if (value && typeof value === "object" && "value" in value) {
-            return new MA(value.value);
-          }
-
-          var number = Number(value);
-          return Number.isFinite(number) ? new MA(number) : null;
-        },
-        getParser: function () {
-          return this.parseFromObject;
-        },
-        makeDefaultValue: function () {
-          return new MA(100);
-        },
-        cloneValue: function (value) {
-          return new MA(value.value);
-        },
-        toNumber: function (value) {
-          return -value.value;
-        },
-        fromNumber: function (value) {
-          return new MA(-value);
-        },
-        compare: function (a, b) {
-          return b.value - a.value;
-        },
-        earlier: function (a, b) {
-          return this.compare(a, b) < 0 ? a : b;
-        },
-        later: function (a, b) {
-          return this.compare(a, b) > 0 ? a : b;
-        },
-        change: function (value, delta) {
-          return new MA(value.value - delta);
-        },
-        createLabeller: function () {
-          return {
-            labelPrecise: function (value) {
-              return value.value + " Ma";
-            },
-            labelInterval: function (value) {
-              return {
-                text: value.value + " Ma",
-                emphasized: value.value % 50 === 0
-              };
-            }
-          };
-        }
-      };
-
-      return unit;
-    }
-
     function labelText(label) {
       return label && typeof label === "object" && "text" in label
         ? label.text
@@ -201,7 +133,7 @@
         timeZone: 0,
         labeller: labeller,
         ether: new Timeline.LinearEther({
-          centersOn: new unit.MA(100),
+          centersOn: new Timeline.Ma(100),
           interval: 25,
           pixelsPerInterval: 120,
           theme: theme
@@ -218,18 +150,14 @@
       };
     }
 
-    var geochronoUnit = createGeochronoUnit();
+    var geochronoUnit = Timeline.MaUnit;
     var geochronoLabeller = geochronoUnit.createLabeller();
-    var geochronoRuntime = new Timeline.RepriseRuntime({
-      unit: geochronoUnit,
-      labeller: geochronoLabeller
-    });
     var eventSource = new Timeline.DefaultEventSource(
       new SimileAjax.EventIndex(geochronoUnit)
     );
     var theme = createTheme();
     var ma = function (value) {
-      return new geochronoUnit.MA(value);
+      return new Timeline.Ma(value);
     };
     var narrativeData = {
       ranges: [
@@ -294,14 +222,12 @@
       bandInfo,
       events,
       {
-        eventTheme: eventLayoutTheme,
-        runtime: geochronoRuntime
+        eventTheme: eventLayoutTheme
       }
     );
     Timeline.attachNarrativeDecorators(
       bandInfo,
-      narrativeData.ranges.concat(narrativeData.instants),
-      { runtime: geochronoRuntime }
+      narrativeData.ranges.concat(narrativeData.instants)
     );
 
     Timeline.create(

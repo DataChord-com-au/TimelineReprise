@@ -3,6 +3,13 @@ import { DATE_TIME_UNIT_NAMES, resolveTimelineDateTimeUnit } from "./date-time.j
 import { EmphasisStyle } from "./emphasis-style.js";
 import { EventTheme, defaultEventTheme, deriveEventTheme } from "./event-theme.js";
 import { filterEvents } from "./event-filters.js";
+import {
+    Ma,
+    MaLabeller,
+    MaUnit,
+    PlanningDayLabeller,
+    PlanningDayUnit
+} from "./units.js";
 import { RepriseRuntime } from "./presentation-runtime.js";
 import {
     TIMELINE_ORIENTATIONS,
@@ -36,6 +43,11 @@ export {
     EmphasisStyle,
     TIMELINE_ORIENTATIONS,
     EventTheme,
+    Ma,
+    MaLabeller,
+    MaUnit,
+    PlanningDayLabeller,
+    PlanningDayUnit,
     Reprise,
     RepriseRuntime,
     attachEvents,

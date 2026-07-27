@@ -217,6 +217,116 @@ function _labelText(value) {
     return value;
 }
 
+function _durationValue(unit, labeller, start, end) {
+    if (
+        start == null ||
+        end == null ||
+        typeof unit.duration !== "function" ||
+        typeof labeller.labelDuration !== "function"
+    ) {
+        return null;
+    }
+
+    let value;
+    try {
+        value = unit.duration(start, end);
+    } catch {
+        return null;
+    }
+    if (!Number.isFinite(value) || value < 0) return null;
+
+    let label;
+    try {
+        label = _labelText(labeller.labelDuration(value));
+    } catch {
+        return null;
+    }
+    if (label === undefined || label === null || label === "") return null;
+
+    return Object.freeze({
+        value,
+        text: String(label)
+    });
+}
+
+function _durationValuesDiffer(unit, left, right) {
+    try {
+        const comparison = unit.compare(left, right);
+        return Number.isFinite(comparison) && comparison !== 0;
+    } catch {
+        return false;
+    }
+}
+
+function _hasIndeterminateDurationRange(event) {
+    const visited = new Set();
+    let current = event;
+
+    while (
+        current != null &&
+        typeof current === "object" &&
+        !visited.has(current)
+    ) {
+        visited.add(current);
+
+        const eventTime = _readDirectField(current, "eventTime");
+        if (
+            eventTime.found &&
+            _isObject(eventTime.value) &&
+            eventTime.value.kind === "range" &&
+            (
+                eventTime.value.start === "open" ||
+                eventTime.value.start === "unresolved" ||
+                eventTime.value.end === "open" ||
+                eventTime.value.end === "unresolved"
+            )
+        ) {
+            return true;
+        }
+
+        const source = _readDirectField(current, "event");
+        current = source.found && source.value !== current
+            ? source.value
+            : null;
+    }
+
+    return false;
+}
+
+function _eventDurations(unit, labeller, eventTime, event = null) {
+    if (eventTime?.kind !== "range") return {};
+    if (_hasIndeterminateDurationRange(event)) return {};
+
+    const duration = _durationValue(
+        unit,
+        labeller,
+        eventTime.start,
+        eventTime.end
+    );
+    const latestStart = eventTime.latestStart ?? eventTime.start;
+    const earliestEnd = eventTime.earliestEnd ?? eventTime.end;
+    const imprecise =
+        _durationValuesDiffer(unit, eventTime.start, latestStart) ||
+        _durationValuesDiffer(unit, eventTime.end, earliestEnd);
+    if (!imprecise) {
+        return duration == null ? {} : { duration };
+    }
+
+    let minimumDuration;
+    try {
+        minimumDuration = unit.compare(latestStart, earliestEnd) > 0
+            ? _durationValue(unit, labeller, latestStart, latestStart)
+            : _durationValue(unit, labeller, latestStart, earliestEnd);
+    } catch {
+        minimumDuration = null;
+    }
+
+    return {
+        ...(duration == null ? {} : { duration }),
+        ...(minimumDuration == null ? {} : { minimumDuration })
+    };
+}
+
 function _formatEndpoint(context, value, precise) {
     const labeller = context.labeller;
 
@@ -297,6 +407,8 @@ function _readDisplayValue(event, field, context) {
     if (direct.found) return direct.value;
 
     const fallbackFields = {
+        bubbleDuration: "duration",
+        bubbleMinimumDuration: "minimumDuration",
         bubbleLocation: "location",
         bubblePeople: "people",
         bubbleTags: "tags"
@@ -340,6 +452,12 @@ function _defaultRender(template, event, context) {
     }
     if (context.field === "eventTime") {
         return _formatEventTime(context, eventTime, context.target === "html");
+    }
+    if (context.field === "bubbleDuration") {
+        return context.duration?.text ?? "";
+    }
+    if (context.field === "bubbleMinimumDuration") {
+        return context.minimumDuration?.text ?? "";
     }
 
     return "";
@@ -429,14 +547,26 @@ class RepriseRuntime {
         const eventTime = context.eventTime === undefined
             ? this.readEventTime(event)
             : context.eventTime;
+        const durations = _eventDurations(
+            this.unit,
+            this.labeller,
+            eventTime,
+            event
+        );
+        const {
+            duration: _ignoredDuration,
+            minimumDuration: _ignoredMinimumDuration,
+            ...inputContext
+        } = context;
         const renderContext = Object.freeze({
-            ...context,
+            ...inputContext,
             field,
             target,
             eventTime,
             eventTheme: context.eventTheme ?? defaultEventTheme,
             unit: this.unit,
-            labeller: this.labeller
+            labeller: this.labeller,
+            ...durations
         });
 
         return this._render.call(this, template, event, renderContext);
@@ -594,17 +724,32 @@ function fillRepriseBubble(
         ["bubbleLatestStart", null],
         ["bubbleEarliestEnd", null],
         ["bubbleEnd", null],
-        ["bubbleDuration", null],
-        ["bubbleMinimumDuration", null],
+        ["bubbleDuration", "duration"],
+        ["bubbleMinimumDuration", "minimumDuration"],
         ["bubbleElapsed", null],
         ["bubbleRemaining", null],
         ["bubbleLocation", "location"],
         ["bubblePeople", "people"],
         ["bubbleTags", "tags"]
     ];
-    const hasStructuredBubble = structuredFields.some(([field, fallback]) =>
-        _hasEventOrPresentationField(event, eventTheme, field, fallback)
+    const derivedDurations = _eventDurations(
+        runtime.unit,
+        runtime.labeller,
+        canonicalTime,
+        event
     );
+    const hasMinimumDuration =
+        derivedDurations.minimumDuration != null ||
+        _hasEventOrPresentationField(
+            event,
+            eventTheme,
+            "bubbleMinimumDuration",
+            "minimumDuration"
+        );
+    const hasStructuredBubble = derivedDurations.duration != null ||
+        structuredFields.some(([field, fallback]) =>
+            _hasEventOrPresentationField(event, eventTheme, field, fallback)
+        );
     const hasExplicitByline = _hasEventOrPresentationField(
         event,
         eventTheme,
@@ -645,7 +790,7 @@ function fillRepriseBubble(
             const cell = doc.createElement("td");
             heading.textContent =
                 field === "bubbleDuration" &&
-                _hasEventOrPresentationField(event, eventTheme, "bubbleMinimumDuration")
+                hasMinimumDuration
                     ? "Longest"
                     : label;
             setRenderedContent(cell, value, "html");

@@ -14,6 +14,10 @@ declare namespace Timeline {
         caption?: RenderedContent;
         description?: RenderedContent;
         tags?: readonly string[];
+        duration?: RenderedContent;
+        minimumDuration?: RenderedContent;
+        bubbleDuration?: RenderedContent;
+        bubbleMinimumDuration?: RenderedContent;
         track?: number | string;
         trackExplicit?: boolean;
         labels?: boolean;

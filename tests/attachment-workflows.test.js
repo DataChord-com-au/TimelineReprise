@@ -321,6 +321,60 @@ test("both methods use the same default and injected runtime path", () => {
     assert.equal(calls[0].context.unit, unit);
 });
 
+test("automatically created runtimes derive durations for both attachment workflows", () => {
+    const Timeline = loadTimeline();
+    const fixtures = [
+        {
+            unit: Timeline.PlanningDayUnit,
+            range: { start: 0, end: 12, title: "Planning range" },
+            expectedValue: 12,
+            expectedText: "12 days"
+        },
+        {
+            unit: Timeline.MaUnit,
+            range: {
+                start: new Timeline.Ma(225),
+                end: new Timeline.Ma(190),
+                title: "Ma range"
+            },
+            expectedValue: 35,
+            expectedText: "35 Ma"
+        }
+    ];
+
+    for (const fixture of fixtures) {
+        const { bandInfo, records } = makeBand(Timeline, fixture.unit);
+
+        Timeline.attachEvents(bandInfo, [fixture.range]);
+        Timeline.attachNarrativeDecorators(bandInfo, [fixture.range]);
+
+        const attached = [
+            records[0],
+            bandInfo.decorators[0]._ranges[0]
+        ];
+        for (const record of attached) {
+            let context;
+            const runtime = new Timeline.RepriseRuntime({
+                unit: record.runtime.unit,
+                labeller: record.runtime.labeller,
+                render(_template, _event, renderContext) {
+                    context = renderContext;
+                    return renderContext.duration?.text ?? "";
+                }
+            });
+            const rendered = runtime.render(null, record, {
+                field: "bubbleDuration",
+                target: "html",
+                eventTime: record.eventTime
+            });
+
+            assert.equal(rendered, fixture.expectedText);
+            assert.equal(context.duration.value, fixture.expectedValue);
+            assert.equal(context.duration.text, fixture.expectedText);
+        }
+    }
+});
+
 test("both workflows take auxiliary endpoints from injected canonical event time", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);

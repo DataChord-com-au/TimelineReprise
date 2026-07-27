@@ -31,6 +31,11 @@ create the default labeller. The unit must provide `parseFromObject(value)` and
 `compare(a, b)`. The labeller must provide `labelPrecise(value)` and
 `labelInterval(value, intervalUnit)`.
 
+Duration-aware units additionally provide `duration(start, end)`, which returns
+a finite, non-negative number. Their labellers provide
+`labelDuration(value)`. The duration methods are optional as a pair so custom
+units without duration support continue to work.
+
 ## Canonical event time
 
 `readEventTime(event)` returns one of:
@@ -75,6 +80,38 @@ responsible for interpreting domain-specific values and projecting open or
 otherwise non-native ranges into values accepted by its configured unit.
 Attachments do not parse those source values a second time.
 
+## Duration context
+
+For a bounded range whose unit and labeller support duration, the render
+context includes:
+
+```js
+{
+    duration: {
+        value: 35,
+        text: "35 Ma"
+    }
+}
+```
+
+`value` comes from `unit.duration(start, end)`. `text` comes from
+`labeller.labelDuration(value)`; Reprise does not derive it from `toString()`.
+
+For an imprecise range, `duration` is the longest duration from `start` to
+`end`, and `minimumDuration` is calculated from `latestStart` to
+`earliestEnd`:
+
+```js
+{
+    duration: { value: 12, text: "12 days" },
+    minimumDuration: { value: 6, text: "6 days" }
+}
+```
+
+Overlapping imprecision bounds have a minimum duration of zero. Exact ranges
+have `duration` only. Instants, unresolved or open ranges, and units without
+the duration capability have neither property.
+
 ## Rendering
 
 The complete render context is:
@@ -86,7 +123,8 @@ The complete render context is:
     eventTime: runtime.readEventTime(event),
     eventTheme: resolvedEventTheme,
     unit: runtime.unit,
-    labeller: runtime.labeller
+    labeller: runtime.labeller,
+    duration: { value: 12, text: "12 days" }
 }
 ```
 
@@ -101,6 +139,10 @@ precise HTML/bubble values use `labelPrecise()`.
 
 The default renderer does not parse template expressions and does not implement
 `TimelineUtils` formatters or macros such as `join()` and `lines()`.
+It uses `context.duration.text` for `bubbleDuration` and
+`context.minimumDuration.text` for `bubbleMinimumDuration`. Explicit event
+`bubbleDuration`/`duration` and `bubbleMinimumDuration`/`minimumDuration`
+values take precedence over those derived defaults.
 
 ## Bubble structure
 
@@ -155,6 +197,10 @@ Both attachment workflows use the same runtime binding and field preparation
 path. Callers may still provide fields such as `bubbleStart`,
 `bubbleDuration`, `bubbleLocation`, and `bubblePeople`; the renderer remains
 responsible only for their content.
+
+An injected renderer, including a renderer backed by TimelineUtils, may use
+`context.duration.value` or `context.duration.text`. Duration calculation
+remains in the unit/runtime contract rather than in TimelineUtils.
 
 ---
 [Back to top](#presentation-runtime)<br>

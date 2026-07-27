@@ -357,6 +357,217 @@ test("geochrono wrappers retain their shape and normalize reversed chronology wi
     assert.equal(eventTime.end, newer);
 });
 
+test("supported PlanningDayUnit and MaUnit calculate and label durations", () => {
+    const { Timeline } = loadTimeline();
+    const planningLabeller = Timeline.PlanningDayUnit.createLabeller();
+    const maLabeller = Timeline.MaUnit.createLabeller();
+
+    assert.equal(Timeline.PlanningDayUnit.duration(0, 1), 1);
+    assert.equal(planningLabeller.labelDuration(1), "1 day");
+    assert.equal(planningLabeller.labelDuration(12), "12 days");
+
+    const older = new Timeline.Ma(225);
+    const younger = new Timeline.Ma(190);
+    assert.equal(Timeline.MaUnit.duration(older, younger), 35);
+    assert.equal(maLabeller.labelDuration(35), "35 Ma");
+    assert.equal(
+        maLabeller.labelDuration(
+            Timeline.MaUnit.duration(
+                new Timeline.Ma(225),
+                new Timeline.Ma(224.5)
+            )
+        ),
+        "0.5 Ma"
+    );
+
+    older.toString = () => {
+        throw new Error("duration must not parse Ma.toString()");
+    };
+    const maRuntime = new Timeline.RepriseRuntime({
+        unit: Timeline.MaUnit,
+        labeller: maLabeller
+    });
+    assert.equal(
+        maRuntime.render(
+            null,
+            { start: older, end: younger },
+            { field: "bubbleDuration", target: "html" }
+        ),
+        "35 Ma"
+    );
+});
+
+test("default native date duration is elapsed milliseconds with formatted text", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.NativeDateUnit;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const event = {
+        start: new Date("2020-01-01T00:00:00Z"),
+        end: new Date("2020-01-03T00:00:00Z")
+    };
+    let context;
+    const observingRuntime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        render(_template, _event, renderContext) {
+            context = renderContext;
+            return renderContext.duration?.text ?? "";
+        }
+    });
+
+    assert.equal(
+        runtime.render(null, event, {
+            field: "bubbleDuration",
+            target: "html"
+        }),
+        "2 days"
+    );
+    observingRuntime.render(null, event, {
+        field: "bubbleDuration",
+        target: "html"
+    });
+    assert.equal(context.duration.value, 2 * 24 * 60 * 60 * 1000);
+    assert.equal(context.duration.text, "2 days");
+});
+
+test("runtime exposes longest and minimum imprecise durations to renderers", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    let context;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        render(_template, _event, renderContext) {
+            context = renderContext;
+            return "";
+        }
+    });
+
+    runtime.render(
+        null,
+        {
+            start: 0,
+            latestStart: 3,
+            earliestEnd: 9,
+            end: 12
+        },
+        { field: "title", target: "text" }
+    );
+
+    assert.deepEqual(
+        { value: context.duration.value, text: context.duration.text },
+        { value: 12, text: "12 days" }
+    );
+    assert.deepEqual(
+        {
+            value: context.minimumDuration.value,
+            text: context.minimumDuration.text
+        },
+        { value: 6, text: "6 days" }
+    );
+});
+
+test("instants, unresolved ranges, and unsupported custom units have no duration", () => {
+    const { Timeline } = loadTimeline();
+    const contexts = [];
+    const supportedUnit = Timeline.PlanningDayUnit;
+    const supported = new Timeline.RepriseRuntime({
+        unit: supportedUnit,
+        labeller: supportedUnit.createLabeller(),
+        render(_template, _event, context) {
+            contexts.push(context);
+            return "";
+        }
+    });
+    const unsupportedUnit = makePlanningUnit();
+    const unsupported = new Timeline.RepriseRuntime({
+        unit: unsupportedUnit,
+        labeller: unsupportedUnit.createLabeller(),
+        render(_template, _event, context) {
+            contexts.push(context);
+            return "";
+        }
+    });
+
+    supported.render(null, { date: 4 }, { field: "title" });
+    supported.render(null, { start: 4, end: null }, { field: "title" });
+    supported.render(
+        null,
+        {
+            start: 4,
+            end: 1000,
+            eventTime: {
+                kind: "range",
+                bounded: "start",
+                start: 4,
+                end: "open"
+            }
+        },
+        { field: "title" }
+    );
+    supported.render(
+        null,
+        {
+            start: -10,
+            end: 4,
+            event: {
+                eventTime: {
+                    kind: "range",
+                    bounded: "end",
+                    start: "unresolved",
+                    end: 4
+                }
+            }
+        },
+        { field: "title" }
+    );
+    unsupported.render(
+        null,
+        { start: 0, end: 12 },
+        { field: "title" }
+    );
+
+    for (const context of contexts) {
+        assert.equal(Object.hasOwn(context, "duration"), false);
+        assert.equal(Object.hasOwn(context, "minimumDuration"), false);
+    }
+});
+
+test("explicit event duration fields override derived bubble defaults", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+
+    assert.equal(
+        runtime.render(
+            null,
+            { start: 0, end: 12, duration: "Scheduled window" },
+            { field: "bubbleDuration", target: "html" }
+        ),
+        "Scheduled window"
+    );
+    assert.equal(
+        runtime.render(
+            null,
+            {
+                start: 0,
+                latestStart: 3,
+                earliestEnd: 9,
+                end: 12,
+                minimumDuration: "At least one sprint"
+            },
+            { field: "bubbleMinimumDuration", target: "html" }
+        ),
+        "At least one sprint"
+    );
+});
+
 test("an explicit Japanese-style band labeller remains separate from NativeDateUnit.createLabeller", () => {
     const { Timeline } = loadTimeline();
     const unit = makeNativeDateUnit();

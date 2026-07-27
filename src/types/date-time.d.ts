@@ -29,18 +29,20 @@ declare namespace Timeline {
     interface TimelineLabeller<T = unknown> {
         labelPrecise(value: T): unknown;
         labelInterval(value: T, intervalUnit?: number): unknown;
+        labelDuration?(value: number): unknown;
     }
 
     interface TimelineUnit<T = unknown> {
         parseFromObject(value: unknown): T | null;
         compare(left: T, right: T): number;
+        duration?(start: T, end: T): number | null;
         createLabeller?(
             locale: string,
             timeZone: number
         ): TimelineLabeller<T>;
     }
 
-    const NativeDateUnit: TimelineUnit<Date>;
+    const NativeDateUnit: TimelineUnit<Date> & DurationUnit<Date>;
     const DATE_TIME_UNIT_NAMES: readonly DateTimeUnitName[];
 
     function resolveTimelineDateTimeUnit(
