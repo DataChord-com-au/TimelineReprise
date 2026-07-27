@@ -20,10 +20,12 @@ The intended shape is progressive: pages can load only the original library, add
 - `vendor/SIMILE/timeline-2.3.1/` - original SIMILE Timeline 2.3.1 browser libraries.
 - `dist/timeline-reprise.js` - the complete Reprise JavaScript feature set.
 - `dist/timeline-reprise.css` - the complete Reprise stylesheet.
+- `dist/timeline-reprise.d.ts` - browser-global TypeScript declarations.
 - `dist/images/` - external media referenced by the stylesheet.
 
 The files under `src/` are build inputs. `src/index.js` is the ordered
-browser ESM entry, and stylesheet inputs live under `src/css/`.
+browser ESM entry, each JavaScript source has a matching declaration under
+`src/types/`, and stylesheet inputs live under `src/css/`.
 
 
 ## Browser Widget Usage

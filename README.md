@@ -77,7 +77,9 @@ The timeline's unit parses and compares both boundaries. The returned
 controller provides `dispose()` when the clamp needs to be removed.
 
 For source development, `src/index.js` is the ordered browser ESM entry.
-Stylesheet inputs live under `src/css/` and are combined by the build.
+Each JavaScript source has a matching declaration under `src/types/`.
+Stylesheet inputs live under `src/css/`; declarations and stylesheets are
+combined separately by the build.
 
 ## Distribution Build
 
@@ -87,13 +89,14 @@ Generate the combined distribution with:
 npm run build
 ```
 
-This writes one combined JavaScript file, one combined CSS file, and the CSS
-media assets:
+This writes one combined JavaScript file, one combined CSS file, the TypeScript
+declarations, and the CSS media assets:
 
 ```text
 dist/
   timeline-reprise.js
   timeline-reprise.css
+  timeline-reprise.d.ts
   images/
 ```
 

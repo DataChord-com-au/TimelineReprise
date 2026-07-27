@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, "..");
 const sourceRoot = path.join(root, "src");
 const distRoot = path.join(root, "dist");
 const entryPath = path.join(sourceRoot, "index.js");
+const typeRoot = path.join(sourceRoot, "types");
 const packageJson = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8")
 );
@@ -151,6 +152,28 @@ function readScriptEntries(entryText) {
     return entries;
 }
 
+function readDeclarationEntries(scriptEntries) {
+    return [...scriptEntries, {
+        path: toSourcePath(entryPath),
+        filename: entryPath
+    }].map(entry => {
+        const basename = path.basename(entry.filename, ".js");
+        const filename = path.join(typeRoot, `${basename}.d.ts`);
+
+        if (!fs.existsSync(filename)) {
+            throw new Error(
+                `No declaration source found for ${entry.path}: ` +
+                `src/types/${basename}.d.ts`
+            );
+        }
+
+        return {
+            path: toSourcePath(filename),
+            filename
+        };
+    });
+}
+
 function readBrowserExportNames(entryText) {
     const exportPattern = /^export\s*\{\s*([^}]+)\s*\}\s*;?\s*$/gm;
     const names = [];
@@ -285,10 +308,12 @@ const readmeChanged = syncReadmeVersions(packageJson.version);
 const docsChanged = syncDocsVersions(packageJson.version);
 const entryText = readText(entryPath);
 const scriptEntries = readScriptEntries(entryText);
+const declarationEntries = readDeclarationEntries(scriptEntries);
 const browserExports = readBrowserExportNames(entryText);
 const cssEntries = readStylesheetEntries(entryText);
 const js = combineScripts(scriptEntries, browserExports);
 const css = combineText(cssEntries);
+const declarations = combineText(declarationEntries);
 
 new vm.Script(js, { filename: "dist/timeline-reprise.js" });
 
@@ -296,11 +321,17 @@ fs.rmSync(distRoot, { recursive: true, force: true });
 fs.mkdirSync(distRoot, { recursive: true });
 fs.writeFileSync(path.join(distRoot, "timeline-reprise.js"), js, "utf8");
 fs.writeFileSync(path.join(distRoot, "timeline-reprise.css"), css, "utf8");
+fs.writeFileSync(
+    path.join(distRoot, "timeline-reprise.d.ts"),
+    declarations,
+    "utf8"
+);
 
 const assetCount = copyCssAssets(cssEntries);
 
 console.log(
-    `Built dist/timeline-reprise.js, dist/timeline-reprise.css, and ${assetCount} media assets.`
+    `Built dist/timeline-reprise.js, dist/timeline-reprise.css, ` +
+    `dist/timeline-reprise.d.ts, and ${assetCount} media assets.`
 );
 if (versionSourceChanged) console.log("Updated src/version.js.");
 if (readmeChanged) console.log("Updated README.md versions.");
