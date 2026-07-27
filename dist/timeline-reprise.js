@@ -1291,7 +1291,7 @@ function fillRepriseBubble(
     const image = render("image", "text");
     if (hasRenderedContent(image)) {
         const imageContainer = doc.createElement("div");
-        imageContainer.className = "timeline-event-bubble-image";
+        imageContainer.className = "timeline-event-bubble-image-container";
         const img = doc.createElement("img");
         img.src = String(image);
         _styleBubbleElement(nativeTheme, "imageStyler", img);

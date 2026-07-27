@@ -191,7 +191,9 @@ function makeNativeTheme(eventTheme) {
             instant: {},
             label: {},
             bubble: {
-                imageStyler() {},
+                imageStyler(element) {
+                    element.className = "timeline-event-bubble-image";
+                },
                 titleStyler(element) {
                     element.className = "timeline-event-bubble-title";
                 },
@@ -240,7 +242,17 @@ function paintNarrative(Timeline, runtime, ranges, instants) {
 
     decorator.initialize(band, timeline);
     decorator.paint();
-    return { decorator, doc, layers };
+    return { decorator, doc, layers, nativeTheme };
+}
+
+function hasClass(element, className) {
+    return String(element?.className ?? "")
+        .split(/\s+/)
+        .includes(className);
+}
+
+function childWithClass(element, className) {
+    return element.childNodes.find(child => hasClass(child, className));
 }
 
 test("NativeDateUnit parses JavaScript Date values through the unit contract", () => {
@@ -515,7 +527,8 @@ test("Reprise image bubble stays above the title and retains structured content"
                 image: event.image,
                 title: event.title,
                 bubbleLocation: event.location,
-                description: event.description
+                description: event.description,
+                bubbleTags: event.tags
             };
             return values[context.field] ??
                 Timeline.RepriseRuntime.prototype.render.call(
@@ -533,7 +546,7 @@ test("Reprise image bubble stays above the title and retains structured content"
     const nativeTheme = makeNativeTheme(eventTheme);
     nativeTheme.event.bubble.imageStyler = element => {
         styledImage = element;
-        element.className = "native-image-hook";
+        element.className = "timeline-event-bubble-image";
     };
     const band = {
         _theme: nativeTheme,
@@ -550,6 +563,7 @@ test("Reprise image bubble stays above the title and retains structured content"
         title: "Rendered title",
         description: "Rendered body",
         location: "Adelaide",
+        tags: ["release", "planning"],
         date: 3,
         fillInfoBubble() {
             throw new Error("SIMILE event bubble filler must not own Reprise DOM");
@@ -574,24 +588,39 @@ test("Reprise image bubble stays above the title and retains structured content"
 
     assert.equal(bubbleCalls.length, 1);
     const content = bubbleCalls[0][0];
-    const imageContainer = content.childNodes.find(node =>
-        node.className.split(/\s+/).includes("timeline-event-bubble-image")
+    const imageContainer = childWithClass(
+        content,
+        "timeline-event-bubble-image-container"
     );
-    const title = content.childNodes.find(node =>
-        node.className.split(/\s+/).includes("timeline-event-bubble-title")
-    );
+    const title = childWithClass(content, "timeline-event-bubble-title");
+    const byline = childWithClass(content, "timeline-event-bubble-byline");
+    const description = childWithClass(content, "timeline-event-bubble-description");
+    const tags = childWithClass(content, "timeline-event-bubble-tags");
     const image = imageContainer?.childNodes.find(node => node.tagName === "IMG");
     const table = content.childNodes
         .flatMap(node => node.childNodes)
         .find(node => node.tagName === "TABLE");
 
     assert.equal(imageContainer?.tagName, "DIV");
-    assert.ok(
-        content.childNodes.indexOf(imageContainer) < content.childNodes.indexOf(title),
-        "the image container should precede the title"
+    assert.equal(
+        imageContainer.className,
+        "timeline-event-bubble-image-container",
+        "the wrapper should have only the Reprise container class"
+    );
+    assert.deepEqual(
+        [imageContainer, title, byline, description, tags].map(node =>
+            content.childNodes.indexOf(node)
+        ),
+        [0, 1, 2, 3, 4],
+        "bubble sections should retain their image-to-tags order"
     );
     assert.equal(styledImage, image, "imageStyler should receive the actual img");
-    assert.equal(image.className, "native-image-hook");
+    assert.equal(
+        image.className,
+        "timeline-event-bubble-image",
+        "the native SIMILE image class should remain on the img"
+    );
+    assert.ok(!hasClass(image, "timeline-event-bubble-image-container"));
     assert.ok(table, "Reprise should create the structured bubble table");
     assert.ok(
         table.childNodes.some(row =>
@@ -601,16 +630,155 @@ test("Reprise image bubble stays above the title and retains structured content"
     );
 });
 
-test("Reprise CSS cancels the SIMILE image-container float", () => {
+test("Narrative bubbles use the same distinct image container and native image styling", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const range = {
+        startDate: 1,
+        endDate: 5,
+        image: "narrative.png",
+        title: "Narrative title",
+        bubbleLocation: "Adelaide",
+        description: "Narrative body",
+        bubbleTags: ["chapter"]
+    };
+    const { decorator, nativeTheme } = paintNarrative(
+        Timeline,
+        runtime,
+        [range],
+        []
+    );
+    let styledImage = null;
+    nativeTheme.event.bubble.imageStyler = element => {
+        styledImage = element;
+        element.className = "timeline-event-bubble-image";
+    };
+
+    decorator._showBubble(decorator._rangeRecords[0], {
+        pageX: 12,
+        pageY: 24
+    });
+
+    assert.equal(bubbleCalls.length, 1);
+    const content = bubbleCalls[0][0];
+    const imageContainer = childWithClass(
+        content,
+        "timeline-event-bubble-image-container"
+    );
+    const image = imageContainer?.childNodes.find(node => node.tagName === "IMG");
+
+    assert.equal(imageContainer?.className, "timeline-event-bubble-image-container");
+    assert.equal(styledImage, image);
+    assert.equal(image?.className, "timeline-event-bubble-image");
+    assert.deepEqual(
+        [
+            "timeline-event-bubble-image-container",
+            "timeline-event-bubble-title",
+            "timeline-event-bubble-byline",
+            "timeline-event-bubble-description",
+            "timeline-event-bubble-tags"
+        ].map(className =>
+            content.childNodes.indexOf(childWithClass(content, className))
+        ),
+        [0, 1, 2, 3, 4]
+    );
+});
+
+test("bubbles without images do not add an image container or run imageStyler", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const doc = makeDocument();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const eventTheme = new Timeline.EventTheme();
+    const nativeTheme = makeNativeTheme(eventTheme);
+    let imageStylerCalls = 0;
+    nativeTheme.event.bubble.imageStyler = () => {
+        imageStylerCalls += 1;
+    };
+    const painter = new Timeline.OriginalEventPainter({
+        theme: nativeTheme,
+        runtime
+    });
+    painter.initialize(
+        {
+            _theme: nativeTheme,
+            getLabeller: () => runtime.labeller
+        },
+        {
+            getDocument: () => doc,
+            getUnit: () => unit,
+            isHorizontal: () => true,
+            isVertical: () => false
+        }
+    );
+    const event = {
+        date: 3,
+        title: "No image",
+        description: "Unchanged body",
+        getProperty(name) {
+            return this[name] ?? null;
+        },
+        getStart() {
+            return this.date;
+        },
+        isInstant() {
+            return true;
+        }
+    };
+
+    painter._showBubble(10, 20, event);
+
+    assert.equal(bubbleCalls.length, 1);
+    const content = bubbleCalls[0][0];
+    assert.equal(
+        childWithClass(content, "timeline-event-bubble-image-container"),
+        undefined
+    );
+    assert.equal(
+        childWithClass(content, "timeline-event-bubble-image"),
+        undefined
+    );
+    assert.equal(imageStylerCalls, 0);
+    assert.ok(hasClass(content.childNodes[0], "timeline-event-bubble-title"));
+    assert.ok(hasClass(content.childNodes[1], "timeline-event-bubble-byline"));
+    assert.ok(hasClass(content.childNodes[2], "timeline-event-bubble-description"));
+});
+
+test("Reprise CSS keeps oversized bubble images above text without overflow", () => {
     const css = fs.readFileSync(
         path.join(__dirname, "..", "dist", "timeline-reprise.css"),
         "utf8"
     );
-    const rule = css.match(
-        /(?:^|\n)\.timeline-event-bubble-image\s*\{([^}]*)\}/
+    const containerRule = css.match(
+        /(?:^|\n)\.timeline-event-bubble-image-container\s*\{([^}]*)\}/
+    );
+    const imageRule = css.match(
+        /(?:^|\n)\.timeline-event-bubble-image-container\s*>\s*img\s*\{([^}]*)\}/
     );
 
-    assert.ok(rule, "the Reprise bubble-image rule should be distributed");
-    assert.match(rule[1], /\bfloat\s*:\s*none\s*;/);
-    assert.match(rule[1], /\btext-align\s*:\s*center\s*;/);
+    assert.ok(containerRule, "the Reprise image-container rule should be distributed");
+    assert.match(containerRule[1], /\bbox-sizing\s*:\s*border-box\s*;/);
+    assert.match(containerRule[1], /\bclear\s*:\s*both\s*;/);
+    assert.match(containerRule[1], /\bdisplay\s*:\s*block\s*;/);
+    assert.match(containerRule[1], /\bfloat\s*:\s*none\s*;/);
+    assert.match(containerRule[1], /\bmax-width\s*:\s*100%\s*;/);
+    assert.match(containerRule[1], /\bwidth\s*:\s*100%\s*;/);
+    assert.match(containerRule[1], /\btext-align\s*:\s*center\s*;/);
+    assert.doesNotMatch(containerRule[1], /\boverflow\s*:\s*auto\s*;/);
+
+    assert.ok(imageRule, "the constrained bubble-image rule should be distributed");
+    assert.match(imageRule[1], /\bbox-sizing\s*:\s*border-box\s*;/);
+    assert.match(imageRule[1], /\bdisplay\s*:\s*block\s*;/);
+    assert.match(imageRule[1], /\bfloat\s*:\s*none\s*;/);
+    assert.match(imageRule[1], /\bheight\s*:\s*auto\s*;/);
+    assert.match(imageRule[1], /\bmax-width\s*:\s*100%\s*;/);
+    assert.match(imageRule[1], /\bmargin-left\s*:\s*auto\s*;/);
+    assert.match(imageRule[1], /\bmargin-right\s*:\s*auto\s*;/);
 });

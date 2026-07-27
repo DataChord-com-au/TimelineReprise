@@ -30,14 +30,24 @@
   white-space: nowrap;
 }
 
-.timeline-event-bubble-image {
+.timeline-event-bubble-image-container {
+  box-sizing: border-box;
+  clear: both;
+  display: block;
   float: none;
-  overflow: auto;
+  max-width: 100%;
   text-align: center;
+  width: 100%;
 }
 
-.timeline-event-bubble-image > img {
+.timeline-event-bubble-image-container > img {
+  box-sizing: border-box;
+  display: block;
   float: none;
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
 }
 
 .timeline-event-bubble-byline-table th {

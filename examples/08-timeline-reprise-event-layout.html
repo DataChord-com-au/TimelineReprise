@@ -60,6 +60,7 @@
       <li>short duration events remain visible without taking over the layout</li>
       <li>sticky range labels slide at both viewport edges while their tapes remain visible</li>
       <li>the overview band uses theme settings from the same timeline</li>
+      <li>the Project Starts bubble constrains a deliberately oversized image</li>
     </ul>
     <div id="timeline-horizontal" class="timeline-frame"></div>
   </section>
@@ -78,7 +79,8 @@
     var projectStartEvent = {
       start: "2020-01-10",
       title: "Project Starts",
-      description: "",
+      description: "Bubble text stays below the image without wrapping around it.",
+      image: "images/bubble-image-wide.svg",
       iconColor: "orange"
     };
 

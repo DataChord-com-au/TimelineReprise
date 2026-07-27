@@ -102,6 +102,24 @@ precise HTML/bubble values use `labelPrecise()`.
 The default renderer does not parse template expressions and does not implement
 `TimelineUtils` formatters or macros such as `join()` and `lines()`.
 
+## Bubble structure
+
+Reprise owns the bubble DOM for normal events and Narrative records. When an
+image is present, the bubble begins with:
+
+```html
+<div class="timeline-event-bubble-image-container">
+    <img class="timeline-event-bubble-image" src="...">
+</div>
+```
+
+The wrapper is a full-width, non-floating block. The native SIMILE
+`imageStyler()` still styles the `img`, while Reprise constrains that image to
+the bubble content width, includes native image padding in its border-box
+sizing, and preserves its aspect ratio. The remaining bubble sections follow
+in this order: title, structured fields or byline, description, and tags.
+Events without images do not receive an image container.
+
 ## Renderer replacement
 
 Supply `render` to replace only content rendering:
