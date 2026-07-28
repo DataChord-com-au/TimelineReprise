@@ -1,9 +1,11 @@
 import { EmphasisStyle } from "./emphasis-style.js";
+import { DisplayProfile } from "./display-profile.js";
 import { EventTheme, defaultEventTheme } from "./event-theme.js";
 
 const REGISTRY_MODULE_LABEL = "TimelineReprise";
 const REGISTRY_SPEC_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
 let eventThemesById = Object.freeze({});
+let displayProfilesById = Object.freeze({});
 
 function deepFreezeRegistryPlain(value) {
     if (value != null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -82,6 +84,51 @@ function loadEmphasisStyles(emphasisStyles) {
     );
 }
 
+function loadDisplayProfiles(displayProfiles, { templateRenderer } = {}) {
+    const caller = `${REGISTRY_MODULE_LABEL}.loadDisplayProfiles \`displayProfiles\``;
+
+    if (displayProfiles == null) {
+        displayProfilesById = keyItemsById([], caller);
+        return displayProfilesById;
+    }
+    if (!Array.isArray(displayProfiles)) {
+        throw new TypeError(`${caller} must be an array.`);
+    }
+
+    displayProfilesById = keyItemsById(
+        displayProfiles.map(config =>
+            config instanceof DisplayProfile
+                ? config
+                : new DisplayProfile(config, { templateRenderer })
+        ),
+        caller
+    );
+
+    return displayProfilesById;
+}
+
+function resolveDisplayProfile(explicit) {
+    const caller = `${REGISTRY_MODULE_LABEL}.resolveDisplayProfile`;
+
+    if (typeof explicit === "string") {
+        const id = validateSpecId(explicit, caller, "explicit");
+        const namedProfile = displayProfilesById[id];
+
+        if (namedProfile === undefined) {
+            throw new RangeError(`${caller} unknown DisplayProfile: ${id}.`);
+        }
+
+        return namedProfile;
+    }
+
+    if (explicit instanceof DisplayProfile) return explicit;
+    if (explicit == null) return null;
+
+    throw new TypeError(
+        `${caller} \`explicit\` must be a DisplayProfile or registered profile id.`
+    );
+}
+
 function loadEventThemes(eventThemes) {
     const caller = `${REGISTRY_MODULE_LABEL}.loadEventThemes \`eventThemes\``;
 
@@ -93,10 +140,13 @@ function loadEventThemes(eventThemes) {
         throw new TypeError(`${caller} must be an array.`);
     }
 
+    const items = eventThemes.map(config =>
+        config instanceof EventTheme ? config : new EventTheme(config)
+    );
+    items.forEach(theme => resolveDisplayProfile(theme.presentation));
+
     eventThemesById = keyItemsById(
-        eventThemes.map(config =>
-            config instanceof EventTheme ? config : new EventTheme(config)
-        ),
+        items,
         caller
     );
 
@@ -160,8 +210,10 @@ function composeEventTheme(nativeTheme, explicit = null) {
 export {
     composeEventTheme,
     keyItemsById,
+    loadDisplayProfiles,
     loadEmphasisStyles,
     loadEventThemes,
+    resolveDisplayProfile,
     resolveEventTheme,
     selectItemsById,
     validateSpecId

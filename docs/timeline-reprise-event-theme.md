@@ -93,6 +93,27 @@ enabled rendered caption as the label's native `title` tooltip. Set
 `tooltips: false` to suppress these caption tooltips without changing bubble
 behavior.
 
+## Presentation selection
+
+`presentation` selects a Reprise
+[`DisplayProfile`](timeline-reprise-display-profiles.md) by registered id or
+instance:
+
+```js
+var themes = Timeline.loadEventThemes([
+    {
+        id: "editorial",
+        presentation: "editorialDisplay",
+        labels: true,
+        bubbles: true
+    }
+]);
+```
+
+Normal events and Narrative may select different EventThemes, and therefore
+different DisplayProfiles, on the same band. A theme with no presentation
+selection uses Reprise's default field and unit rendering.
+
 ## Derivation
 
 `Timeline.deriveEventTheme(base, overrides)` is the only EventTheme derivation
@@ -108,18 +129,6 @@ var compact = Timeline.deriveEventTheme(themes.editorial, {
     }
 });
 ```
-
-## Presentation values
-
-`presentation`, `template`, `templateId`, and `templates` remain opaque values
-during EventTheme validation. At render time, the
-[presentation runtime](timeline-reprise-presentation-runtime.md) resolves
-`eventTheme.presentation[field]`. A field spec can contain a direct `template`
-or a `templateId` that selects `eventTheme.templates[id]`.
-
-The default Reprise renderer does not evaluate template expressions or
-interpret `TimelineUtils` macros. An injected runtime renderer may interpret
-the selected template.
 
 ## Consumers
 

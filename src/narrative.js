@@ -301,7 +301,7 @@ import {
         );
         this._labelColor = themedValue({}, labelTheme, "color", null);
         this._zIndex = themedFinite({}, layerTheme, "zIndex", 5);
-        this._labelZIndex = themedFinite({}, layerTheme, "labelZIndex", 6);
+        this._labelZIndex = themedFinite({}, layerTheme, "labelZIndex", 114);
 
         this._spanColors = themedValue({}, rangeTheme, "colors", null);
         this._instantIconColor = themedValue({}, instantTheme, "iconColor", null);

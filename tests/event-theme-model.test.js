@@ -194,6 +194,8 @@ test("resolver attaches the defined Reprise default to a native band theme", () 
     assert.equal(nativeTheme.eventTheme, Timeline.defaultEventTheme);
     assert.equal(resolved.range.width, 4);
     assert.equal(resolved.range.size, undefined);
+    assert.equal(resolved.layer.zIndex, 5);
+    assert.equal(resolved.layer.labelZIndex, 114);
 });
 
 test("event painters and Narrative receive the same resolved EventTheme shape", () => {
@@ -340,29 +342,128 @@ test("overview geometry separates instant ticks from tapes with track gap", () =
     assert.equal(tape.top - (tick.top + tick.height), 5);
 });
 
-test("opaque presentation and template fields survive validation and resolution", () => {
+test("EventTheme selects a registered validated DisplayProfile", () => {
     const Timeline = loadTimeline();
-    const template = "${TimelineUtils.getProperty(event, 'title')}";
-    const themes = Timeline.loadEventThemes([
+    const profiles = Timeline.loadDisplayProfiles([
         {
-            id: "opaque",
-            presentation: {
-                title: { template, templateId: "event-title" }
+            id: "editorialDisplay",
+            label: {
+                title: {
+                    instant: "{title}",
+                    range: "{lines(title, duration)}"
+                }
             },
-            templates: {
-                bubble: "timeline-bubble-template"
-            },
-            range: {
-                template
+            bubble: {
+                bubbleDuration: {
+                    range: "{duration}"
+                }
             }
         }
     ]);
-    const resolved = Timeline.resolveEventTheme("opaque");
+    const themes = Timeline.loadEventThemes([
+        {
+            id: "editorial",
+            presentation: "editorialDisplay"
+        }
+    ]);
+    const resolved = Timeline.resolveEventTheme("editorial");
 
-    assert.equal(resolved.presentation.title.template, template);
-    assert.equal(resolved.presentation.title.templateId, "event-title");
-    assert.equal(resolved.templates.bubble, "timeline-bubble-template");
-    assert.equal(resolved.range.template, template);
+    assert.equal(resolved, themes.editorial);
+    assert.equal(
+        Timeline.resolveDisplayProfile(resolved.presentation),
+        profiles.editorialDisplay
+    );
+});
+
+test("DisplayProfile registry rejects invalid selections and duplicate ids", () => {
+    const Timeline = loadTimeline();
+    const instance = new Timeline.DisplayProfile({
+        id: "instanceDisplay",
+        label: { title: "{title}" }
+    });
+
+    Timeline.loadDisplayProfiles([instance]);
+    assert.equal(
+        Timeline.resolveDisplayProfile("instanceDisplay"),
+        instance
+    );
+    assert.equal(Timeline.resolveDisplayProfile(instance), instance);
+    assert.equal(Timeline.resolveDisplayProfile(null), null);
+    assert.throws(
+        () => Timeline.resolveDisplayProfile("missingDisplay"),
+        /unknown DisplayProfile: missingDisplay/
+    );
+    assert.throws(
+        () => Timeline.loadEventThemes([
+            { id: "missingProfileTheme", presentation: "missingDisplay" }
+        ]),
+        /unknown DisplayProfile: missingDisplay/
+    );
+    assert.throws(
+        () => Timeline.loadDisplayProfiles([
+            { id: "duplicate", label: {} },
+            { id: "duplicate", bubble: {} }
+        ]),
+        /duplicate id: duplicate/
+    );
+});
+
+test("DisplayProfile validates surfaces, fields, shapes, and templates", () => {
+    const Timeline = loadTimeline();
+
+    assert.throws(
+        () => new Timeline.DisplayProfile({
+            id: "badLabel",
+            label: { bubbleStart: "{start}" }
+        }),
+        /label unsupported output field: bubbleStart/
+    );
+    assert.throws(
+        () => new Timeline.DisplayProfile({
+            id: "badShape",
+            bubble: {
+                bubbleStart: { point: "{start}" }
+            }
+        }),
+        /bubbleStart\.point is not supported/
+    );
+    assert.throws(
+        () => new Timeline.DisplayProfile({
+            id: "badTemplate",
+            label: { title: "{unknownFormatter(title)}" }
+        }),
+        /unknown formatter: unknownFormatter/
+    );
+});
+
+test("EventTheme presentation accepts only DisplayProfile selections", () => {
+    const Timeline = loadTimeline();
+    const profile = new Timeline.DisplayProfile({
+        id: "directDisplay",
+        label: { title: "{title}" }
+    });
+    const theme = new Timeline.EventTheme({ presentation: profile });
+    const derived = Timeline.deriveEventTheme(theme, {
+        id: "derivedDisplayTheme",
+        labels: false
+    });
+
+    assert.equal(theme.presentation, profile);
+    assert.equal(derived.presentation, profile);
+    assert.throws(
+        () => new Timeline.EventTheme({
+            presentation: {
+                title: { template: "{title}" }
+            }
+        }),
+        /presentation must be a DisplayProfile or registered profile id/
+    );
+    assert.throws(
+        () => new Timeline.EventTheme({
+            range: { template: "{duration}" }
+        }),
+        /range\.template is not supported/
+    );
 });
 
 test("EventTheme derivation deep-merges and returns a validated EventTheme", () => {

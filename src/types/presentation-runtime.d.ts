@@ -38,6 +38,7 @@ declare namespace Timeline {
         readonly target: RenderTarget;
         readonly eventTime: CanonicalEventTime<T> | null;
         readonly eventTheme: EventTheme;
+        readonly displayProfile?: DisplayProfile | null;
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
         readonly duration?: RepriseDuration;
@@ -52,6 +53,7 @@ declare namespace Timeline {
         target?: RenderTarget;
         eventTime?: CanonicalEventTime<T> | null;
         eventTheme?: EventTheme;
+        displayProfile?: DisplayProfile | null;
         intervalUnit?: number;
         surface?: string;
         [key: string]: unknown;
@@ -71,6 +73,7 @@ declare namespace Timeline {
     interface RepriseRuntimeOptions<T = unknown> {
         unit?: TimelineUnit<T>;
         labeller?: TimelineLabeller<T> | null;
+        templateRenderer?: TemplateRenderer;
         readEventTime?: (
             this: RepriseRuntimeContract<T>,
             event: object
@@ -92,6 +95,7 @@ declare namespace Timeline {
 
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
+        readonly templateRenderer: TemplateRenderer;
         readEventTime(event: object): CanonicalEventTime<T> | null;
         render(
             template: unknown,

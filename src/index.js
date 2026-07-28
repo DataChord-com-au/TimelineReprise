@@ -1,6 +1,7 @@
 import { assertColorString, normalizeColorString } from "./color.js";
 import { DATE_TIME_UNIT_NAMES, resolveTimelineDateTimeUnit } from "./date-time.js";
 import { EmphasisStyle } from "./emphasis-style.js";
+import { DisplayProfile } from "./display-profile.js";
 import { EventTheme, defaultEventTheme, deriveEventTheme } from "./event-theme.js";
 import { filterEvents } from "./event-filters.js";
 import {
@@ -14,6 +15,7 @@ import {
     PlanningDayUnit
 } from "./units.js";
 import { RepriseRuntime } from "./presentation-runtime.js";
+import { TemplateRenderer } from "./template-renderer.js";
 import {
     TIMELINE_ORIENTATIONS,
     assertTimelineOrientation,
@@ -22,8 +24,10 @@ import {
 import {
     composeEventTheme,
     keyItemsById,
+    loadDisplayProfiles,
     loadEmphasisStyles,
     loadEventThemes,
+    resolveDisplayProfile,
     resolveEventTheme,
     selectItemsById,
     validateSpecId
@@ -43,6 +47,7 @@ import "./narrative.js";
 
 export {
     DATE_TIME_UNIT_NAMES,
+    DisplayProfile,
     EmphasisStyle,
     TIMELINE_ORIENTATIONS,
     EventTheme,
@@ -56,6 +61,7 @@ export {
     PlanningDayUnit,
     Reprise,
     RepriseRuntime,
+    TemplateRenderer,
     attachEvents,
     attachNarrativeDecorators,
     clampBandChains,
@@ -66,10 +72,12 @@ export {
     deriveEventTheme,
     filterEvents,
     keyItemsById,
+    loadDisplayProfiles,
     loadEmphasisStyles,
     loadEventThemes,
     normalizeColorString,
     normalizeTimelineOrientation,
+    resolveDisplayProfile,
     resolveEventTheme,
     resolveTimelineDateTimeUnit,
     selectItemsById,

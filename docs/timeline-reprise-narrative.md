@@ -174,8 +174,8 @@ theme.eventTheme = {
         maxHeight: null
     },
     layer: {
-        zIndex: 113,
-        labelZIndex: 116
+        zIndex: 5,
+        labelZIndex: 114
     }
 };
 ```
@@ -358,6 +358,12 @@ Z-index for span and divider graphics.
 
 ### `eventTheme.layer.labelZIndex`
 Z-index for narrative labels.
+
+The defaults place Narrative graphics behind ether markers and Narrative
+labels above ether markers but below normal event content. The normal event
+layer passes pointer input through its empty area, so Narrative labels remain
+interactive while tapes, icons, and event labels retain precedence where they
+overlap.
 
 ## Routing
 

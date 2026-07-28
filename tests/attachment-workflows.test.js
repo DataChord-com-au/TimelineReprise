@@ -281,10 +281,14 @@ test("both methods use the same default and injected runtime path", () => {
     assert.equal(firstBand.records[0].getText(), "Default event");
 
     const calls = [];
-    const eventTheme = new Timeline.EventTheme({
-        presentation: {
-            title: { template: "${opaque.title}" }
+    const displayProfile = new Timeline.DisplayProfile({
+        id: "injected",
+        label: {
+            title: "custom-title"
         }
+    });
+    const eventTheme = new Timeline.EventTheme({
+        presentation: displayProfile
     });
     const runtime = new Timeline.RepriseRuntime({
         unit,
@@ -311,14 +315,53 @@ test("both methods use the same default and injected runtime path", () => {
     assert.equal(secondBand.bandInfo.decorators[0]._runtimeSelection, runtime);
     assert.equal(
         secondBand.records[0].getText(),
-        "${opaque.title}:Injected event:label"
+        "custom-title:Injected event:label"
     );
     assert.equal(
         secondBand.bandInfo.decorators[0]._instants[0].getText(),
-        "${opaque.title}:Injected narrative:label"
+        "custom-title:Injected narrative:label"
     );
     assert.equal(calls[0].context.eventTheme, eventTheme);
+    assert.equal(calls[0].context.displayProfile, displayProfile);
     assert.equal(calls[0].context.unit, unit);
+});
+
+test("events and Narrative use the selected DisplayProfile through the default runtime", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    Timeline.loadDisplayProfiles([
+        {
+            id: "sharedDisplay",
+            label: {
+                title: "{prefix('Presented: ', title)}",
+                caption: "{prefix('Details: ', caption)}"
+            }
+        }
+    ]);
+    Timeline.loadEventThemes([
+        {
+            id: "presented",
+            presentation: "sharedDisplay"
+        }
+    ]);
+    const { bandInfo, records } = makeBand(Timeline, unit);
+
+    Timeline.attachEvents(
+        bandInfo,
+        [{ date: 1, title: "Event" }],
+        { eventTheme: "presented" }
+    );
+    Timeline.attachNarrativeDecorators(
+        bandInfo,
+        [{ date: 2, title: "Narrative", caption: "Chapter" }],
+        { eventTheme: "presented" }
+    );
+
+    assert.equal(records[0].getText(), "Presented: Event");
+    assert.equal(
+        bandInfo.decorators[0]._instants[0].getText(),
+        "Presented: Narrative"
+    );
 });
 
 test("automatically created runtimes derive durations for both attachment workflows", () => {

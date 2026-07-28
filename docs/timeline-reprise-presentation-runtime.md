@@ -123,27 +123,63 @@ The complete render context is:
     target: "text", // or "html"
     eventTime: runtime.readEventTime(event),
     eventTheme: resolvedEventTheme,
+    displayProfile: resolvedDisplayProfile,
     unit: runtime.unit,
     labeller: runtime.labeller,
     duration: { value: 12, text: "12 days" }
 }
 ```
 
-Reprise resolves a field template from `eventTheme.presentation[field]`.
-`{ template: value }` selects that value. `{ templateId: id }` selects
-`eventTheme.templates[id]`.
+Reprise resolves the field template from the selected
+[`DisplayProfile`](timeline-reprise-display-profiles.md), using the render
+surface and canonical event-time shape. A missing template delegates to the
+default field renderer.
 
-The default renderer returns the template value directly, or the corresponding
-event field when there is no template. Default event-time output is late-bound
-to the active labeller: text event-time labels use `labelInterval()` and
-precise HTML/bubble values use `labelPrecise()`.
+The default runtime interprets string templates through
+`Timeline.TemplateRenderer`. Its built-in macros are `join()`, `joinUnique()`,
+`wrap()`, `paren()`, `prefix()`, `suffix()`, and `lines()`. `lines()` emits a
+newline for a text target and `<br>` for an HTML target.
 
-The default renderer does not parse template expressions and does not implement
-`TimelineUtils` formatters or macros such as `join()` and `lines()`.
-It uses `context.duration.text` for `bubbleDuration` and
+Bare selectors read generic event fields. Reprise also supplies `eventTime`,
+`start`, `latestStart`, `earliestEnd`, `end`, `duration`, and
+`minimumDuration`. Timeline endpoints are formatted through the active
+labeller. Durations use the unit-derived values in the render context.
+
+Default event-time output remains late-bound to the active labeller: text
+event-time labels use `labelInterval()` and precise HTML/bubble values use
+`labelPrecise()`. The renderer uses `context.duration.text` for
+`bubbleDuration` and
 `context.minimumDuration.text` for `bubbleMinimumDuration`. Explicit event
 `bubbleDuration`/`duration` and `bubbleMinimumDuration`/`minimumDuration`
 values take precedence over those derived defaults.
+
+## Selector extensions
+
+Domain libraries extend selector interpretation without replacing Reprise's
+rendering pipeline:
+
+```js
+var extension = {
+    hasSelector: function (name) {
+        return name === "zone";
+    },
+    hasFormat: function (formatName, selectorName) {
+        return selectorName === "zone" && formatName === "fullFmt";
+    },
+    resolveSelector: function (name, formatName, event, context) {
+        return domainFormatter.formatZone(event, formatName, context);
+    }
+};
+
+var renderer = new Timeline.TemplateRenderer({
+    selectorExtensions: [extension]
+});
+```
+
+The first extension claiming a selector resolves it. A formatted selector must
+be accepted by that extension during DisplayProfile validation. Reprise owns
+the grammar and generic macros; the extension owns only its domain selectors
+and named formats.
 
 ## Bubble structure
 
@@ -163,7 +199,23 @@ sizing, and preserves its aspect ratio. The remaining bubble sections follow
 in this order: title, structured fields or byline, description, and tags.
 Events without images do not receive an image container.
 
-## Renderer replacement
+## Runtime injection and renderer replacement
+
+Supply `readEventTime` when domain values must be interpreted and projected
+into the configured timeline unit:
+
+```js
+var runtime = new Timeline.RepriseRuntime({
+    unit: timeline.getUnit(),
+    labeller: band.getLabeller(),
+    readEventTime: function (event) {
+        return domainAdapter.projectEventTime(event);
+    }
+});
+```
+
+The original presentation event remains available to selector extensions while
+the canonical `context.eventTime` drives layout and generic unit rendering.
 
 Supply `render` to replace only content rendering:
 
@@ -199,9 +251,9 @@ path. Callers may still provide fields such as `bubbleStart`,
 `bubbleDuration`, `bubbleLocation`, and `bubblePeople`; the renderer remains
 responsible only for their content.
 
-An injected renderer, including a renderer backed by TimelineUtils, may use
-`context.duration.value` or `context.duration.text`. Duration calculation
-remains in the unit/runtime contract rather than in TimelineUtils.
+An injected renderer may use `context.duration.value` or
+`context.duration.text`. Duration calculation remains in the unit/runtime
+contract.
 
 ---
 [Back to top](#presentation-runtime)<br>

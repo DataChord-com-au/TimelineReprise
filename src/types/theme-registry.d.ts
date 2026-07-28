@@ -10,6 +10,15 @@ declare namespace Timeline {
     function loadEventThemes(
         eventThemes?: readonly (EventTheme | EventThemeConfig)[] | null
     ): Readonly<Record<string, EventTheme>>;
+    function loadDisplayProfiles(
+        displayProfiles?:
+            | readonly (DisplayProfile | DisplayProfileConfig)[]
+            | null,
+        options?: DisplayProfileOptions
+    ): Readonly<Record<string, DisplayProfile>>;
+    function resolveDisplayProfile(
+        explicit: DisplayProfileSelection | null | undefined
+    ): DisplayProfile | null;
     function loadEmphasisStyles(
         emphasisStyles?: readonly EmphasisStyleConfig[] | null
     ): Readonly<Record<string, EmphasisStyle>>;

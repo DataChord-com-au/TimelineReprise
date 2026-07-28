@@ -762,14 +762,175 @@ test("default rendering returns field text and late-bound HTML time content", ()
     );
 });
 
+test("DisplayProfile templates use Reprise macros, unit duration, and render targets", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "planningDisplay",
+        label: {
+            title: {
+                range: "{lines(title, prefix('Known extent: ', duration))}"
+            }
+        },
+        bubble: {
+            bubbleDuration: {
+                range: "{duration}"
+            }
+        }
+    });
+    const eventTheme = new Timeline.EventTheme({ presentation: profile });
+    const event = { start: 0, end: 12, title: "Release" };
+    const eventTime = runtime.readEventTime(event);
+    const template = profile.resolveTemplate("title", {
+        surface: "label",
+        eventTime
+    });
+    const context = {
+        field: "title",
+        eventTime,
+        eventTheme,
+        displayProfile: profile,
+        surface: "label"
+    };
+
+    assert.equal(
+        runtime.render(template, event, { ...context, target: "text" }),
+        "Release\nKnown extent: 12 days"
+    );
+    assert.equal(
+        runtime.render(template, event, { ...context, target: "html" }),
+        "Release<br>Known extent: 12 days"
+    );
+    assert.equal(
+        profile.resolveTemplate("title", {
+            surface: "bubble",
+            eventTime
+        }),
+        null
+    );
+});
+
+test("TemplateRenderer validates and delegates formatted domain selectors", () => {
+    const { Timeline } = loadTimeline();
+    const calls = [];
+    const extension = {
+        hasSelector: name => name === "zone",
+        hasFormat: (formatName, selectorName) =>
+            selectorName === "zone" && formatName === "fullFmt",
+        resolveSelector(name, formatName, event, context) {
+            calls.push({ name, formatName, event, context });
+            return `${event.zone} (${formatName})`;
+        }
+    };
+    const templateRenderer = new Timeline.TemplateRenderer({
+        selectorExtensions: [extension]
+    });
+    const profile = new Timeline.DisplayProfile(
+        {
+            id: "domainDisplay",
+            label: {
+                title: "{join(' - ', title, zone:fullFmt)}"
+            }
+        },
+        { templateRenderer }
+    );
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const event = { date: 1, title: "Meeting", zone: "Australia/Adelaide" };
+    const eventTime = runtime.readEventTime(event);
+    const template = profile.resolveTemplate("title", {
+        surface: "label",
+        eventTime
+    });
+
+    assert.equal(
+        runtime.render(template, event, {
+            field: "title",
+            target: "text",
+            eventTime,
+            eventTheme: new Timeline.EventTheme({ presentation: profile }),
+            displayProfile: profile,
+            surface: "label"
+        }),
+        "Meeting - Australia/Adelaide (fullFmt)"
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].context.unit, unit);
+    assert.equal(calls[0].context.labeller, runtime.labeller);
+
+    assert.throws(
+        () => new Timeline.DisplayProfile(
+            {
+                id: "invalidDomainDisplay",
+                label: { title: "{zone:missingFmt}" }
+            },
+            { templateRenderer }
+        ),
+        /unknown format 'missingFmt' for selector 'zone'/
+    );
+});
+
+test("default Reprise rendering templates work for Ma without a domain adapter", () => {
+    const { Timeline } = loadTimeline();
+    const runtime = new Timeline.RepriseRuntime({
+        unit: Timeline.MaUnit,
+        labeller: Timeline.MaUnit.createLabeller()
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "maDisplay",
+        bubble: {
+            bubbleDuration: {
+                range: "{prefix('Known extent: ', duration)}"
+            }
+        }
+    });
+    const event = {
+        start: new Timeline.Ma(225),
+        end: new Timeline.Ma(190)
+    };
+    const eventTime = runtime.readEventTime(event);
+
+    assert.equal(
+        runtime.render(
+            profile.resolveTemplate("bubbleDuration", {
+                surface: "bubble",
+                eventTime
+            }),
+            event,
+            {
+                field: "bubbleDuration",
+                target: "html",
+                eventTime,
+                eventTheme: new Timeline.EventTheme({
+                    presentation: profile
+                }),
+                displayProfile: profile,
+                surface: "bubble"
+            }
+        ),
+        "Known extent: 35 Ma"
+    );
+});
+
 test("an injected renderer replaces default rendering and receives the complete context", () => {
     const { Timeline } = loadTimeline();
     const unit = makePlanningUnit();
     const labeller = unit.createLabeller();
-    const eventTheme = new Timeline.EventTheme({
-        presentation: {
-            title: { template: "custom-title" }
+    const displayProfile = new Timeline.DisplayProfile({
+        id: "custom",
+        label: {
+            title: "custom-title"
         }
+    });
+    const eventTheme = new Timeline.EventTheme({
+        presentation: displayProfile
     });
     const calls = [];
     const runtime = new Timeline.RepriseRuntime({
@@ -796,6 +957,7 @@ test("an injected renderer replaces default rendering and receives the complete 
     assert.equal(calls[0].context.target, "html");
     assert.equal(calls[0].context.eventTime, eventTime);
     assert.equal(calls[0].context.eventTheme, eventTheme);
+    assert.equal(calls[0].context.displayProfile, undefined);
     assert.equal(calls[0].context.unit, unit);
     assert.equal(calls[0].context.labeller, labeller);
 });
@@ -932,6 +1094,98 @@ test("Narrative labels without rendered captions remain non-interactive without 
     assert.equal(label.style.pointerEvents, "none");
     assert.equal(label.style.cursor, "default");
     assert.equal(label.onclick, undefined);
+});
+
+test("Narrative caption templates use Reprise duration as the label tooltip", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "narrativeTooltip",
+        label: {
+            caption: {
+                range: "{prefix('Duration: ', duration)}"
+            }
+        }
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter" }],
+        [],
+        {
+            presentation: profile,
+            bubbles: false
+        }
+    );
+    const label = decorator._rangeRecords[0].labelElmt;
+
+    assert.equal(label.title, "Duration: 4 days");
+    assert.equal(label.style.pointerEvents, "auto");
+});
+
+test("DisplayProfile-only structured bubble fields select the table layout", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const doc = makeDocument();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "structuredBubble",
+        bubble: {
+            bubbleElapsed: "Profile elapsed"
+        }
+    });
+    const eventTheme = new Timeline.EventTheme({ presentation: profile });
+    const nativeTheme = makeNativeTheme(eventTheme);
+    const painter = new Timeline.OriginalEventPainter({
+        theme: nativeTheme,
+        runtime
+    });
+    const event = {
+        title: "Milestone",
+        date: 3,
+        getProperty(name) {
+            return this[name] ?? null;
+        },
+        getStart() {
+            return this.date;
+        },
+        isInstant() {
+            return true;
+        }
+    };
+
+    painter.initialize(
+        {
+            _theme: nativeTheme,
+            getLabeller: () => runtime.labeller
+        },
+        {
+            getDocument: () => doc,
+            getUnit: () => unit,
+            isHorizontal: () => true,
+            isVertical: () => false
+        }
+    );
+    painter._showBubble(10, 20, event);
+
+    const content = bubbleCalls[0][0];
+    const table = content.childNodes
+        .flatMap(node => node.childNodes)
+        .find(node => node.tagName === "TABLE");
+
+    assert.ok(table);
+    assert.ok(
+        table.childNodes.some(row =>
+            row.childNodes.some(cell => cell.innerHTML === "Profile elapsed")
+        )
+    );
 });
 
 test("Reprise image bubble stays above the title and retains structured content", () => {

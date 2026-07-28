@@ -1,4 +1,6 @@
 import { defaultEventTheme } from "./event-theme.js";
+import { TemplateRenderer } from "./template-renderer.js";
+import { resolveDisplayProfile } from "./theme-registry.js";
 
 const _RUNTIME_LABEL = "TimelineReprise.RepriseRuntime";
 const _RENDER_TARGETS = new Set(["text", "html"]);
@@ -427,7 +429,60 @@ function _readDisplayValue(event, field, context) {
     return undefined;
 }
 
+function _resolveTemplateSelector(name, event, context) {
+    const eventTime = context.eventTime;
+
+    if (name === "eventTime") {
+        return _formatEventTime(
+            context,
+            eventTime,
+            context.target === "html"
+        );
+    }
+    if (name === "start") {
+        if (eventTime?.kind === "instant") {
+            return _formatEndpoint(context, eventTime.value, true);
+        }
+        if (eventTime?.kind === "range") {
+            return _formatEndpoint(context, eventTime.start, true);
+        }
+        return "";
+    }
+    if (name === "latestStart" && eventTime?.latestStart != null) {
+        return _formatEndpoint(context, eventTime.latestStart, true);
+    }
+    if (name === "earliestEnd" && eventTime?.earliestEnd != null) {
+        return _formatEndpoint(context, eventTime.earliestEnd, true);
+    }
+    if (name === "end" && eventTime?.kind === "range") {
+        return _formatEndpoint(context, eventTime.end, true);
+    }
+    if (name === "duration") {
+        const explicit = _readEventField(event, "duration");
+        return explicit.found
+            ? _normalizeRenderedValue(explicit.value)
+            : context.duration?.text ?? "";
+    }
+    if (name === "minimumDuration") {
+        const explicit = _readEventField(event, "minimumDuration");
+        return explicit.found
+            ? _normalizeRenderedValue(explicit.value)
+            : context.minimumDuration?.text ?? "";
+    }
+
+    return _normalizeRenderedValue(_readDisplayValue(event, name, context));
+}
+
 function _defaultRender(template, event, context) {
+    if (typeof template === "string") {
+        const renderer =
+            context.displayProfile?.templateRenderer ??
+            this.templateRenderer;
+        return renderer.render(template, event, {
+            ...context,
+            resolveSelector: _resolveTemplateSelector
+        });
+    }
     if (template !== undefined && template !== null) {
         return _normalizeRenderedValue(template);
     }
@@ -516,10 +571,18 @@ class RepriseRuntime {
         unit = _resolveDefaultUnit(),
         labeller = null,
         readEventTime = _defaultReadEventTime,
+        templateRenderer = new TemplateRenderer(),
         render = _defaultRender
     } = {}) {
+        if (!(templateRenderer instanceof TemplateRenderer)) {
+            throw new TypeError(
+                `${this.constructor.label}.ctor templateRenderer must be a TemplateRenderer.`
+            );
+        }
+
         this.unit = unit;
         this.labeller = labeller ?? _resolveDefaultLabeller(unit);
+        this.templateRenderer = templateRenderer;
         this._readEventTime = readEventTime;
         this._render = render;
 
@@ -579,29 +642,27 @@ function resolveRepriseRuntime(runtime, { unit, labeller } = {}) {
         : assertRepriseRuntime(runtime, "TimelineReprise runtime");
 }
 
-function resolvePresentationTemplate(eventTheme, field) {
-    const spec = eventTheme?.presentation?.[field];
-    if (!_isObject(spec)) return spec ?? null;
-
-    if (_hasOwn(spec, "template")) return spec.template;
-    if (_hasOwn(spec, "templateId")) {
-        return eventTheme?.templates?.[spec.templateId] ?? null;
-    }
-
-    return null;
+function resolvePresentationTemplate(eventTheme, field, context = {}) {
+    return (context.displayProfile ??
+        resolveDisplayProfile(eventTheme?.presentation))
+        ?.resolveTemplate(field, context) ?? null;
 }
 
 function renderEventField(runtime, eventTheme, eventTime, event, field, target, extra = {}) {
+    const displayProfile = resolveDisplayProfile(eventTheme?.presentation);
+    const context = {
+        ...extra,
+        field,
+        target,
+        eventTime,
+        eventTheme,
+        displayProfile
+    };
+
     return runtime.render(
-        resolvePresentationTemplate(eventTheme, field),
+        resolvePresentationTemplate(eventTheme, field, context),
         event,
-        {
-            ...extra,
-            field,
-            target,
-            eventTime,
-            eventTheme
-        }
+        context
     );
 }
 
@@ -651,10 +712,17 @@ function _styleBubbleElement(nativeTheme, name, element) {
     if (typeof styler === "function") styler(element);
 }
 
-function _hasEventOrPresentationField(event, eventTheme, field, fallbackField = null) {
+function _hasEventOrPresentationField(
+    event,
+    eventTheme,
+    field,
+    fallbackField = null,
+    context = {}
+) {
     return _readEventField(event, field).found ||
         (fallbackField != null && _readEventField(event, fallbackField).found) ||
-        eventTheme?.presentation?.[field] != null;
+        resolveDisplayProfile(eventTheme?.presentation)
+            ?.hasTemplate(field, context) === true;
 }
 
 function fillRepriseBubble(
@@ -744,16 +812,25 @@ function fillRepriseBubble(
             event,
             eventTheme,
             "bubbleMinimumDuration",
-            "minimumDuration"
+            "minimumDuration",
+            { surface: "bubble", eventTime: canonicalTime }
         );
     const hasStructuredBubble = derivedDurations.duration != null ||
         structuredFields.some(([field, fallback]) =>
-            _hasEventOrPresentationField(event, eventTheme, field, fallback)
+            _hasEventOrPresentationField(
+                event,
+                eventTheme,
+                field,
+                fallback,
+                { surface: "bubble", eventTime: canonicalTime }
+            )
         );
     const hasExplicitByline = _hasEventOrPresentationField(
         event,
         eventTheme,
-        "bubbleByline"
+        "bubbleByline",
+        null,
+        { surface: "bubble", eventTime: canonicalTime }
     );
 
     if (hasExplicitByline || !hasStructuredBubble) {

@@ -95,9 +95,11 @@ injected runtime interpret domain-specific or open ranges before projecting
 them into the configured unit; the attachment pipeline does not inspect and
 reparse the source endpoints.
 
-The runtime renderer receives opaque templates and the complete EventTheme
-context. Reprise's default renderer handles native unit labels; it does not
-implement TimelineUtils macros or ChronicleTime formatting.
+The runtime receives templates selected from the EventTheme's DisplayProfile
+and the complete presentation context. Reprise's default TemplateRenderer
+handles generic macros and unit labels. A selector extension may interpret
+domain-specific values such as ChronicleTime without moving that interpretation
+into the attachment pipeline.
 
 ## Shared record preparation
 

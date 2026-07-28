@@ -89,7 +89,7 @@ function testEventTheme(overrides = {}) {
             vertical: { stickyInset: 2, stickyGap: 4, offset: 0 }
         },
         bubble: { width: 320, maxHeight: null },
-        layer: { zIndex: 5, labelZIndex: 6 },
+        layer: { zIndex: 5, labelZIndex: 114 },
         tagsToIconColor: {}
     };
 
@@ -519,6 +519,60 @@ test("event-layout resolves presentation without mutating the native painter the
     assert.equal(painter._eventTheme.bubble.width, 360);
     assert.equal(painter._eventTheme.bubble.maxHeight, 480);
     assert.equal(theme.event.instant.iconColor, originalNativeColor);
+});
+
+test("event content passes blank-area input through and keeps painted items interactive", () => {
+    const painter = makeEventPainter("horizontal");
+    const metrics = painter._repriseMetrics;
+    const theme = painter._params.theme;
+    const eventLayerParent = { style: {} };
+
+    painter._eventLayer = {
+        parentNode: eventLayerParent,
+        style: {}
+    };
+    painter._prepareForPainting();
+
+    assert.equal(eventLayerParent.style.pointerEvents, "none");
+    assert.equal(painter._eventLayer.style.pointerEvents, "none");
+
+    const icon = painter._paintEventIcon(
+        instantEvent("instant", 10),
+        0,
+        10,
+        metrics,
+        theme,
+        0
+    );
+    const tape = painter._paintEventTape(
+        event("range", 20, 60),
+        0,
+        20,
+        60,
+        "blue",
+        100,
+        metrics,
+        theme,
+        0
+    );
+    const label = painter._paintEventLabel(
+        instantEvent("label", 10),
+        "Label",
+        20,
+        20,
+        40,
+        18,
+        theme,
+        "timeline-event-label",
+        -1
+    );
+
+    assert.equal(icon.elmt.style.pointerEvents, "auto");
+    assert.equal(icon.elmt.style.zIndex, "0");
+    assert.equal(tape.elmt.style.pointerEvents, "auto");
+    assert.equal(tape.elmt.style.zIndex, "0");
+    assert.equal(label.elmt.style.pointerEvents, "auto");
+    assert.equal(label.elmt.style.zIndex, "2");
 });
 
 function tapeLabel(evt, natural, width, height) {

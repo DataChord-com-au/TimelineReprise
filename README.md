@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `2.2.0`
+Version: `2.2.1`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v2.2.0"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v2.2.1"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -63,6 +63,11 @@ Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents);
 
 Both methods accept `{ eventTheme, runtime }`. `eventTheme` is a registered
 theme id or `Timeline.EventTheme` instance; otherwise the band theme is used.
+
+Reprise-owned `DisplayProfile` and `TemplateRenderer` instances provide
+validated label, tooltip, and bubble templates. An EventTheme selects a
+registered profile through `presentation`; domain libraries can add selectors
+without replacing Reprise's generic macros or rendering pipeline.
 
 Reprise also provides supported planning-day, historical-year, and Ma timeline
 units:
@@ -136,7 +141,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [06-timeline-reprise-scales.html](examples/06-timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/06-timeline-reprise-scales.html) | Reprise Cardinal Axis adds a bounded numeric axis.<br>Reprise Scaled Zones expands selected date ranges within a band. |
 | [07-timeline-reprise-imprecise-ranges.html](examples/07-timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/07-timeline-reprise-imprecise-ranges.html) | Stress-tests routed duration labels and their tape-to-label sparklines with heavily overlapping imprecise ranges. |
 | [08-timeline-reprise-event-layout.html](examples/08-timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/08-timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |
-| [09-timeline-reprise-narrative.html](examples/09-timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/09-timeline-reprise-narrative.html) | Reprise Narrative adds labelled spans and dividers above the event layer. |
+| [09-timeline-reprise-narrative.html](examples/09-timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/09-timeline-reprise-narrative.html) | Reprise Narrative adds labelled spans and dividers alongside normal event content. |
 | [10-timeline-reprise-filtered-theme.html](examples/10-timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/10-timeline-reprise-filtered-theme.html) | Loads event theme configuration from embedded JSON and filters a larger event set by tags. |
 | [11-timeline-reprise-planning-unit.html](examples/11-timeline-reprise-planning-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/11-timeline-reprise-planning-unit.html) | Uses the supported planning-day unit for day zero, numeric strings, ranges, labels, durations, and bubbles. |
 | [12-timeline-reprise-geochrono-unit.html](examples/12-timeline-reprise-geochrono-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/12-timeline-reprise-geochrono-unit.html) | Uses the supported Ma value and unit APIs, including duration labels, and normalizes narrative spans to older-to-younger order. |

@@ -19,6 +19,9 @@ import {
     const DEFAULT_INSTANT_ICON_SIZE = 9;
     const DEFAULT_INSTANT_ICON_COLOR = "blue";
     const DEFAULT_RANGE_TAPE_COLOR = "blue";
+    const EVENT_GRAPHIC_Z_INDEX = 0;
+    const EVENT_SPARKLINE_Z_INDEX = 1;
+    const EVENT_LABEL_Z_INDEX = 2;
 
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
@@ -647,6 +650,20 @@ import {
         }
     }
 
+    function makeEventLayerTransparentToPointers(layer) {
+        if (layer?.style) layer.style.pointerEvents = "none";
+        if (layer?.parentNode?.style) {
+            layer.parentNode.style.pointerEvents = "none";
+        }
+    }
+
+    function makeEventContentInteractive(data, zIndex) {
+        if (!data?.elmt?.style) return;
+
+        data.elmt.style.pointerEvents = "auto";
+        data.elmt.style.zIndex = String(zIndex);
+    }
+
     function getTapeLaneTop(painter, metrics, theme, lane) {
         return metrics.trackOffset +
             lane * (getRangeWidth(painter) + getTapeLaneGap(painter, metrics));
@@ -861,7 +878,7 @@ import {
         sparkDiv.className = "timeline-event-tape-sparkline";
         sparkDiv.style.position = "absolute";
         sparkDiv.style.pointerEvents = "none";
-        sparkDiv.style.zIndex = "1";
+        sparkDiv.style.zIndex = String(EVENT_SPARKLINE_Z_INDEX);
         sparkDiv.style.opacity = "0.8";
 
         painter._eventLayer.appendChild(sparkDiv);
@@ -1690,6 +1707,7 @@ import {
 
     proto._prepareForPainting = function () {
         const result = originalPrepare.apply(this, arguments);
+        makeEventLayerTransparentToPointers(this._eventLayer);
 
         if (isHorizontal(this)) {
             this._repriseMetrics = null;
@@ -1814,6 +1832,7 @@ import {
             ? getEventWithThemeIcon(evt, theme, eventTheme, metrics)
             : evt;
         const data = originalPaintIcon.apply(this, paintArguments);
+        makeEventContentInteractive(data, EVENT_GRAPHIC_Z_INDEX);
         applyThemeIconSize(data, metrics);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data);
@@ -1861,6 +1880,7 @@ import {
             theme,
             tapeIndex
         );
+        makeEventContentInteractive(data, EVENT_GRAPHIC_Z_INDEX);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data, { swapSize: true });
             const tapeEvent = isTapeEvent(this, evt);
@@ -1927,6 +1947,7 @@ import {
         evt, text, left, top, width, height, theme, labelDivClassName, highlightIndex
     ) {
         const data = originalPaintLabel.apply(this, arguments);
+        makeEventContentInteractive(data, EVENT_LABEL_Z_INDEX);
 
         if (data?.elmt) {
             const eventTheme = getPainterEventTheme(this, evt);

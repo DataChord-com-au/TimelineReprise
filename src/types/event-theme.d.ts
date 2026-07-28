@@ -2,23 +2,7 @@ declare namespace Timeline {
     type EventColorScope = "none" | "label" | "graphic" | "both";
     type LabelColorSource = "graphic" | "theme" | "inherit";
 
-    interface PresentationFieldSpec {
-        template?: unknown;
-        templateId?: string;
-    }
-
-    type PresentationMap = Readonly<
-        Record<string, PresentationFieldSpec | unknown>
-    >;
-
-    interface PresentationCarrier {
-        presentation?: PresentationMap;
-        template?: unknown;
-        templateId?: string;
-        templates?: Readonly<Record<string, unknown>>;
-    }
-
-    interface TrackSpec extends PresentationCarrier {
+    interface TrackSpec {
         count?: number;
         offset?: number;
         endPadding?: number;
@@ -32,7 +16,7 @@ declare namespace Timeline {
         vertical?: TrackSpec;
     }
 
-    interface InstantSpec extends PresentationCarrier {
+    interface InstantSpec {
         iconColor?: string;
         width?: number;
         height?: number;
@@ -48,11 +32,11 @@ declare namespace Timeline {
         vertical?: InstantSpec;
     }
 
-    interface ShortRangeSpec extends PresentationCarrier {
+    interface ShortRangeSpec {
         minDisplayLength?: number;
     }
 
-    interface RangeSpec extends PresentationCarrier {
+    interface RangeSpec {
         iconColor?: string;
         colors?: readonly string[];
         width?: number;
@@ -79,7 +63,7 @@ declare namespace Timeline {
         vertical?: RangeSpec;
     }
 
-    interface LabelSpec extends PresentationCarrier {
+    interface LabelSpec {
         stickyInset?: number;
         stickyGap?: number;
         offset?: number;
@@ -92,17 +76,17 @@ declare namespace Timeline {
         vertical?: LabelSpec;
     }
 
-    interface BubbleSpec extends PresentationCarrier {
+    interface BubbleSpec {
         width?: number;
         maxHeight?: number | null;
     }
 
-    interface LayerSpec extends PresentationCarrier {
+    interface LayerSpec {
         zIndex?: number;
         labelZIndex?: number;
     }
 
-    interface EventThemeConfig extends PresentationCarrier {
+    interface EventThemeConfig {
         id?: string;
         disableEmphasis?: boolean;
         eventColorScope?: EventColorScope;
@@ -118,6 +102,7 @@ declare namespace Timeline {
         bubble?: BubbleSpec;
         layer?: LayerSpec;
         tagsToIconColor?: Readonly<Record<string, string>>;
+        presentation?: DisplayProfileSelection | null;
     }
 
     class EventTheme {
@@ -141,10 +126,7 @@ declare namespace Timeline {
         readonly bubble: Readonly<BubbleSpec>;
         readonly layer: Readonly<LayerSpec>;
         readonly tagsToIconColor: Readonly<Record<string, string>>;
-        readonly presentation: PresentationMap;
-        readonly template?: unknown;
-        readonly templateId?: string;
-        readonly templates: Readonly<Record<string, unknown>>;
+        readonly presentation: DisplayProfileSelection | null;
     }
 
     type EventThemeSelection = string | EventTheme;

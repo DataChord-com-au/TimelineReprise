@@ -32,7 +32,8 @@
   <p>
     This example uses Timeline.Ma and Timeline.MaUnit. The lower narrative span
     is supplied as 50 Ma to 100 Ma, and the runtime normalizes it to
-    older-to-younger order.
+    older-to-younger order. Reprise DisplayProfiles render Ma durations without
+    a domain runtime adapter.
   </p>
 
   <div id="timeline"></div>
@@ -104,6 +105,7 @@
       var theme = Timeline.ClassicTheme.create();
 
       theme.eventTheme = new Timeline.EventTheme({
+        presentation: "maEvents",
         track: {
           horizontal: {
             count: 3,
@@ -152,6 +154,33 @@
 
     var geochronoUnit = Timeline.MaUnit;
     var geochronoLabeller = geochronoUnit.createLabeller();
+    Timeline.loadDisplayProfiles([
+      {
+        id: "maEvents",
+        label: {
+          title: {
+            range: "{join(' - ', title, duration)}"
+          }
+        },
+        bubble: {
+          bubbleStart: "{start}",
+          bubbleEnd: {
+            range: "{end}"
+          },
+          bubbleDuration: {
+            range: "{duration}"
+          }
+        }
+      },
+      {
+        id: "maNarrative",
+        label: {
+          caption: {
+            range: "{duration}"
+          }
+        }
+      }
+    ]);
     var eventSource = new Timeline.DefaultEventSource(
       new SimileAjax.EventIndex(geochronoUnit)
     );
@@ -186,6 +215,11 @@
           offset: 124
         }
       }
+    });
+    var narrativeTheme = Timeline.deriveEventTheme(theme.eventTheme, {
+      id: "maNarrativeTheme",
+      presentation: "maNarrative",
+      bubbles: false
     });
     var events = [
       {
@@ -227,7 +261,10 @@
     );
     Timeline.attachNarrativeDecorators(
       bandInfo,
-      narrativeData.ranges.concat(narrativeData.instants)
+      narrativeData.ranges.concat(narrativeData.instants),
+      {
+        eventTheme: narrativeTheme
+      }
     );
 
     Timeline.create(

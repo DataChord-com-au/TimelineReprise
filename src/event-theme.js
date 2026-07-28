@@ -1,4 +1,5 @@
 import { assertColorString } from "./color.js";
+import { DisplayProfile } from "./display-profile.js";
 import { TIMELINE_ORIENTATIONS } from "./orientation.js";
 
 const _MODULE_LABEL = "TimelineReprise";
@@ -93,17 +94,8 @@ const _EVENT_THEME_FIELDS = new Set([
     'bubble',
     'layer',
     'tagsToIconColor',
-    'presentation',
-    'template',
-    'templateId',
-    'templates'
+    'presentation'
 ]);
-const _OPAQUE_PRESENTATION_FIELDS = [
-    'presentation',
-    'template',
-    'templateId',
-    'templates'
-];
 const _ORIENTATION_FIELDS = [...TIMELINE_ORIENTATIONS];
 const _TRACK_FIELDS = new Set([
     'count',
@@ -112,8 +104,7 @@ const _TRACK_FIELDS = new Set([
     'size',
     'gap',
     'align',
-    ..._ORIENTATION_FIELDS,
-    ..._OPAQUE_PRESENTATION_FIELDS
+    ..._ORIENTATION_FIELDS
 ]);
 const _INSTANT_FIELDS = new Set([
     'iconColor',
@@ -124,8 +115,7 @@ const _INSTANT_FIELDS = new Set([
     'toLabelGap',
     'cssClass',
     'labelCssClass',
-    ..._ORIENTATION_FIELDS,
-    ..._OPAQUE_PRESENTATION_FIELDS
+    ..._ORIENTATION_FIELDS
 ]);
 const _RANGE_FIELDS = new Set([
     'iconColor',
@@ -147,12 +137,10 @@ const _RANGE_FIELDS = new Set([
     'cssClass',
     'labelCssClass',
     'short',
-    ..._ORIENTATION_FIELDS,
-    ..._OPAQUE_PRESENTATION_FIELDS
+    ..._ORIENTATION_FIELDS
 ]);
 const _SHORT_RANGE_FIELDS = new Set([
-    'minDisplayLength',
-    ..._OPAQUE_PRESENTATION_FIELDS
+    'minDisplayLength'
 ]);
 const _LABEL_FIELDS = new Set([
     'stickyInset',
@@ -160,18 +148,15 @@ const _LABEL_FIELDS = new Set([
     'offset',
     'color',
     'colorSource',
-    ..._ORIENTATION_FIELDS,
-    ..._OPAQUE_PRESENTATION_FIELDS
+    ..._ORIENTATION_FIELDS
 ]);
 const _BUBBLE_FIELDS = new Set([
     'width',
-    'maxHeight',
-    ..._OPAQUE_PRESENTATION_FIELDS
+    'maxHeight'
 ]);
 const _LAYER_FIELDS = new Set([
     'zIndex',
-    'labelZIndex',
-    ..._OPAQUE_PRESENTATION_FIELDS
+    'labelZIndex'
 ]);
 const _EVENT_THEME_DEFAULTS = Object.freeze({
     disableEmphasis: false,
@@ -257,11 +242,10 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
     },
     layer: {
         zIndex: 5,
-        labelZIndex: 6
+        labelZIndex: 114
     },
     tagsToIconColor: {},
-    presentation: {},
-    templates: {}
+    presentation: null
 });
 
 class EventTheme {
@@ -450,6 +434,17 @@ class EventTheme {
         }
     }
 
+    static #assertPresentation(value, caller) {
+        if (value == null || value instanceof DisplayProfile) return;
+        if (typeof value !== "string") {
+            throw new TypeError(
+                `${caller} must be a DisplayProfile or registered profile id.`
+            );
+        }
+
+        validateThemeSpecId(value, caller);
+    }
+
     static #assertThemeShape(theme, caller) {
         for (const field of Object.keys(theme)) {
             if (!_EVENT_THEME_FIELDS.has(field)) {
@@ -491,6 +486,7 @@ class EventTheme {
         if (theme.tagsToIconColor !== undefined) {
             this.#assertTagsToIconColor(theme.tagsToIconColor, `${caller}.tagsToIconColor`);
         }
+        this.#assertPresentation(theme.presentation, `${caller}.presentation`);
     }
 
     constructor(config = {}) {

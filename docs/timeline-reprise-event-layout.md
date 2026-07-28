@@ -105,6 +105,17 @@ Create a fresh theme object for each timeline when a page shows horizontal and v
 Orientation-specific properties are read from `horizontal` or `vertical` when
 the painter is initialised.
 
+## Event Content Layering
+
+The full-band event-content layer is pointer-transparent. Tapes, icons, and
+event labels opt back into pointer input, while empty space falls through to
+the band's drag handler.
+
+Within that layer, tapes and icons use z-index `0`, tape-to-label sparklines use
+z-index `1`, and event and duration labels use z-index `2`. Narrative labels
+sit immediately below the event-content layer, so event content takes
+precedence only where it is actually painted.
+
 ## Event Display Controls
 
 ### `eventTheme.labels`

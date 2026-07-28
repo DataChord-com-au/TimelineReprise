@@ -82,6 +82,8 @@
         values.push(rawCe);
       }
 
+      if (min <= 0 && max >= 0) values.push(0);
+
       values.sort(function (left, right) {
         return left - right;
       });
