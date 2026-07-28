@@ -181,6 +181,156 @@ const PlanningDayUnit = {
     }
 };
 
+function _historicalYearNumber(value) {
+    if (typeof value !== "number" && typeof value !== "string") {
+        return null;
+    }
+    if (typeof value === "string" && value.trim() === "") {
+        return null;
+    }
+
+    const number = Number(value);
+    return Number.isFinite(number) && Number.isInteger(number)
+        ? number
+        : null;
+}
+
+function _historicalCoordinateNumber(value) {
+    return typeof value === "number" && Number.isFinite(value)
+        ? value
+        : null;
+}
+
+function _makeHistoricalCoordinate(value) {
+    const coordinate = _historicalCoordinateNumber(value);
+    if (coordinate == null) {
+        throw new TypeError(
+            "TimelineReprise.HistoricalYear coordinate must be a finite number."
+        );
+    }
+
+    const result = Object.create(HistoricalYear.prototype);
+    result.value = coordinate;
+    return result;
+}
+
+function _formatHistoricalYear(value) {
+    const coordinate = _historicalCoordinateNumber(value);
+    if (coordinate == null) return "";
+    const year = Math.floor(coordinate);
+
+    return year <= 0
+        ? `${1 - year} BCE`
+        : `${year} CE`;
+}
+
+class HistoricalYear {
+    constructor(value) {
+        const year = _historicalYearNumber(value);
+        if (year == null) {
+            throw new TypeError(
+                "TimelineReprise.HistoricalYear value must be a finite integer."
+            );
+        }
+
+        this.value = year;
+    }
+
+    valueOf() {
+        return this.value;
+    }
+
+    toString() {
+        return _formatHistoricalYear(this.value);
+    }
+}
+
+class HistoricalYearLabeller {
+    labelPrecise(value) {
+        return _formatHistoricalYear(value.value);
+    }
+
+    labelInterval(value) {
+        const year = Math.floor(value.value);
+        const displayYear = year <= 0 ? 1 - year : year;
+
+        return {
+            text: _formatHistoricalYear(year),
+            emphasized: displayYear % 100 === 0
+        };
+    }
+
+    labelDuration(value) {
+        const years = _historicalYearNumber(value);
+        return years != null && years >= 0
+            ? _plural(years, "year")
+            : "";
+    }
+}
+
+const HistoricalYearUnit = {
+    HistoricalYear,
+
+    parseFromObject(value) {
+        if (value instanceof HistoricalYear) {
+            return Number.isInteger(value.value) ? value : null;
+        }
+
+        const candidate =
+            value != null &&
+            typeof value === "object" &&
+            Object.prototype.hasOwnProperty.call(value, "value")
+                ? value.value
+                : value;
+        const year = _historicalYearNumber(candidate);
+        return year == null ? null : new HistoricalYear(year);
+    },
+
+    getParser() {
+        return this.parseFromObject;
+    },
+
+    makeDefaultValue() {
+        return new HistoricalYear(1);
+    },
+
+    cloneValue(value) {
+        return _makeHistoricalCoordinate(value.value);
+    },
+
+    toNumber(value) {
+        return value.value;
+    },
+
+    fromNumber(value) {
+        return _makeHistoricalCoordinate(value);
+    },
+
+    compare(left, right) {
+        return left.value - right.value;
+    },
+
+    earlier(left, right) {
+        return this.compare(left, right) < 0 ? left : right;
+    },
+
+    later(left, right) {
+        return this.compare(left, right) > 0 ? left : right;
+    },
+
+    change(value, delta) {
+        return _makeHistoricalCoordinate(value.value + Number(delta));
+    },
+
+    duration(start, end) {
+        return Math.abs(end.value - start.value);
+    },
+
+    createLabeller() {
+        return new HistoricalYearLabeller();
+    }
+};
+
 class Ma {
     constructor(value) {
         this.value = Number(value);
@@ -191,7 +341,7 @@ class Ma {
     }
 
     toString() {
-        return `${this.value} Ma`;
+        return `${_formatMa(this.value)} Ma`;
     }
 }
 
@@ -199,11 +349,9 @@ function _formatMa(value) {
     const number = Number(value);
     if (!Number.isFinite(number)) return "";
 
-    if (Math.abs(number) < 1 && !Number.isInteger(number)) {
-        return number.toFixed(1);
-    }
+    if (Number.isInteger(number)) return String(number);
 
-    return String(number);
+    return number.toFixed(Math.abs(number) < 1 ? 2 : 1);
 }
 
 class MaLabeller {
@@ -287,6 +435,9 @@ const MaUnit = {
 _installNativeDateDurationSupport();
 
 export {
+    HistoricalYear,
+    HistoricalYearLabeller,
+    HistoricalYearUnit,
     Ma,
     MaLabeller,
     MaUnit,

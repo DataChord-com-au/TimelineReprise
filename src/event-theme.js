@@ -85,6 +85,7 @@ const _EVENT_THEME_FIELDS = new Set([
     'dividers',
     'labels',
     'bubbles',
+    'tooltips',
     'track',
     'instant',
     'range',
@@ -179,6 +180,7 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
     dividers: true,
     labels: true,
     bubbles: true,
+    tooltips: true,
     track: {
         horizontal: {
             count: 1,
@@ -461,6 +463,7 @@ class EventTheme {
         this.#assertBoolean(theme.dividers, `${caller}.dividers`);
         this.#assertBoolean(theme.labels, `${caller}.labels`);
         this.#assertBoolean(theme.bubbles, `${caller}.bubbles`);
+        this.#assertBoolean(theme.tooltips, `${caller}.tooltips`);
         if (theme.track !== undefined) {
             this.#assertOrientableSpec(theme.track, `${caller}.track`, this.#assertTrackSpec);
         }

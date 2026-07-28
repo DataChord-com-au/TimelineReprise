@@ -14,6 +14,7 @@ var themes = Timeline.loadEventThemes([
         id: "editorial",
         labels: true,
         bubbles: false,
+        tooltips: true,
         instant: {
             iconColor: "orange"
         },
@@ -86,6 +87,11 @@ Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
 An explicit selection must be a registered id or an `EventTheme` instance.
 Object literals belong in the registry or at `nativeTheme.eventTheme`.
 The two methods may select different themes on the same band.
+
+`tooltips` is an optional boolean that defaults to `true`. Narrative uses an
+enabled rendered caption as the label's native `title` tooltip. Set
+`tooltips: false` to suppress these caption tooltips without changing bubble
+behavior.
 
 ## Derivation
 

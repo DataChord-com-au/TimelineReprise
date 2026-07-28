@@ -35,6 +35,48 @@ declare namespace Timeline {
 
     const PlanningDayUnit: PlanningDayUnitContract;
 
+    class HistoricalYear {
+        constructor(value: number | string);
+        readonly value: number;
+        valueOf(): number;
+        toString(): string;
+    }
+
+    class HistoricalYearLabeller
+        implements TimelineLabeller<HistoricalYear>, DurationLabeller {
+        labelPrecise(value: HistoricalYear): string;
+        labelInterval(
+            value: HistoricalYear,
+            intervalUnit?: number
+        ): { text: string; emphasized: boolean };
+        labelDuration(value: number): string;
+    }
+
+    interface HistoricalYearUnitContract
+        extends TimelineUnit<HistoricalYear>, DurationUnit<HistoricalYear> {
+        readonly HistoricalYear: typeof HistoricalYear;
+        getParser(): (value: unknown) => HistoricalYear | null;
+        makeDefaultValue(): HistoricalYear;
+        cloneValue(value: HistoricalYear): HistoricalYear;
+        toNumber(value: HistoricalYear): number;
+        fromNumber(value: number): HistoricalYear;
+        earlier(
+            left: HistoricalYear,
+            right: HistoricalYear
+        ): HistoricalYear;
+        later(
+            left: HistoricalYear,
+            right: HistoricalYear
+        ): HistoricalYear;
+        change(value: HistoricalYear, delta: number): HistoricalYear;
+        createLabeller(
+            locale?: string,
+            timeZone?: number
+        ): HistoricalYearLabeller;
+    }
+
+    const HistoricalYearUnit: HistoricalYearUnitContract;
+
     class Ma {
         constructor(value: number | string);
         value: number;

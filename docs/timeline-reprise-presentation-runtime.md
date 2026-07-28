@@ -62,7 +62,8 @@ Every input value is passed through `unit.parseFromObject()`. Validation and
 range ordering use `unit.compare()`; the runtime does not use JavaScript
 `Date` identity as generic validation. Reversed ranges are normalized according
 to the unit's chronology. This supports native dates, Planning-style numbers
-including zero, and Geochrono-style wrapper objects through the same path.
+including zero, astronomical `HistoricalYear` values, and Geochrono-style
+wrapper objects through the same path.
 
 Supported event inputs are:
 

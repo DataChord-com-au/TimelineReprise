@@ -46,6 +46,49 @@ Use it anywhere a SIMILE timeline unit is accepted, including
 `SimileAjax.EventIndex`, `Timeline.LinearEther`, `Timeline.create()`, and
 `Timeline.RepriseRuntime`.
 
+## Historical years
+
+`Timeline.HistoricalYear` represents a whole year without constructing a
+JavaScript `Date` or introducing month, day, time, or time-zone semantics.
+Its raw `value`, numeric coercion, and `Timeline.HistoricalYearUnit.toNumber()`
+use astronomical year numbering:
+
+- raw `-1` is `2 BCE`;
+- raw `0` is `1 BCE`;
+- raw `1` is `1 CE`.
+
+There is no year zero in `toString()`, precise labels, or axis labels.
+
+```js
+var caesar = new Timeline.HistoricalYear(-43); // astronomical year -43
+var augustus = new Timeline.HistoricalYear(14);
+var unit = Timeline.HistoricalYearUnit;
+var labeller = unit.createLabeller();
+
+Number(caesar);                         // -43
+String(caesar);                         // "44 BCE"
+labeller.labelPrecise(augustus);        // "14 CE"
+unit.duration(caesar, augustus);        // 57
+labeller.labelDuration(57);             // "57 years"
+```
+
+The unit accepts whole finite numbers, numeric strings, `HistoricalYear`
+instances, and objects with a whole numeric `value`. It implements parsing,
+cloning, numeric projection, comparison, earlier/later selection, change,
+duration, and labeller creation. BCE/CE labels are produced arithmetically;
+the implementation does not construct JavaScript dates.
+
+The public constructor and parser reject fractional years. `fromNumber()` and
+`change()` retain finite fractional coordinates used internally by
+`Timeline.LinearEther`, allowing smooth pixel movement without adding calendar
+semantics. If such a coordinate is formatted, its containing whole year is
+used.
+
+See
+[the historical-year example](../examples/14-timeline-reprise-historical-year-unit.html)
+for BCE/CE axis labels and sample data covering ancient Egypt, the Greek
+world, and Rome.
+
 ## Ma values
 
 `Timeline.Ma` is the supported value wrapper and `Timeline.MaUnit` is its
@@ -61,8 +104,10 @@ unit.duration(older, younger); // 35
 labeller.labelDuration(35);    // "35 Ma"
 ```
 
-Durations below 1 Ma use one decimal place when needed. For example, a
-duration of `0.5` is labelled `"0.5 Ma"`.
+Ma values and durations use no decimal places for integers, exactly one
+decimal place for non-integers of at least 1 Ma, and exactly two decimal places
+for non-integers below 1 Ma. For example, `50`, `50.5`, `0.5`, and `0.25` are
+labelled `"50 Ma"`, `"50.5 Ma"`, `"0.50 Ma"`, and `"0.25 Ma"`.
 
 ---
 [Back to top](#timeline-units-and-durations)<br>

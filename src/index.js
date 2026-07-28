@@ -4,6 +4,9 @@ import { EmphasisStyle } from "./emphasis-style.js";
 import { EventTheme, defaultEventTheme, deriveEventTheme } from "./event-theme.js";
 import { filterEvents } from "./event-filters.js";
 import {
+    HistoricalYear,
+    HistoricalYearLabeller,
+    HistoricalYearUnit,
     Ma,
     MaLabeller,
     MaUnit,
@@ -43,6 +46,9 @@ export {
     EmphasisStyle,
     TIMELINE_ORIENTATIONS,
     EventTheme,
+    HistoricalYear,
+    HistoricalYearLabeller,
+    HistoricalYearUnit,
     Ma,
     MaLabeller,
     MaUnit,

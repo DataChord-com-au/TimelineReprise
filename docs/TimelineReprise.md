@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v2.1.0`
+Version: `v2.2.0`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -75,6 +75,7 @@ external files under `dist/images/`.
 ### [11-timeline-reprise-planning-unit.html](../examples/11-timeline-reprise-planning-unit.html)
 ### [12-timeline-reprise-geochrono-unit.html](../examples/12-timeline-reprise-geochrono-unit.html)
 ### [13-timeline-reprise-clamp-stress.html](../examples/13-timeline-reprise-clamp-stress.html)
+### [14-timeline-reprise-historical-year-unit.html](../examples/14-timeline-reprise-historical-year-unit.html)
 
 
 ---

@@ -85,7 +85,9 @@ same path.
 Duration-aware units and labellers also give automatically created runtimes
 derived duration context. This applies equally to `attachEvents()` and
 `attachNarrativeDecorators()`. Native dates use elapsed milliseconds,
-`Timeline.PlanningDayUnit` uses planning days, and `Timeline.MaUnit` uses Ma.
+`Timeline.PlanningDayUnit` uses planning days,
+`Timeline.HistoricalYearUnit` uses elapsed years, and `Timeline.MaUnit` uses
+Ma.
 
 The canonical result may include `latestStart` and `earliestEnd`. Reprise uses
 those projected values directly for imprecise event layout. This lets an

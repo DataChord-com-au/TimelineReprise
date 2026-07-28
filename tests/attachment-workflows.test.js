@@ -339,6 +339,16 @@ test("automatically created runtimes derive durations for both attachment workfl
             },
             expectedValue: 35,
             expectedText: "35 Ma"
+        },
+        {
+            unit: Timeline.HistoricalYearUnit,
+            range: {
+                start: -43,
+                end: 14,
+                title: "Historical range"
+            },
+            expectedValue: 57,
+            expectedText: "57 years"
         }
     ];
 

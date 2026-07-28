@@ -205,10 +205,10 @@ function makeNativeTheme(eventTheme) {
     };
 }
 
-function paintNarrative(Timeline, runtime, ranges, instants) {
+function paintNarrative(Timeline, runtime, ranges, instants, eventThemeConfig = {}) {
     const doc = makeDocument();
     const layers = [];
-    const eventTheme = new Timeline.EventTheme();
+    const eventTheme = new Timeline.EventTheme(eventThemeConfig);
     const nativeTheme = makeNativeTheme(eventTheme);
     const unit = runtime.unit;
     const band = {
@@ -357,6 +357,136 @@ test("geochrono wrappers retain their shape and normalize reversed chronology wi
     assert.equal(eventTime.end, newer);
 });
 
+test("HistoricalYearUnit uses astronomical raw years with BCE and CE labels", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.HistoricalYearUnit;
+    const labeller = unit.createLabeller();
+    const twoBce = new Timeline.HistoricalYear(-1);
+    const oneBce = unit.parseFromObject(0);
+    const oneCe = unit.parseFromObject("1");
+    const fortyFourBce = unit.parseFromObject({ value: -43 });
+
+    assert.equal(unit.HistoricalYear, Timeline.HistoricalYear);
+    assert.equal(unit.getParser(), unit.parseFromObject);
+    assert.equal(unit.parseFromObject(twoBce), twoBce);
+    assert.equal(unit.parseFromObject(1.5), null);
+    assert.equal(unit.parseFromObject(true), null);
+    assert.equal(unit.parseFromObject(""), null);
+    assert.throws(
+        () => new Timeline.HistoricalYear(1.5),
+        /finite integer/
+    );
+
+    assert.equal(twoBce.value, -1);
+    assert.equal(Number(twoBce), -1);
+    assert.equal(String(twoBce), "2 BCE");
+    assert.equal(String(oneBce), "1 BCE");
+    assert.equal(String(oneCe), "1 CE");
+    assert.equal(String(fortyFourBce), "44 BCE");
+    assert.notEqual(
+        Object.prototype.toString.call(fortyFourBce),
+        "[object Date]"
+    );
+
+    assert.equal(labeller.labelPrecise(fortyFourBce), "44 BCE");
+    assert.equal(labeller.labelInterval(oneBce).text, "1 BCE");
+    assert.equal(labeller.labelInterval(oneCe).text, "1 CE");
+    assert.deepEqual(
+        { ...labeller.labelInterval(new Timeline.HistoricalYear(-99)) },
+        { text: "100 BCE", emphasized: true }
+    );
+    assert.deepEqual(
+        { ...labeller.labelInterval(new Timeline.HistoricalYear(100)) },
+        { text: "100 CE", emphasized: true }
+    );
+
+    const clone = unit.cloneValue(fortyFourBce);
+    assert.notEqual(clone, fortyFourBce);
+    assert.equal(clone.value, -43);
+    assert.equal(unit.makeDefaultValue().value, 1);
+    assert.equal(unit.toNumber(fortyFourBce), -43);
+    assert.equal(unit.fromNumber(-43).value, -43);
+    assert.equal(unit.change(fortyFourBce, 57).value, 14);
+    const shifted = unit.change(oneCe, 0.25);
+    assert.equal(unit.toNumber(shifted), 1.25);
+    assert.equal(String(shifted), "1 CE");
+    assert.equal(unit.cloneValue(shifted).value, 1.25);
+    assert.equal(unit.parseFromObject(shifted), null);
+    assert.equal(unit.compare(fortyFourBce, oneCe) < 0, true);
+    assert.equal(unit.earlier(fortyFourBce, oneCe), fortyFourBce);
+    assert.equal(unit.later(fortyFourBce, oneCe), oneCe);
+
+    assert.equal(unit.duration(twoBce, oneCe), 2);
+    assert.equal(unit.duration(oneBce, oneCe), 1);
+    assert.equal(labeller.labelDuration(1), "1 year");
+    assert.equal(labeller.labelDuration(57), "57 years");
+});
+
+test("HistoricalYear works with default and injected runtime rendering", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.HistoricalYearUnit;
+    const labeller = unit.createLabeller();
+    const event = {
+        start: -43,
+        end: 14,
+        title: "Roman transition"
+    };
+    const runtime = new Timeline.RepriseRuntime({ unit, labeller });
+    const normalized = runtime.readEventTime({
+        start: 14,
+        end: -43
+    });
+
+    assert.equal(normalized.start.value, -43);
+    assert.equal(normalized.end.value, 14);
+    assert.equal(
+        runtime.render(null, event, {
+            field: "eventTime",
+            target: "text"
+        }),
+        "44 BCE - 14 CE"
+    );
+    assert.equal(
+        runtime.render(null, event, {
+            field: "eventTime",
+            target: "html"
+        }),
+        "44 BCE<br>14 CE"
+    );
+    assert.equal(
+        runtime.render(null, event, {
+            field: "bubbleDuration",
+            target: "html"
+        }),
+        "57 years"
+    );
+
+    let renderedTemplate;
+    let renderedContext;
+    const injected = new Timeline.RepriseRuntime({
+        unit,
+        labeller,
+        render(template, _event, context) {
+            renderedTemplate = template;
+            renderedContext = context;
+            return context.duration.text;
+        }
+    });
+    const result = injected.render("historical-title-template", event, {
+        field: "title",
+        target: "html"
+    });
+
+    assert.equal(result, "57 years");
+    assert.equal(renderedTemplate, "historical-title-template");
+    assert.equal(renderedContext.eventTime.start.value, -43);
+    assert.equal(renderedContext.eventTime.end.value, 14);
+    assert.equal(renderedContext.duration.value, 57);
+    assert.equal(renderedContext.duration.text, "57 years");
+    assert.equal(renderedContext.unit, unit);
+    assert.equal(renderedContext.labeller, labeller);
+});
+
 test("supported PlanningDayUnit and MaUnit calculate and label durations", () => {
     const { Timeline } = loadTimeline();
     const planningLabeller = Timeline.PlanningDayUnit.createLabeller();
@@ -370,15 +500,16 @@ test("supported PlanningDayUnit and MaUnit calculate and label durations", () =>
     const younger = new Timeline.Ma(190);
     assert.equal(Timeline.MaUnit.duration(older, younger), 35);
     assert.equal(maLabeller.labelDuration(35), "35 Ma");
+    assert.equal(maLabeller.labelDuration(50.50199999999998), "50.5 Ma");
+    assert.equal(maLabeller.labelDuration(0.5), "0.50 Ma");
+    assert.equal(maLabeller.labelDuration(0.25), "0.25 Ma");
+    assert.equal(maLabeller.labelPrecise(new Timeline.Ma(50)), "50 Ma");
     assert.equal(
-        maLabeller.labelDuration(
-            Timeline.MaUnit.duration(
-                new Timeline.Ma(225),
-                new Timeline.Ma(224.5)
-            )
-        ),
-        "0.5 Ma"
+        maLabeller.labelPrecise(new Timeline.Ma(50.50199999999998)),
+        "50.5 Ma"
     );
+    assert.equal(maLabeller.labelPrecise(new Timeline.Ma(0.25)), "0.25 Ma");
+    assert.equal(String(new Timeline.Ma(50.50199999999998)), "50.5 Ma");
 
     older.toString = () => {
         throw new Error("duration must not parse Ma.toString()");
@@ -688,6 +819,18 @@ test("Narrative accepts ranges and instants for every supported unit shape", () 
             unit: makePlanningUnit(),
             range: { startDate: 0, endDate: 10, title: "Planning range" },
             instant: { date: 5, title: "Planning instant" }
+        },
+        {
+            unit: Timeline.HistoricalYearUnit,
+            range: {
+                startDate: -43,
+                endDate: 14,
+                title: "Historical range"
+            },
+            instant: {
+                date: 0,
+                title: "Historical instant"
+            }
         }
     ];
     const geochrono = makeGeochronoUnit();
@@ -723,6 +866,72 @@ test("Narrative accepts ranges and instants for every supported unit shape", () 
         assert.ok(decorator._rangeRecords[0].labelElmt);
         assert.ok(decorator._instantRecords[0].labelElmt);
     }
+});
+
+test("Narrative caption tooltips enable pointer events without bubble behavior", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter", caption: "Details" }],
+        [],
+        { bubbles: false }
+    );
+    const label = decorator._rangeRecords[0].labelElmt;
+
+    assert.equal(label.title, "Details");
+    assert.equal(label.style.pointerEvents, "auto");
+    assert.equal(label.style.cursor, "default");
+    assert.equal(label.onclick, undefined);
+});
+
+test("Narrative caption tooltips can be suppressed independently of bubbles", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter", caption: "Details" }],
+        [],
+        { bubbles: false, tooltips: false }
+    );
+    const label = decorator._rangeRecords[0].labelElmt;
+
+    assert.equal(label.title, undefined);
+    assert.equal(label.style.pointerEvents, "none");
+    assert.equal(label.style.cursor, "default");
+    assert.equal(label.onclick, undefined);
+});
+
+test("Narrative labels without rendered captions remain non-interactive without bubbles", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter", caption: "" }],
+        [],
+        { bubbles: false }
+    );
+    const label = decorator._rangeRecords[0].labelElmt;
+
+    assert.equal(label.title, undefined);
+    assert.equal(label.style.pointerEvents, "none");
+    assert.equal(label.style.cursor, "default");
+    assert.equal(label.onclick, undefined);
 });
 
 test("Reprise image bubble stays above the title and retains structured content", () => {

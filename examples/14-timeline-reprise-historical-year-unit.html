@@ -1,0 +1,370 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Historical Year Unit - Classical Civilisations</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    #timeline {
+      height: 560px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .legend-swatch {
+      display: inline-block;
+      width: 0.9em;
+      height: 0.9em;
+      margin-right: 0.35em;
+      border-radius: 50%;
+      vertical-align: -0.05em;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Historical Year Unit: Classical Civilisations</h1>
+  <p>
+    This example uses Timeline.HistoricalYear and Timeline.HistoricalYearUnit
+    for a broad comparison of ancient Egypt, the Greek world, and Rome. Event
+    data uses astronomical whole-year numbers: raw 0 is displayed as 1 BCE,
+    while raw 1 is displayed as 1 CE. No JavaScript Date values are used.
+  </p>
+
+  <ul class="legend">
+    <li><span class="legend-swatch" style="background: #c58b22"></span>Egypt</li>
+    <li><span class="legend-swatch" style="background: #3f7fc4"></span>Greek world</li>
+    <li><span class="legend-swatch" style="background: #b54a4a"></span>Rome</li>
+  </ul>
+
+  <div id="timeline"></div>
+
+  <script>
+    function labelText(label) {
+      return label && typeof label === "object" && "text" in label
+        ? label.text
+        : label;
+    }
+
+    function historicalTickValues(min, max, interval) {
+      var values = [];
+      var oldestBce = Math.floor((1 - min) / interval) * interval;
+
+      for (var bce = oldestBce; bce >= interval; bce -= interval) {
+        var rawBce = 1 - bce;
+        if (rawBce >= min && rawBce <= max) values.push(rawBce);
+      }
+
+      var firstCe = Math.ceil(Math.max(1, min) / interval) * interval;
+      for (var rawCe = firstCe; rawCe <= max; rawCe += interval) {
+        values.push(rawCe);
+      }
+
+      values.sort(function (left, right) {
+        return left - right;
+      });
+      return values;
+    }
+
+    function HistoricalYearEtherPainter(options) {
+      this._interval = options.interval;
+    }
+
+    HistoricalYearEtherPainter.prototype.initialize = function (band, timeline) {
+      this._band = band;
+      this._timeline = timeline;
+      this._backgroundLayer = band.createLayerDiv(0);
+      this._backgroundLayer.setAttribute("name", "ether-background");
+      this._backgroundLayer.className = "timeline-ether-bg";
+      this._lineLayer = band.createLayerDiv(1);
+      this._lineLayer.setAttribute("name", "historical-year-lines");
+      this._markerLayer = band.createLayerDiv(100);
+      this._markerLayer.setAttribute("name", "historical-year-labels");
+    };
+
+    HistoricalYearEtherPainter.prototype.setHighlight = function () {};
+
+    HistoricalYearEtherPainter.prototype.paint = function () {
+      this.softPaint();
+    };
+
+    HistoricalYearEtherPainter.prototype.softPaint = function () {
+      var unit = this._timeline.getUnit();
+      var labeller = this._band.getLabeller();
+      var min = unit.toNumber(this._band.getMinDate());
+      var max = unit.toNumber(this._band.getMaxDate());
+      var values = historicalTickValues(
+        Math.min(min, max),
+        Math.max(min, max),
+        this._interval
+      );
+      var doc = this._timeline.getDocument();
+      var totalLength = this._band.getTotalViewLength();
+
+      this._lineLayer.innerHTML = "";
+      this._markerLayer.innerHTML = "";
+
+      for (var index = 0; index < values.length; index++) {
+        var unitValue = unit.fromNumber(values[index]);
+        var pixel = Math.round(this._band.dateToPixelOffset(unitValue));
+
+        if (pixel < -80 || pixel > totalLength + 80) continue;
+
+        var marker = doc.createElement("div");
+        var label = doc.createElement("div");
+
+        marker.className = "timeline-ether-lines";
+        marker.style.left = pixel + "px";
+
+        label.className = "timeline-date-label";
+        label.style.left = pixel + "px";
+        label.textContent = labelText(
+          labeller.labelInterval(unitValue, this._interval)
+        );
+
+        this._lineLayer.appendChild(marker);
+        this._markerLayer.appendChild(label);
+      }
+    };
+
+    function createTheme() {
+      var theme = Timeline.ClassicTheme.create();
+
+      theme.eventTheme = new Timeline.EventTheme({
+        track: {
+          horizontal: {
+            count: 4,
+            offset: 36,
+            size: 22,
+            gap: 5
+          }
+        },
+        instant: {
+          iconColor: "orange"
+        },
+        range: {
+          width: 5,
+          iconColor: "green",
+          colors: [
+            "#c58b22",
+            "#3f7fc4",
+            "#b54a4a"
+          ]
+        },
+        bubble: {
+          width: 360
+        }
+      });
+
+      return theme;
+    }
+
+    function createBandInfo(eventSource, theme, unit, labeller) {
+      return {
+        width: "100%",
+        eventSource: eventSource,
+        labeller: labeller,
+        ether: new Timeline.LinearEther({
+          centersOn: new Timeline.HistoricalYear(-1300),
+          interval: 500,
+          pixelsPerInterval: 120,
+          theme: theme
+        }),
+        etherPainter: new HistoricalYearEtherPainter({
+          interval: 500
+        }),
+        eventPainter: new Timeline.OriginalEventPainter({
+          theme: theme
+        }),
+        theme: theme,
+        zoomIndex: 0,
+        zoomSteps: null
+      };
+    }
+
+    var classicalCivilisations = {
+      egypt: {
+        narrative: {
+          startDate: -3099,
+          endDate: -29,
+          title: "Ancient Egypt",
+          caption: "A broad survey span from early dynastic unification to Roman annexation.",
+          spanColor: "rgba(197, 139, 34, 0.28)"
+        },
+        events: [
+          {
+            start: -2685,
+            end: -2180,
+            title: "Old Kingdom",
+            description: "Conventionally dated here from 2686 BCE to 2181 BCE.",
+            color: "#c58b22",
+            textColor: "inherit"
+          },
+          {
+            start: -2559,
+            title: "Great Pyramid completed",
+            description: "Approximate completion around 2560 BCE.",
+            iconColor: "#c58b22"
+          },
+          {
+            start: -1549,
+            end: -1069,
+            title: "New Kingdom",
+            description: "Conventionally dated here from 1550 BCE to 1070 BCE.",
+            color: "#c58b22",
+            textColor: "inherit"
+          },
+          {
+            start: -29,
+            title: "Egypt becomes a Roman province",
+            description: "30 BCE in historical notation; raw astronomical year -29.",
+            iconColor: "#c58b22"
+          }
+        ]
+      },
+      greece: {
+        narrative: {
+          startDate: -799,
+          endDate: -30,
+          title: "Greek world",
+          caption: "An illustrative span from the Archaic period through the Hellenistic age.",
+          spanColor: "rgba(63, 127, 196, 0.25)"
+        },
+        events: [
+          {
+            start: -775,
+            title: "Traditional first Olympic Games",
+            description: "Traditionally dated to 776 BCE.",
+            iconColor: "#3f7fc4"
+          },
+          {
+            start: -479,
+            end: -322,
+            title: "Classical Greek period",
+            description: "A compact survey range from 480 BCE to 323 BCE.",
+            color: "#3f7fc4",
+            textColor: "inherit"
+          },
+          {
+            start: -335,
+            end: -322,
+            title: "Reign of Alexander",
+            description: "Alexander III of Macedon ruled from 336 BCE to 323 BCE.",
+            color: "#3f7fc4",
+            textColor: "inherit"
+          }
+        ]
+      },
+      rome: {
+        narrative: {
+          startDate: -752,
+          endDate: 476,
+          title: "Rome",
+          caption: "From the traditional foundation of Rome to the end of the western empire.",
+          spanColor: "rgba(181, 74, 74, 0.24)"
+        },
+        events: [
+          {
+            start: -752,
+            title: "Traditional foundation of Rome",
+            description: "753 BCE in historical notation; raw astronomical year -752.",
+            iconColor: "#b54a4a"
+          },
+          {
+            start: -508,
+            end: -26,
+            title: "Roman Republic",
+            description: "Conventionally dated here from 509 BCE to 27 BCE.",
+            color: "#b54a4a",
+            textColor: "inherit"
+          },
+          {
+            start: -26,
+            end: 476,
+            title: "Roman imperial era",
+            description: "This range crosses directly from BCE to CE without a displayed year zero.",
+            color: "#b54a4a",
+            textColor: "inherit"
+          },
+          {
+            start: 313,
+            title: "Edict of Milan",
+            description: "313 CE, represented by the same positive astronomical year.",
+            iconColor: "#b54a4a"
+          }
+        ]
+      }
+    };
+
+    var historicalUnit = Timeline.HistoricalYearUnit;
+    var historicalLabeller = historicalUnit.createLabeller();
+    var eventSource = new Timeline.DefaultEventSource(
+      new SimileAjax.EventIndex(historicalUnit)
+    );
+    var theme = createTheme();
+    var bandInfo = createBandInfo(
+      eventSource,
+      theme,
+      historicalUnit,
+      historicalLabeller
+    );
+    var narrativeEvents = [];
+    var events = [];
+
+    Object.keys(classicalCivilisations).forEach(function (key) {
+      var civilisation = classicalCivilisations[key];
+      narrativeEvents.push(civilisation.narrative);
+      events = events.concat(civilisation.events);
+    });
+
+    var eventLayoutTheme = Timeline.deriveEventTheme(theme.eventTheme, {
+      track: {
+        horizontal: {
+          offset: 160
+        }
+      }
+    });
+
+    Timeline.attachEvents(
+      bandInfo,
+      events,
+      {
+        eventTheme: eventLayoutTheme
+      }
+    );
+    Timeline.attachNarrativeDecorators(
+      bandInfo,
+      narrativeEvents
+    );
+
+    Timeline.create(
+      document.getElementById("timeline"),
+      [bandInfo],
+      Timeline.HORIZONTAL,
+      historicalUnit
+    );
+  </script>
+</body>
+</html>

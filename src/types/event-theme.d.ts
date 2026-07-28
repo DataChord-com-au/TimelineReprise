@@ -110,6 +110,7 @@ declare namespace Timeline {
         dividers?: boolean;
         labels?: boolean;
         bubbles?: boolean;
+        tooltips?: boolean;
         track?: OrientableTrackSpec;
         instant?: OrientableInstantSpec;
         range?: OrientableRangeSpec;
@@ -132,6 +133,7 @@ declare namespace Timeline {
         readonly dividers: boolean;
         readonly labels: boolean;
         readonly bubbles: boolean;
+        readonly tooltips: boolean;
         readonly track: Readonly<OrientableTrackSpec>;
         readonly instant: Readonly<OrientableInstantSpec>;
         readonly range: Readonly<OrientableRangeSpec>;

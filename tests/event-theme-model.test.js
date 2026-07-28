@@ -94,6 +94,17 @@ test("object literals load as EventTheme instances", () => {
     assert.equal(themes.editorial.instant.iconColor, "orange");
 });
 
+test("EventTheme validates tooltips and enables them by default", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(new Timeline.EventTheme().tooltips, true);
+    assert.equal(new Timeline.EventTheme({ tooltips: false }).tooltips, false);
+    assert.throws(
+        () => new Timeline.EventTheme({ tooltips: "false" }),
+        /tooltips must be a boolean/
+    );
+});
+
 test("resolver supports named and explicit EventTheme selections", () => {
     const Timeline = loadTimeline();
     const themes = Timeline.loadEventThemes([{ id: "named", spans: false }]);

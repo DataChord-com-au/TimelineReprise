@@ -319,6 +319,7 @@ import {
         this._dividers = eventTheme.dividers;
         this._labels = eventTheme.labels;
         this._bubbles = eventTheme.bubbles;
+        this._tooltips = eventTheme.tooltips;
         this._eventColorScope = eventTheme.eventColorScope;
         this._disableEmphasis = eventTheme.disableEmphasis;
         this._emphasisSpecs = isObject(timelineTheme?.emphasisSpecs)
@@ -689,11 +690,12 @@ import {
                 { surface: "label" }
             );
         if (!hasRenderedContent(title) && !hasRenderedContent(caption)) return;
+        const tooltip = this._tooltips !== false && hasRenderedContent(caption);
 
         elmt.className = cssClass;
         elmt.style.position = "absolute";
         elmt.style.boxSizing = "border-box";
-        elmt.style.pointerEvents = bubbles ? "auto" : "none";
+        elmt.style.pointerEvents = bubbles || tooltip ? "auto" : "none";
         elmt.style.cursor = bubbles ? "pointer" : "default";
 
         if (hasRenderedContent(title)) {
@@ -703,7 +705,7 @@ import {
             elmt.appendChild(titleElmt);
         }
 
-        if (hasRenderedContent(caption)) {
+        if (tooltip) {
             elmt.title = String(caption).replace(/<[^>]*>/g, "");
         } else {
             elmt.removeAttribute("title");

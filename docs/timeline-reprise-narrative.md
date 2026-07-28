@@ -132,6 +132,7 @@ theme.eventTheme = {
     dividers: true,
     labels: true,
     bubbles: false,
+    tooltips: true,
     eventColorScope: "both",
     track: {
         horizontal: {
@@ -192,6 +193,12 @@ Set to `false` to hide narrative labels.
 
 ### `eventTheme.bubbles`
 Set to `false` to stop narrative bubble popups.
+
+### `eventTheme.tooltips`
+Set to `false` to suppress caption tooltips on narrative labels. Defaults to
+`true`. An enabled tooltip makes its label pointer-interactive even when
+bubbles are disabled, but only bubbles use the pointer cursor and click
+handler.
 
 ### `eventTheme.eventColorScope`
 Controls where an item `color` is applied.
