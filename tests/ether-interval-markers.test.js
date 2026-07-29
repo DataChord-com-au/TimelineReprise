@@ -381,6 +381,78 @@ test("horizontal marker sizing remains stylesheet-driven by default", () => {
     assert.ok(labels.every(label => !("height" in label.style)));
 });
 
+test("cardinal markerTheme resolves over the native theme without mutation", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const theme = Timeline.ClassicTheme.create();
+    const nativeMarker = theme.ether.interval.marker;
+    nativeMarker.show = false;
+    nativeMarker.hLength = "3em";
+    nativeMarker.vLength = "4em";
+    const markerTheme = {
+        show: true,
+        hLength: "6em",
+        vLength: "7em"
+    };
+    const nativeMarkerBefore = { ...nativeMarker };
+    const markerThemeBefore = { ...markerTheme };
+    const verticalFixture = makePainterFixture(false, () => ({
+        text: "Unused",
+        emphasized: false
+    }));
+    const verticalCardinal = new Timeline.CardinalAxis({
+        labelForIndex: index => `Vertical cardinal marker ${index}`,
+        markerTheme,
+        startDate: new Date("2024-01-01T00:00:00Z"),
+        theme,
+        unit: DAY
+    });
+
+    verticalCardinal.initialize(
+        verticalFixture.band,
+        verticalFixture.timeline
+    );
+    verticalCardinal.paint();
+
+    const verticalLabels = dateLabels(
+        verticalFixture.layer("ether-markers")
+    );
+    assert.ok(verticalLabels.length > 0);
+    assert.ok(verticalLabels.every(label => label.style.width === "7em"));
+
+    const horizontalFixture = makePainterFixture(true, () => ({
+        text: "Unused",
+        emphasized: false
+    }));
+    const horizontalCardinal = new Timeline.CardinalAxis({
+        labelForIndex: index => `Horizontal cardinal marker ${index}`,
+        markerTheme,
+        startDate: new Date("2024-01-01T00:00:00Z"),
+        theme,
+        unit: DAY
+    });
+
+    horizontalCardinal.initialize(
+        horizontalFixture.band,
+        horizontalFixture.timeline
+    );
+    horizontalCardinal.paint();
+
+    const horizontalLabels = dateLabels(
+        horizontalFixture.layer("ether-markers")
+    );
+    assert.ok(horizontalLabels.length > 0);
+    assert.ok(horizontalLabels.every(label =>
+        label.style.height === "6em"
+    ));
+    assert.notEqual(verticalCardinal._theme, theme);
+    assert.notEqual(
+        verticalCardinal._theme.ether.interval.marker,
+        nativeMarker
+    );
+    assert.deepEqual(nativeMarker, nativeMarkerBefore);
+    assert.deepEqual(markerTheme, markerThemeBefore);
+});
+
 test("cardinal and hot-zone painters use the shared marker theme", () => {
     const { DAY, Timeline } = loadTimeline();
     const cardinalTheme = Timeline.ClassicTheme.create();

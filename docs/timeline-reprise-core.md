@@ -76,7 +76,9 @@ theme.ether.interval.line.show = false;
 ```
 
 The shared marker layout applies these options to Gregorian, hot-zone,
-year-count, quarterly, and Timeline Reprise cardinal-axis painters.
+year-count, quarterly, and Timeline Reprise cardinal-axis painters. A
+`Timeline.CardinalAxis` can override them locally with its
+[`markerTheme`](timeline-reprise-cardinal-axis.md#markertheme) option.
 
 ## Timeline.EmptyEtherPainter
 

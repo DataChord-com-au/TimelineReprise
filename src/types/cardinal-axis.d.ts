@@ -1,6 +1,7 @@
 declare namespace Timeline {
     interface CardinalAxisOptions {
         theme: NativeTheme;
+        markerTheme?: EtherIntervalMarkerTheme;
         startDate: Date;
         endDate?: Date | null;
         unit: number;

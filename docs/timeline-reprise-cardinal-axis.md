@@ -23,9 +23,9 @@ The timeline still uses dates for event placement. The cardinal axis changes the
 
 This uses SIMILE's orientation-aware axis layout, so the same painter can be used on horizontal or vertical timelines.
 
-It also uses the shared `theme.ether.interval.marker` options documented under
-[Core](timeline-reprise-core.md#ether-interval-date-markers), including
-`show`, `hLength`, and `vLength`.
+It inherits the shared `theme.ether.interval.marker` options documented under
+[Core](timeline-reprise-core.md#ether-interval-date-markers). Supply
+`markerTheme` to override those settings for this cardinal axis only.
 
 ## Options
 
@@ -35,6 +35,22 @@ SIMILE theme object used by the painter.
 ```js
 theme: Timeline.ClassicTheme.create()
 ```
+
+### `markerTheme`
+Optional marker-theme properties for this cardinal axis.
+
+```js
+markerTheme: {
+    show: true,
+    hLength: "3em",
+    vLength: "4em"
+}
+```
+
+The existing native marker field names are unchanged, including `show`,
+`hLength`, and `vLength`. Omitted fields continue to come from
+`theme.ether.interval.marker`. The resolved marker theme does not mutate the
+supplied `theme` or `markerTheme` object.
 
 ### `startDate`
 Date where the cardinal axis starts.
@@ -125,6 +141,9 @@ These methods satisfy the SIMILE ether painter interface.
 ```js
 bandInfos[1].etherPainter = new Timeline.CardinalAxis({
     theme: theme,
+    markerTheme: {
+        vLength: "4em"
+    },
     startDate: new Date("2020-02-15T00:00:00Z"),
     endDate: new Date("2020-12-15T00:00:00Z"),
     unit: Timeline.DateTime.MONTH,

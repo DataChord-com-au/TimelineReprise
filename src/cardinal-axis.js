@@ -1,9 +1,50 @@
 (function () {
     if (!window.Timeline || Timeline.CardinalAxis) return;
 
+    function copyOwnProperties(source) {
+        var copy = {};
+
+        if (!source) return copy;
+
+        for (var key in source) {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+                copy[key] = source[key];
+            }
+        }
+
+        return copy;
+    }
+
+    function resolveTheme(nativeTheme, markerTheme) {
+        var resolvedTheme = copyOwnProperties(nativeTheme);
+        var nativeEther = nativeTheme && nativeTheme.ether;
+        var resolvedEther = copyOwnProperties(nativeEther);
+        var nativeInterval = nativeEther && nativeEther.interval;
+        var resolvedInterval = copyOwnProperties(nativeInterval);
+        var nativeMarker = nativeInterval && nativeInterval.marker;
+        var resolvedMarker = copyOwnProperties(nativeMarker);
+
+        if (markerTheme) {
+            for (var key in markerTheme) {
+                if (
+                    Object.prototype.hasOwnProperty.call(markerTheme, key) &&
+                    markerTheme[key] !== undefined
+                ) {
+                    resolvedMarker[key] = markerTheme[key];
+                }
+            }
+        }
+
+        resolvedInterval.marker = resolvedMarker;
+        resolvedEther.interval = resolvedInterval;
+        resolvedTheme.ether = resolvedEther;
+
+        return resolvedTheme;
+    }
+
     Timeline.CardinalAxis = function (params) {
         this._params = params;
-        this._theme = params.theme;
+        this._theme = resolveTheme(params.theme, params.markerTheme);
         this._startDate = params.startDate;
         this._endDate = params.endDate || null;
         this._unit = params.unit;
