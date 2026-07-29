@@ -40,6 +40,44 @@ Override the inset when the original gap, or another gap, is wanted:
 }
 ```
 
+## Ether Interval Date Markers
+
+SIMILE's native ether painters use `theme.ether.interval.marker` for their
+date markers. Timeline Reprise adds marker visibility and cross-axis length
+options to that object:
+
+```js
+var theme = Timeline.ClassicTheme.create();
+
+theme.ether.interval.marker.show = false;
+theme.ether.interval.marker.hLength = "2.5em";
+theme.ether.interval.marker.vLength = "4em";
+```
+
+- `show` controls only `.timeline-date-label` markers and defaults to `true`.
+  Setting it to `false` leaves the normal ether painter active, including
+  synced highlights, backgrounds, interval lines, weekends, and grid marks.
+- `hLength` is the marker's cross-axis length on a horizontal timeline and is
+  applied as CSS `height`. It defaults to `null`, retaining SIMILE's existing
+  normal and emphasized marker heights.
+- `vLength` is the marker's cross-axis length on a vertical timeline and is
+  applied as CSS `width`. It defaults to `"2.5em"`.
+
+The `h` and `v` prefixes follow SIMILE's existing `hAlign` and `vAlign`
+convention. Lengths are CSS length strings. A marker label can extend beyond
+the configured length; the border that draws the tick remains fixed.
+
+Marker visibility is independent of `theme.ether.interval.line.show`. Use the
+line option separately when interval lines should also be hidden:
+
+```js
+theme.ether.interval.marker.show = false;
+theme.ether.interval.line.show = false;
+```
+
+The shared marker layout applies these options to Gregorian, hot-zone,
+year-count, quarterly, and Timeline Reprise cardinal-axis painters.
+
 ## Timeline.EmptyEtherPainter
 
 ```js

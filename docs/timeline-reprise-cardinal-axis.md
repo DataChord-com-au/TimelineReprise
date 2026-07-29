@@ -23,6 +23,10 @@ The timeline still uses dates for event placement. The cardinal axis changes the
 
 This uses SIMILE's orientation-aware axis layout, so the same painter can be used on horizontal or vertical timelines.
 
+It also uses the shared `theme.ether.interval.marker` options documented under
+[Core](timeline-reprise-core.md#ether-interval-date-markers), including
+`show`, `hLength`, and `vLength`.
+
 ## Options
 
 ### `theme`

@@ -39,6 +39,7 @@ import {
 import { clampBandChains } from "./clamping.js";
 import { Reprise } from "./version.js";
 import "./core.js";
+import "./ether-interval-marker.js";
 import "./overview.js";
 import "./cardinal-axis.js";
 import "./scaled-zones.js";
