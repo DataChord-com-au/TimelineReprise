@@ -57,15 +57,21 @@ theme.ether.interval.marker.vLength = "4em";
 - `show` controls only `.timeline-date-label` markers and defaults to `true`.
   Setting it to `false` leaves the normal ether painter active, including
   synced highlights, backgrounds, interval lines, weekends, and grid marks.
-- `hLength` is the marker's cross-axis length on a horizontal timeline and is
-  applied as CSS `height`. It defaults to `null`, retaining SIMILE's existing
-  normal and emphasized marker heights.
-- `vLength` is the marker's cross-axis length on a vertical timeline and is
-  applied as CSS `width`. It defaults to `"2.5em"`.
+- `hLength` is the tick's cross-axis length on a horizontal timeline. It
+  defaults to `null`, retaining SIMILE's existing native marker sizing.
+- `vLength` is the tick's cross-axis length on a vertical timeline. It defaults
+  to `"2.5em"`.
 
 The `h` and `v` prefixes follow SIMILE's existing `hAlign` and `vAlign`
-convention. Lengths are CSS length strings. A marker label can extend beyond
-the configured length; the border that draws the tick remains fixed.
+convention. Each length accepts a CSS length string, `"label"`, or `null`.
+`"label"` makes the tick follow the rendered cross-axis extent of the label,
+including its visual-box padding. A CSS length sizes only the tick; the
+`.timeline-date-label` retains its natural rendered size. `null` leaves the
+native SIMILE stylesheet sizing and border behaviour unchanged.
+
+Marker text extends inward from its configured band edge: rightward for
+vertical `Left`, leftward for vertical `Right`, downward for horizontal `Top`,
+and upward for horizontal `Bottom`.
 
 Marker visibility is independent of `theme.ether.interval.line.show`. Use the
 line option separately when interval lines should also be hidden:

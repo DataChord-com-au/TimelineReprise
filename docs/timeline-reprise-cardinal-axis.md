@@ -42,7 +42,7 @@ Optional marker-theme properties for this cardinal axis.
 ```js
 markerTheme: {
     show: true,
-    hLength: "3em",
+    hLength: "label",
     vLength: "4em"
 }
 ```
@@ -50,7 +50,9 @@ markerTheme: {
 The existing native marker field names are unchanged, including `show`,
 `hLength`, and `vLength`. Omitted fields continue to come from
 `theme.ether.interval.marker`. The resolved marker theme does not mutate the
-supplied `theme` or `markerTheme` object.
+supplied `theme` or `markerTheme` object. Lengths control the separate marker
+tick, not the label dimensions; use a CSS length, `"label"` to follow the
+rendered label extent, or `null` for native SIMILE sizing.
 
 ### `startDate`
 Date where the cardinal axis starts.

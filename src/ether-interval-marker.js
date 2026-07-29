@@ -30,6 +30,10 @@
         return marker;
     }
 
+    function addClass(element, className) {
+        element.className += " " + className;
+    }
+
     if (Timeline.ClassicTheme && Timeline.ClassicTheme.create) {
         var originalCreateTheme = Timeline.ClassicTheme.create;
 
@@ -58,8 +62,11 @@
         showLine
     ) {
         var horizontal = timeline.isHorizontal();
+        var orientation = horizontal ? "horizontal" : "vertical";
+        var edge = horizontal
+            ? (align === "Top" ? "top" : "bottom")
+            : (align === "Left" ? "left" : "right");
 
-        applyMarkerThemeDefaults(theme);
         OriginalEtherIntervalMarkerLayout.call(
             this,
             timeline,
@@ -103,11 +110,23 @@
                         "vLength" in markerTheme
                             ? markerTheme.vLength
                             : DEFAULT_VERTICAL_LENGTH
-                    );
+                );
+
+                addClass(
+                    marker,
+                    "timeline-reprise-date-label-" + orientation
+                );
+                addClass(marker, "timeline-reprise-date-label-" + edge);
 
                 if (length != null) {
-                    marker.style[horizontal ? "height" : "width"] =
-                        String(length);
+                    var tick = timeline.getDocument().createElement("span");
+
+                    addClass(marker, "timeline-reprise-date-label-ticked");
+                    tick.className = "timeline-reprise-date-label-tick";
+                    tick.setAttribute("aria-hidden", "true");
+                    tick.style[horizontal ? "height" : "width"] =
+                        length === "label" ? "100%" : String(length);
+                    marker.appendChild(tick);
                 }
             }
 

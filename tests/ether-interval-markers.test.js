@@ -216,6 +216,12 @@ function dateLabels(layer) {
     );
 }
 
+function markerTick(label) {
+    return label.children.find(child =>
+        child.className === "timeline-reprise-date-label-tick"
+    );
+}
+
 test("ClassicTheme enables ether date markers by default", () => {
     const { Timeline } = loadTimeline();
     const marker = Timeline.ClassicTheme.create().ether.interval.marker;
@@ -223,6 +229,28 @@ test("ClassicTheme enables ether date markers by default", () => {
     assert.equal(marker.show, true);
     assert.equal(marker.hLength, null);
     assert.equal(marker.vLength, "2.5em");
+});
+
+test("shared marker defaults do not mutate a supplied native theme", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const theme = makeTheme();
+    const themeBefore = JSON.parse(JSON.stringify(theme));
+    const fixture = makePainterFixture(false, () => ({
+        text: "Defaulted without mutation",
+        emphasized: false
+    }));
+    const painter = new Timeline.GregorianEtherPainter({
+        theme,
+        unit: DAY
+    });
+
+    painter.initialize(fixture.band, fixture.timeline);
+    painter.paint();
+
+    assert.deepEqual(theme, themeBefore);
+    assert.ok(dateLabels(fixture.layer("ether-markers")).every(label =>
+        markerTick(label).style.width === "2.5em"
+    ));
 });
 
 test("Gregorian markers render by default with a fixed vertical 2.5em tick", () => {
@@ -247,10 +275,11 @@ test("Gregorian markers render by default with a fixed vertical 2.5em tick", () 
     assert.ok(labels.some(label =>
         label.className.includes("timeline-date-label-em")
     ));
-    assert.deepEqual(
-        labels.map(label => label.style.width),
-        labels.map(() => "2.5em")
-    );
+    assert.ok(labels.some(label =>
+        !label.className.includes("timeline-date-label-em")
+    ));
+    assert.ok(labels.every(label => !("width" in label.style)));
+    assert.ok(labels.every(label => markerTick(label).style.width === "2.5em"));
 });
 
 test("marker.show false retains Gregorian highlights and interval lines", () => {
@@ -319,13 +348,95 @@ test("marker visibility remains independent of line and weekend settings", () =>
     ));
 });
 
-test("custom orientation-specific marker lengths are honoured", () => {
+test("fixed vertical ticks stay separate and anchor labels inward", () => {
+    const { DAY, Timeline } = loadTimeline();
+
+    for (const align of ["Left", "Right"]) {
+        const theme = Timeline.ClassicTheme.create();
+        theme.ether.interval.marker.vAlign = align;
+        theme.ether.interval.marker.vLength = "2em";
+        const fixture = makePainterFixture(false, date => ({
+            text: date.getUTCDate() === 1
+                ? "A label much longer than two em"
+                : "Normal",
+            emphasized: date.getUTCDate() === 1
+        }));
+        const painter = new Timeline.GregorianEtherPainter({
+            theme,
+            unit: DAY
+        });
+
+        painter.initialize(fixture.band, fixture.timeline);
+        painter.paint();
+
+        const labels = dateLabels(fixture.layer("ether-markers"));
+        const edge = align.toLowerCase();
+        const opposite = align === "Left" ? "right" : "left";
+
+        assert.ok(labels.some(label =>
+            label.className.includes("timeline-date-label-em")
+        ));
+        assert.ok(labels.some(label =>
+            !label.className.includes("timeline-date-label-em")
+        ));
+        assert.ok(labels.every(label => label.style[edge] === "0px"));
+        assert.ok(labels.every(label => !(opposite in label.style)));
+        assert.ok(labels.every(label =>
+            label.className.includes(
+                `timeline-reprise-date-label-${edge}`
+            )
+        ));
+        assert.ok(labels.every(label => !("width" in label.style)));
+        assert.ok(labels.every(label =>
+            markerTick(label).style.width === "2em"
+        ));
+    }
+});
+
+test("fixed horizontal ticks anchor Top and Bottom labels inward", () => {
+    const { DAY, Timeline } = loadTimeline();
+
+    for (const align of ["Top", "Bottom"]) {
+        const theme = Timeline.ClassicTheme.create();
+        theme.ether.interval.marker.hAlign = align;
+        theme.ether.interval.marker.hLength = "4em";
+        const fixture = makePainterFixture(true, () => ({
+            text: "Horizontal label",
+            emphasized: true
+        }));
+        const painter = new Timeline.GregorianEtherPainter({
+            theme,
+            unit: DAY
+        });
+
+        painter.initialize(fixture.band, fixture.timeline);
+        painter.paint();
+
+        const labels = dateLabels(fixture.layer("ether-markers"));
+        const edge = align.toLowerCase();
+        const opposite = align === "Top" ? "bottom" : "top";
+
+        assert.ok(labels.every(label => label.style[edge] === "0px"));
+        assert.ok(labels.every(label => !(opposite in label.style)));
+        assert.ok(labels.every(label =>
+            label.className.includes(
+                `timeline-reprise-date-label-${edge}`
+            )
+        ));
+        assert.ok(labels.every(label => !("height" in label.style)));
+        assert.ok(labels.every(label =>
+            markerTick(label).style.height === "4em"
+        ));
+    }
+});
+
+test("label-sized ticks follow normal and emphasized label boxes", () => {
     const { DAY, Timeline } = loadTimeline();
     const verticalTheme = Timeline.ClassicTheme.create();
-    verticalTheme.ether.interval.marker.vLength = "6rem";
-    const verticalFixture = makePainterFixture(false, () => ({
-        text: "Vertical",
-        emphasized: true
+    verticalTheme.ether.interval.marker.vLength = "label";
+    const verticalFixture = makePainterFixture(false, date => ({
+        text: date.getUTCDate() === 1 ? "Emphasized label" : "Normal",
+        emphasized: date.getUTCDate() === 1
     }));
     const verticalPainter = new Timeline.GregorianEtherPainter({
         theme: verticalTheme,
@@ -335,15 +446,25 @@ test("custom orientation-specific marker lengths are honoured", () => {
     verticalPainter.initialize(verticalFixture.band, verticalFixture.timeline);
     verticalPainter.paint();
 
-    assert.ok(dateLabels(verticalFixture.layer("ether-markers")).every(label =>
-        label.style.width === "6rem"
+    const verticalLabels = dateLabels(
+        verticalFixture.layer("ether-markers")
+    );
+    assert.ok(verticalLabels.some(label =>
+        label.className.includes("timeline-date-label-em")
+    ));
+    assert.ok(verticalLabels.some(label =>
+        !label.className.includes("timeline-date-label-em")
+    ));
+    assert.ok(verticalLabels.every(label => !("width" in label.style)));
+    assert.ok(verticalLabels.every(label =>
+        markerTick(label).style.width === "100%"
     ));
 
     const horizontalTheme = Timeline.ClassicTheme.create();
-    horizontalTheme.ether.interval.marker.hLength = "4em";
-    const horizontalFixture = makePainterFixture(true, () => ({
-        text: "Horizontal",
-        emphasized: true
+    horizontalTheme.ether.interval.marker.hLength = "label";
+    const horizontalFixture = makePainterFixture(true, date => ({
+        text: date.getUTCDate() === 1 ? "Emphasized label" : "Normal",
+        emphasized: date.getUTCDate() === 1
     }));
     const horizontalPainter = new Timeline.GregorianEtherPainter({
         theme: horizontalTheme,
@@ -356,29 +477,51 @@ test("custom orientation-specific marker lengths are honoured", () => {
     );
     horizontalPainter.paint();
 
-    assert.ok(dateLabels(horizontalFixture.layer("ether-markers")).every(label =>
-        label.style.height === "4em"
+    const horizontalLabels = dateLabels(
+        horizontalFixture.layer("ether-markers")
+    );
+    assert.ok(horizontalLabels.some(label =>
+        label.className.includes("timeline-date-label-em")
+    ));
+    assert.ok(horizontalLabels.some(label =>
+        !label.className.includes("timeline-date-label-em")
+    ));
+    assert.ok(horizontalLabels.every(label => !("height" in label.style)));
+    assert.ok(horizontalLabels.every(label =>
+        markerTick(label).style.height === "100%"
     ));
 });
 
-test("horizontal marker sizing remains stylesheet-driven by default", () => {
+test("null marker lengths retain native stylesheet sizing", () => {
     const { DAY, Timeline } = loadTimeline();
-    const theme = Timeline.ClassicTheme.create();
-    const fixture = makePainterFixture(true, () => ({
-        text: "Horizontal",
-        emphasized: true
-    }));
-    const painter = new Timeline.GregorianEtherPainter({
-        theme,
-        unit: DAY
-    });
 
-    painter.initialize(fixture.band, fixture.timeline);
-    painter.paint();
+    for (const horizontal of [false, true]) {
+        const theme = Timeline.ClassicTheme.create();
+        theme.ether.interval.marker[
+            horizontal ? "hLength" : "vLength"
+        ] = null;
+        const fixture = makePainterFixture(horizontal, () => ({
+            text: "Native marker",
+            emphasized: true
+        }));
+        const painter = new Timeline.GregorianEtherPainter({
+            theme,
+            unit: DAY
+        });
 
-    const labels = dateLabels(fixture.layer("ether-markers"));
-    assert.ok(labels.length > 0);
-    assert.ok(labels.every(label => !("height" in label.style)));
+        painter.initialize(fixture.band, fixture.timeline);
+        painter.paint();
+
+        const labels = dateLabels(fixture.layer("ether-markers"));
+        const dimension = horizontal ? "height" : "width";
+
+        assert.ok(labels.length > 0);
+        assert.ok(labels.every(label => !(dimension in label.style)));
+        assert.ok(labels.every(label => markerTick(label) === undefined));
+        assert.ok(labels.every(label =>
+            !label.className.includes("timeline-reprise-date-label-ticked")
+        ));
+    }
 });
 
 test("cardinal markerTheme resolves over the native theme without mutation", () => {
@@ -417,7 +560,10 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
         verticalFixture.layer("ether-markers")
     );
     assert.ok(verticalLabels.length > 0);
-    assert.ok(verticalLabels.every(label => label.style.width === "7em"));
+    assert.ok(verticalLabels.every(label => !("width" in label.style)));
+    assert.ok(verticalLabels.every(label =>
+        markerTick(label).style.width === "7em"
+    ));
 
     const horizontalFixture = makePainterFixture(true, () => ({
         text: "Unused",
@@ -441,8 +587,9 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
         horizontalFixture.layer("ether-markers")
     );
     assert.ok(horizontalLabels.length > 0);
+    assert.ok(horizontalLabels.every(label => !("height" in label.style)));
     assert.ok(horizontalLabels.every(label =>
-        label.style.height === "6em"
+        markerTick(label).style.height === "6em"
     ));
     assert.notEqual(verticalCardinal._theme, theme);
     assert.notEqual(
@@ -473,7 +620,8 @@ test("cardinal and hot-zone painters use the shared marker theme", () => {
 
     assert.ok(
         dateLabels(cardinalFixture.layer("ether-markers")).every(label =>
-            label.style.width === "5em"
+            markerTick(label).style.width === "5em" &&
+            !("width" in label.style)
         )
     );
 
@@ -498,12 +646,58 @@ test("cardinal and hot-zone painters use the shared marker theme", () => {
     ));
 });
 
-test("Reprise CSS no longer makes vertical marker width text-dependent", () => {
-    const css = source(path.join("css", "timeline-layout.css"));
-    const verticalRule = css.match(
-        /\.timeline-vertical \.timeline-date-label\s*\{([^}]*)\}/
-    );
+test("year-count and quarterly painters use the shared tick geometry", () => {
+    const { Timeline } = loadTimeline();
 
-    assert.ok(verticalRule);
-    assert.doesNotMatch(verticalRule[1], /\bwidth\s*:\s*auto\b/);
+    for (const Painter of [
+        Timeline.YearCountEtherPainter,
+        Timeline.QuarterlyEtherPainter
+    ]) {
+        const theme = Timeline.ClassicTheme.create();
+        theme.ether.interval.marker.vLength = "3rem";
+        const fixture = makePainterFixture(false, () => ({
+            text: "Unused",
+            emphasized: false
+        }));
+        const painter = new Painter({
+            startDate: new Date("2024-01-01T00:00:00Z"),
+            theme
+        });
+
+        painter.initialize(fixture.band, fixture.timeline);
+        painter.paint();
+
+        const labels = dateLabels(fixture.layer("ether-markers"));
+
+        assert.ok(labels.length > 0);
+        assert.ok(labels.every(label => !("width" in label.style)));
+        assert.ok(labels.every(label =>
+            markerTick(label).style.width === "3rem"
+        ));
+    }
+});
+
+test("Reprise CSS separates tick geometry and aligns vertical labels", () => {
+    const css = source(path.join("css", "timeline-layout.css"));
+
+    assert.match(
+        css,
+        /\.timeline-date-label\.timeline-reprise-date-label-ticked\s*\{[^}]*\bborder-width\s*:\s*0\b[^}]*\bheight\s*:\s*auto\b[^}]*\bwidth\s*:\s*auto\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-reprise-date-label-left\s*>\s*\.timeline-reprise-date-label-tick\s*\{[^}]*\bleft\s*:\s*0\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-reprise-date-label-right\s*>\s*\.timeline-reprise-date-label-tick\s*\{[^}]*\bright\s*:\s*0\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-reprise-date-label-left\s*\{[^}]*\bpadding-left\s*:\s*4px\b[^}]*\btext-align\s*:\s*left\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-reprise-date-label-right\s*\{[^}]*\bpadding-right\s*:\s*4px\b[^}]*\btext-align\s*:\s*right\b/s
+    );
 });
