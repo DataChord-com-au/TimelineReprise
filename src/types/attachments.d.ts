@@ -31,7 +31,6 @@ declare namespace Timeline {
         tapeColor?: string;
         spanColor?: string;
         lineColor?: string;
-        overviewColor?: string;
         lineWidth?: number;
         cssClass?: string;
         labelCssClass?: string;
@@ -44,19 +43,25 @@ declare namespace Timeline {
     }
 
     interface AttachmentOptions<T = unknown> {
-        eventTheme?: EventThemeSelection;
-        runtime?: RepriseRuntimeContract<T>;
+        eventTheme?: EventThemeSelection | null;
+        runtime?: RepriseRuntimeContract<T> | null;
     }
 
     function attachEvents<T = unknown>(
         bandInfo: EventBandInfo<T>,
-        events?: readonly EventData<T>[],
-        options?: AttachmentOptions<T>
+        events?: readonly object[],
+        options?: AttachmentOptions<T> | null
+    ): void;
+
+    function attachEvents<T = unknown>(
+        bandInfos: readonly EventBandInfo<T>[],
+        events?: readonly object[],
+        options?: AttachmentOptions<T> | null
     ): void;
 
     function attachNarrativeDecorators<T = unknown>(
         bandInfo: BandInfo<T>,
-        events?: readonly EventData<T>[],
-        options?: AttachmentOptions<T>
+        events?: readonly object[],
+        options?: AttachmentOptions<T> | null
     ): void;
 }

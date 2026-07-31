@@ -1,19 +1,31 @@
 # Event and Narrative Attachment
 
 Timeline Reprise owns the final attachment workflow for normal events and
-Narrative decorators. Attach data to band infos before calling
-`Timeline.create()`.
+Narrative decorators. Attach data to Reprise band infos before calling
+`Timeline.createTimeline()`.
 
 ## Normal events
 
 ```js
 Timeline.attachEvents(bandInfo, events);
+
+Timeline.attachEvents(
+    [bandSet.byId.main, bandSet.byId.overview],
+    events
+);
 ```
 
-This resolves the band's `theme.eventTheme`, binds the default Reprise runtime,
-prepares unit-aware event records, associates the resolved theme and runtime
-with each record, configures the band's event painter, and adds the records to
-`bandInfo.eventSource`.
+The first argument is one band info or an array of band infos. For every target
+band, this resolves its `theme.eventTheme`, binds its Reprise runtime, prepares
+separate unit-aware event records, configures its event painter, and adds the
+records to its own `eventSource`.
+
+Bands built by `Timeline.createBandSet()` have independent event sources.
+Attaching events to one band does not add them to any synchronized or overview
+band. Pass several bands explicitly when they should receive the same source
+events. Each attachment uses the target band's retained construction runtime,
+so a domain projection is injected once at band construction rather than
+repeated for every attachment.
 
 `bandInfo.eventSource` must be a `Timeline.DefaultEventSource` or another event
 source that provides `addMany(events)`.
@@ -58,7 +70,12 @@ Put visual values in `Timeline.EventTheme`.
 
 ## Runtime selection
 
-Both methods accept the same `runtime` option:
+The runtime is Reprise's
+[semantic-time dependency-injection contract](timeline-reprise-presentation-runtime.md#semantic-time-dependency-injection-contract).
+Usually it is created automatically. A standard SIMILE date band receives a
+native-date runtime that projects authored values to JavaScript `Date` values.
+
+Supply a domain runtime once at band construction:
 
 ```js
 var runtime = new Timeline.RepriseRuntime({
@@ -67,20 +84,28 @@ var runtime = new Timeline.RepriseRuntime({
     render: renderTemplate
 });
 
-Timeline.attachEvents(bandInfo, events, { runtime: runtime });
+var bandSet = Timeline.createBandSet({
+    runtime: runtime,
+    bands: [{
+        id: "main",
+        width: "100%",
+        interval: 10,
+        intervalPixels: 100
+    }]
+});
+
+Timeline.attachEvents(bandSet.byId.main, events);
 Timeline.attachNarrativeDecorators(
-    bandInfo,
-    narrativeEvents,
-    { runtime: runtime }
+    bandSet.byId.main,
+    narrativeEvents
 );
 ```
 
-Without an explicit runtime, Reprise uses the event source's configured unit
-and `bandInfo.labeller` when present. Native date bands use the equivalent
-SIMILE Gregorian labeller for the band's locale and time zone. Values are
-parsed through `unit.parseFromObject()` and ordered with `unit.compare()`.
-Native date values, numeric values including zero, and wrapper values use this
-same path.
+Both methods still accept a `runtime` option as an explicit per-attachment
+override. Runtime resolution is explicit override, then the band's retained
+runtime, then the default for the band unit and labeller. Values are parsed
+through `unit.parseFromObject()` and ordered with `unit.compare()`. Native date
+values, numeric values including zero, and wrapper values use this same path.
 
 Duration-aware units and labellers also give automatically created runtimes
 derived duration context. This applies equally to `attachEvents()` and

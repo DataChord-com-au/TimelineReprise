@@ -23,7 +23,6 @@
         var marker = getMarkerTheme(theme);
         if (!marker) return marker;
 
-        if (!("show" in marker)) marker.show = true;
         if (!("hLength" in marker)) marker.hLength = DEFAULT_HORIZONTAL_LENGTH;
         if (!("vLength" in marker)) marker.vLength = DEFAULT_VERTICAL_LENGTH;
 
@@ -59,13 +58,18 @@
         band,
         theme,
         align,
-        showLine
+        showLine,
+        intervalMarkers
     ) {
         var horizontal = timeline.isHorizontal();
         var orientation = horizontal ? "horizontal" : "vertical";
         var edge = horizontal
             ? (align === "Top" ? "top" : "bottom")
             : (align === "Left" ? "left" : "right");
+        var bandInfo = band && band._bandInfo;
+        var showMarkers = typeof intervalMarkers === "boolean"
+            ? intervalMarkers
+            : !bandInfo || bandInfo.intervalMarkers !== false;
 
         OriginalEtherIntervalMarkerLayout.call(
             this,
@@ -86,8 +90,7 @@
             lineLayer
         ) {
             var markerTheme = getMarkerTheme(theme) || {};
-            var showMarker = markerTheme.show !== false;
-            var targetMarkerLayer = showMarker
+            var targetMarkerLayer = showMarkers
                 ? markerLayer
                 : { appendChild: function () {} };
             var marker = originalCreateIntervalMarker.call(
@@ -99,7 +102,7 @@
                 lineLayer
             );
 
-            if (showMarker && marker && marker.style) {
+            if (showMarkers && marker && marker.style) {
                 var length = horizontal
                     ? (
                         "hLength" in markerTheme

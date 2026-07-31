@@ -42,21 +42,33 @@ Override the inset when the original gap, or another gap, is wanted:
 
 ## Ether Interval Date Markers
 
-SIMILE's native ether painters use `theme.ether.interval.marker` for their
-date markers. Timeline Reprise adds marker visibility and cross-axis length
-options to that object:
+Use the direct `intervalMarkers` band option to control whether the normal
+interval labels are rendered. Marker dimensions and alignment remain
+presentation settings under `etherTheme.interval.marker`:
 
 ```js
-var theme = Timeline.ClassicTheme.create();
-
-theme.ether.interval.marker.show = false;
-theme.ether.interval.marker.hLength = "2.5em";
-theme.ether.interval.marker.vLength = "4em";
+var bandSet = Timeline.createBandSet({
+    intervalMarkers: false,
+    etherTheme: {
+        interval: {
+            marker: {
+                hLength: "2.5em",
+                vLength: "4em"
+            }
+        }
+    },
+    bands: [{
+        id: "main",
+        width: "100%",
+        intervalUnit: "month",
+        intervalPixels: 100
+    }]
+});
 ```
 
-- `show` controls only `.timeline-date-label` markers and defaults to `true`.
-  Setting it to `false` leaves the normal ether painter active, including
-  synced highlights, backgrounds, interval lines, weekends, and grid marks.
+- `intervalMarkers` defaults to `true`. Setting it to `false` leaves the normal
+  ether painter active, including synced highlights, backgrounds, interval
+  lines, weekends, and grid marks.
 - `hLength` is the tick's cross-axis length on a horizontal timeline. It
   defaults to `null`, retaining SIMILE's existing native marker sizing.
 - `vLength` is the tick's cross-axis length on a vertical timeline. It defaults
@@ -73,17 +85,23 @@ Marker text extends inward from its configured band edge: rightward for
 vertical `Left`, leftward for vertical `Right`, downward for horizontal `Top`,
 and upward for horizontal `Bottom`.
 
-Marker visibility is independent of `theme.ether.interval.line.show`. Use the
+Marker visibility is independent of `etherTheme.interval.line.show`. Use the
 line option separately when interval lines should also be hidden:
 
 ```js
-theme.ether.interval.marker.show = false;
-theme.ether.interval.line.show = false;
+intervalMarkers: false,
+etherTheme: {
+    interval: {
+        line: { show: false }
+    }
+}
 ```
 
-The shared marker layout applies these options to Gregorian, hot-zone,
-year-count, quarterly, and Timeline Reprise cardinal-axis painters. A
-`Timeline.CardinalAxis` can override them locally with its
+The shared marker layout applies the marker presentation options to Gregorian,
+hot-zone, year-count, quarterly, and Timeline Reprise cardinal-axis painters.
+`intervalMarkers` controls the band's normal unit markers; an explicitly
+attached cardinal axis remains visible. A `Timeline.CardinalAxis` can override
+marker presentation locally with its
 [`markerTheme`](timeline-reprise-cardinal-axis.md#markertheme) option.
 
 ## Timeline.EmptyEtherPainter
@@ -143,9 +161,12 @@ Adds flexible width support to SIMILE band configs.
 Percentages and fixed pixel values continue to work as fixed widths.
 Example:
 ```js
-Timeline.createBandInfo({
-    width: "*"
-})
+{
+    id: "main",
+    width: "*",
+    intervalUnit: "month",
+    intervalPixels: 100
+}
 ```
 
 ## Absolute Event URLs

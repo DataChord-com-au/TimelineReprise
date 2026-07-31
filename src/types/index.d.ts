@@ -58,8 +58,10 @@ declare namespace Timeline {
         eventPainter?: EventPainter;
         theme: NativeTheme;
         decorators?: object[];
+        intervalMarkers?: boolean;
         syncWith?: number;
         highlight?: boolean;
+        repriseRuntime?: RepriseRuntimeContract<T>;
         zoomIndex?: number;
         zoomSteps?: readonly unknown[] | null;
         [key: string]: unknown;

@@ -42,16 +42,57 @@ import { getAttachedEventContext } from "./attachments.js";
     const originalPaintEventTick = proto._paintEventTick;
     const originalPaintEventTape = proto._paintEventTape;
 
-    function getEventOverviewColor(evt) {
-        const color = evt && typeof evt.getProperty === "function"
-            ? evt.getProperty("overviewColor")
-            : null;
+    function getOverviewGraphicColor(evt, theme, eventTheme, {
+        eventField,
+        themeField
+    }) {
+        const resolveColor = value => {
+            if (typeof value !== "string" || value.trim() === "") return null;
+            return Timeline.ThemeIcons?.getCssColor?.(value) ?? value;
+        };
+        const getProperty = name => typeof evt?.getProperty === "function"
+            ? evt.getProperty(name)
+            : evt?.[name];
+        const emphasisKey = eventTheme.disableEmphasis
+            ? null
+            : getProperty("emphasis");
+        const emphasis = emphasisKey == null
+            ? null
+            : theme?.emphasisSpecs?.[emphasisKey];
+        const emphasisColor = resolveColor(
+            emphasis?.iconColor ?? emphasis?.color
+        );
 
-        if (typeof color !== "string" || color.trim() === "") return null;
+        if (emphasisColor != null) {
+            return { color: emphasisColor, eventOverride: true };
+        }
 
-        return Timeline.ThemeIcons?.getCssColor
-            ? Timeline.ThemeIcons.getCssColor(color)
-            : color;
+        const configuredScope = String(
+            getProperty("eventColorScope") ?? eventTheme.eventColorScope
+        ).trim().toLowerCase();
+        const scope = configuredScope === "graphic" || configuredScope === "both"
+            ? configuredScope
+            : configuredScope === "none" || configuredScope === "label"
+                ? configuredScope
+                : eventTheme.eventColorScope;
+        if (scope === "graphic" || scope === "both") {
+            const explicitColor = resolveColor(getProperty(eventField));
+            if (explicitColor != null) {
+                return { color: explicitColor, eventOverride: true };
+            }
+
+            const eventColor = resolveColor(
+                evt?.getColor?.() ?? getProperty("color")
+            );
+            if (eventColor != null) {
+                return { color: eventColor, eventOverride: true };
+            }
+        }
+
+        return {
+            color: resolveColor(eventTheme[themeField].iconColor),
+            eventOverride: false
+        };
     }
 
     function isVertical(painter) {
@@ -98,7 +139,10 @@ import { getAttachedEventContext } from "./attachments.js";
     }
 
     function getOverviewTickHeight(painter, theme) {
-        return positiveOr(getNativeOverviewTrack(painter, theme).tickHeight, 6);
+        return positiveOr(
+            painter._eventTheme?.instant?.tickWidth,
+            positiveOr(getNativeOverviewTrack(painter, theme).tickHeight, 6)
+        );
     }
 
     proto.initialize = function (band, timeline) {
@@ -149,13 +193,22 @@ import { getAttachedEventContext } from "./attachments.js";
         const klassName = evt && typeof evt.getClassName === "function"
             ? evt.getClassName()
             : null;
-        const eventColor = getEventOverviewColor(evt);
-        const tickColor = eventColor ??
-            Timeline.ThemeIcons?.getCssColor?.(eventTheme.instant.iconColor) ??
-            eventTheme.instant.iconColor;
+        const resolvedColor = getOverviewGraphicColor(
+            evt,
+            theme,
+            eventTheme,
+            {
+                eventField: "iconColor",
+                themeField: "instant"
+            }
+        );
 
-        if (data?.elmt && (!klassName || eventColor) && tickColor) {
-            data.elmt.style.backgroundColor = tickColor;
+        if (
+            data?.elmt &&
+            (!klassName || resolvedColor.eventOverride) &&
+            resolvedColor.color
+        ) {
+            data.elmt.style.backgroundColor = resolvedColor.color;
         }
 
         if (data?.elmt) {
@@ -176,19 +229,26 @@ import { getAttachedEventContext } from "./attachments.js";
     proto._paintEventTape = function (
         evt, track, left, right, color, opacity, metrics, theme, klassName
     ) {
-        const eventColor = getEventOverviewColor(evt);
         const eventTheme = getAttachedEventContext(evt)?.eventTheme ??
             this._eventTheme;
-        const themeColor = Timeline.ThemeIcons?.getCssColor?.(
-            eventTheme.range.iconColor
-        ) ?? eventTheme.range.iconColor;
+        const resolvedColor = getOverviewGraphicColor(
+            evt,
+            theme,
+            eventTheme,
+            {
+                eventField: "tapeColor",
+                themeField: "range"
+            }
+        );
         const data = originalPaintEventTape.call(
             this,
             evt,
             track,
             left,
             right,
-            eventColor ?? themeColor,
+            !klassName || resolvedColor.eventOverride
+                ? resolvedColor.color
+                : color,
             opacity,
             metrics,
             theme,

@@ -5,7 +5,8 @@ Overview band styling for Timeline Reprise.
 ## Overview Theme
 
 ```js
-theme.eventTheme = {
+var eventThemes = Timeline.loadEventThemes([{
+    id: "overview",
     track: {
         horizontal: {
             offset: 20,
@@ -17,24 +18,19 @@ theme.eventTheme = {
         }
     },
     instant: {
-        iconColor: "orange"
+        iconColor: "orange",
+        tickWidth: 8
     },
     range: {
         width: 3,
         iconColor: "green"
     }
-};
+}]);
 ```
 
 Overview consumes the same resolved
 [`Timeline.EventTheme`](timeline-reprise-event-theme.md) as normal events and
 Narrative.
-
-Instant tick size remains a native SIMILE overview setting:
-
-```js
-theme.event.overviewTrack.tickHeight = 8;
-```
 
 ### `eventTheme.track`
 Sets overview track placement and spacing.
@@ -71,11 +67,13 @@ Sets spacing between instant ticks and the first range tape, and between range t
 
 ## Instant Events
 
-### `theme.event.overviewTrack.tickHeight`
+### `eventTheme.instant.tickWidth`
 Sets the cross-axis length of overview ticks for instant events.
 
 ```js
-theme.event.overviewTrack.tickHeight = 8;
+instant: {
+    tickWidth: 8
+}
 ```
 
 ### `eventTheme.instant.iconColor`
@@ -89,10 +87,8 @@ instant: {
 
 Named colours are resolved through `Timeline.ThemeIcons` when available.
 
-Overview reads `iconColor` directly from `instant`. It does not use
-`eventTheme.instant.tickWidth`; that option belongs to non-overview event
-presentation. Orientation branches under `instant` are ignored by the overview
-painter.
+Overview reads `iconColor` and `tickWidth` directly from `instant`.
+Orientation branches under `instant` are ignored by the overview painter.
 
 ## Range Events
 
@@ -119,21 +115,13 @@ Named colours are resolved through `Timeline.ThemeIcons` when available.
 Overview reads `width` and `iconColor` directly from `range`.
 Orientation branches under `range` are ignored by the overview painter.
 
-## Event Overrides
+## Event Colours
 
-### `overviewColor`
-Sets the overview colour for one event.
-
-```js
-{
-    start: "2020-07-01",
-    end: "2020-10-15",
-    title: "Range event",
-    overviewColor: "purple"
-}
-```
-
-`overviewColor` overrides the theme colour for that event in the overview band.
+Overview uses the standard event colour contract. When `eventColorScope` is
+`graphic` or `both`, `iconColor` overrides one instant tick, `tapeColor`
+overrides one range tape, and `color` is their fallback. With `label` or
+`none`, overview graphics use their theme colours. Emphasis remains above the
+scope unless disabled.
 
 ## Notes
 
@@ -141,7 +129,7 @@ Overview support adapts Reprise theme data onto SIMILE's native overview painter
 
 For overview bands, `offset` and `gap` belong under `track`.
 Range tape thickness belongs under `range.width`; instant tick size remains
-under native `theme.event.overviewTrack.tickHeight`.
+under `instant.tickWidth`.
 
 ---
 [Back to top](#overview)<br>

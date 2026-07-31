@@ -15,22 +15,6 @@
       margin: 24px;
     }
 
-    .example-section {
-      margin-top: 28px;
-    }
-
-    .example-section h2 {
-      margin-bottom: 8px;
-    }
-
-    #timeline {
-      height: 460px;
-    }
-
-    .summary {
-      margin: 12px 0 18px;
-    }
-
     @media (prefers-color-scheme: dark) {
       body {
         background: #202124;
@@ -46,29 +30,36 @@
     event set by tags, then renders the filtered result.
   </p>
 
-  <p id="summary" class="summary"></p>
-  <div id="timeline"></div>
+  <p id="summary" style="margin: 12px 0 18px;"></p>
+  <div id="timeline" style="height: 460px;"></div>
 
   <script id="timeline-config" type="application/json">
 {
-  "theme": "delivery",
   "filter": {
     "tagsContain": ["showcase", "release"],
     "tagsNotContain": ["internal"],
     "tagsNotOnlyContain": ["draft", "archive"]
   },
-  "bands": {
-    "date": "Mar 15 2020",
-    "main": {
-      "width": "*",
-      "intervalUnit": "month",
-      "intervalPixels": 125
-    },
-    "overview": {
-      "width": "22%",
-      "intervalUnit": "year",
-      "intervalPixels": 220
-    }
+  "bandSet": {
+    "initialDate": "2020-03-15",
+    "eventTheme": "delivery",
+    "syncTarget": "main",
+    "highlight": "overview",
+    "bands": [
+      {
+        "id": "main",
+        "width": "*",
+        "intervalUnit": "month",
+        "intervalPixels": 125
+      },
+      {
+        "id": "overview",
+        "width": "22%",
+        "intervalUnit": "year",
+        "intervalPixels": 220,
+        "overview": true
+      }
+    ]
   },
   "emphasisStyles": [
     {
@@ -242,65 +233,26 @@
 
   <script>
     var config = JSON.parse(document.getElementById("timeline-config").textContent);
-    var emphasisSpecs = Timeline.loadEmphasisStyles(config.emphasisStyles);
+    config.bandSet.emphasisSpecs = Timeline.loadEmphasisStyles(config.emphasisStyles);
     Timeline.loadEventThemes(config.eventThemes);
-    var eventSource = new Timeline.DefaultEventSource();
-    var theme = Timeline.ClassicTheme.create();
     var filteredEvents = Timeline.filterEvents(config.events, config.filter);
-    var bands = config.bands;
-
-    theme.emphasisSpecs = emphasisSpecs;
-
-    var timelineEvents = filteredEvents.map(function (event) {
-      var item = Object.assign({}, event);
-
-      if (item.textColor == null) {
-        item.textColor = "inherit";
-      }
-      if (item.overviewColor == null && item.color) {
-        item.overviewColor = item.color;
-      }
-
-      return item;
-    });
-
-    var bandInfos = [
-      Timeline.createBandInfo({
-        eventSource: eventSource,
-        date: bands.date,
-        width: bands.main.width,
-        intervalUnit: Timeline.resolveTimelineDateTimeUnit(bands.main.intervalUnit),
-        intervalPixels: bands.main.intervalPixels,
-        theme: theme
-      }),
-      Timeline.createBandInfo({
-        eventSource: eventSource,
-        date: bands.date,
-        width: bands.overview.width,
-        intervalUnit: Timeline.resolveTimelineDateTimeUnit(bands.overview.intervalUnit),
-        intervalPixels: bands.overview.intervalPixels,
-        overview: true,
-        theme: theme
-      })
-    ];
-
-    bandInfos[1].syncWith = 0;
-    bandInfos[1].highlight = true;
+    var bandSet = Timeline.createBandSet(config.bandSet);
 
     Timeline.attachEvents(
-      bandInfos[0],
-      timelineEvents,
-      { eventTheme: config.theme }
+      [
+        bandSet.byId.main,
+        bandSet.byId.overview
+      ],
+      filteredEvents
     );
-
-    Timeline.create(
+    Timeline.createTimeline(
       document.getElementById("timeline"),
-      bandInfos
+      bandSet
     );
 
     document.getElementById("summary").textContent =
-      "Showing " + timelineEvents.length + " of " + config.events.length +
-      " events using theme `" + config.theme + "`.";
+      "Showing " + filteredEvents.length + " of " + config.events.length +
+      " events using theme `" + config.bandSet.eventTheme + "`.";
   </script>
 </body>
 </html>

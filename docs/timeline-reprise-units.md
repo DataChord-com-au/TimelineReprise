@@ -11,6 +11,12 @@ labeller.labelDuration(value);   // display text
 A custom unit that does not provide these methods remains supported. Its
 ranges simply have no derived duration.
 
+The unit and labeller also provide the built-in dependency injection used by
+`Timeline.RepriseRuntime` and Reprise band construction. Parsing, comparison,
+numeric ether projection, value changes, and labels remain unit operations.
+Domain integrations inject authored-value projection through the runtime
+without replacing Reprise's band builder.
+
 ## Native JavaScript dates
 
 When Reprise loads after SIMILE Timeline, it adds duration support to
@@ -42,9 +48,8 @@ labeller.labelDuration(1);     // "1 day"
 labeller.labelDuration(12);    // "12 days"
 ```
 
-Use it anywhere a SIMILE timeline unit is accepted, including
-`SimileAjax.EventIndex`, `Timeline.LinearEther`, `Timeline.create()`, and
-`Timeline.RepriseRuntime`.
+Use it as the `unit` or runtime unit supplied to `Timeline.createBandSet()`.
+Reprise constructs its event index, linear ether, labeller, and timeline.
 
 ## Historical years
 
@@ -58,6 +63,8 @@ use astronomical year numbering:
 - raw `1` is `1 CE`.
 
 There is no year zero in `toString()`, precise labels, or axis labels.
+Regular interval markers align independently on the BCE and CE sides of that
+boundary.
 
 ```js
 var caesar = new Timeline.HistoricalYear(-43); // astronomical year -43

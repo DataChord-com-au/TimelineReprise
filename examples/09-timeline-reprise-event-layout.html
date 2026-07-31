@@ -1,0 +1,257 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Event Layout</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Event Layout</h1>
+  <p>
+    This example shows event layout changes on horizontal and vertical timelines.
+  </p>
+
+  <section style="margin-top: 28px;">
+    <h2>Horizontal Timeline</h2>
+    <ul>
+      <li>duration labels are routed away from crowded event tracks</li>
+      <li>short duration events remain visible without taking over the layout</li>
+      <li>sticky range labels slide at both viewport edges while their tapes remain visible</li>
+      <li>the overview band uses theme settings from the same timeline</li>
+      <li>the Project Starts bubble constrains a deliberately oversized image</li>
+    </ul>
+    <div id="timeline-horizontal" style="height: 360px;"></div>
+  </section>
+
+  <section style="margin-top: 28px;">
+    <h2>Vertical Timeline</h2>
+    <ul>
+      <li>duration and point events use the same data as the horizontal timeline</li>
+      <li>labels are orthogonal to the time direction, so layout pressure moves sideways</li>
+      <li>the overview band sits beside the main band instead of below it</li>
+    </ul>
+    <div id="timeline-vertical" style="width: 800px; max-width: 100%; height: 560px;"></div>
+  </section>
+
+  <script>
+    var projectStartEvent = {
+      start: "2020-01-01",
+      title: "Project Starts",
+      description: "Bubble text stays below the image without wrapping around it.",
+      image: "images/bubble-image-wide.svg",
+      iconColor: "orange"
+    };
+
+    var events = [
+        projectStartEvent,
+        {
+          start: "2020-02-01",
+          end: "2020-03-20",
+          title: "Research phase",
+          description: "",
+          color: "green",
+          labelColor: "inherit"
+        },
+        {
+          start: "2020-02-12",
+          end: "2020-02-20",
+          title: "Short review window",
+          description: "",
+          color: "purple",
+          labelColor: "inherit"
+        },
+        {
+          start: "2020-02-18",
+          title: "Decision point",
+          description: "",
+          iconColor: "blue"
+        },
+        {
+          start: "2020-03-01",
+          end: "2020-04-15",
+          title: "Build phase",
+          description: "",
+          color: "red",
+          labelColor: "inherit"
+        },
+        {
+          start: "2020-03-10",
+          end: "2020-03-28",
+          title: "Parallel documentation",
+          description: "",
+          color: "yellow",
+          labelColor: "inherit"
+        },
+        {
+          start: "2020-03-16",
+          title: "Milestone review",
+          description: "",
+          iconColor: "orange"
+        },
+        {
+          start: "2020-04-05",
+          title: "Release candidate",
+          description: "",
+          iconColor: "green"
+        }
+      ];
+
+    var themes = Timeline.loadEventThemes([
+      {
+        id: "main",
+        track: {
+          horizontal: {
+            offset: 12
+          },
+          vertical: {
+            offset: 12
+          }
+        },
+        instant: {
+          iconColor: "orange",
+          width: 5,
+          height: 5,
+          tickWidth: 5,
+          horizontal: {
+            toLabelGap: 4
+          },
+          vertical: {
+            toLabelGap: 4
+          }
+        },
+        range: {
+          width: 4,
+          iconColor: "green",
+          short: {
+            minDisplayLength: 12
+          },
+          horizontal: {
+            tapeGap: 8
+          },
+          vertical: {
+            tapeGap: 8
+          }
+        }
+      }
+    ]);
+
+    var dividerTheme = Timeline.deriveEventTheme(themes.main, {
+      labels: false,
+      instant: {
+        iconColor: projectStartEvent.iconColor,
+        width: 1
+      }
+    });
+
+    var horizontalBandSet = Timeline.createBandSet({
+      orientation: "horizontal",
+      initialDate: "2020-03-01",
+      syncTarget: "main",
+
+      bands: [
+        {
+          id: "main",
+          width: "80%",
+          intervalUnit: "month",
+          intervalPixels: 110,
+          eventTheme: "main"
+        },
+        {
+          id: "overview",
+          width: "20%",
+          intervalUnit: "year",
+          intervalPixels: 220,
+          overview: true,
+          eventTheme: "main"
+        }
+      ]
+    });
+
+    Timeline.attachNarrativeDecorators(
+      horizontalBandSet.byId.main,
+      [projectStartEvent],
+      { eventTheme: dividerTheme }
+    );
+    Timeline.attachNarrativeDecorators(
+      horizontalBandSet.byId.overview,
+      [projectStartEvent],
+      { eventTheme: dividerTheme }
+    );
+    Timeline.attachEvents(
+      [
+        horizontalBandSet.byId.main,
+        horizontalBandSet.byId.overview
+      ],
+      events
+    );
+    Timeline.createTimeline(
+      document.getElementById("timeline-horizontal"),
+      horizontalBandSet
+    );
+
+    var verticalBandSet = Timeline.createBandSet({
+      orientation: "vertical",
+      initialDate: "2020-03-01",
+      syncTarget: "main",
+
+      bands: [
+        {
+          id: "main",
+          width: "*",
+          intervalUnit: "month",
+          intervalPixels: 90,
+          eventTheme: "main"
+        },
+        {
+          id: "overview",
+          width: 100,
+          intervalUnit: "year",
+          intervalPixels: 180,
+          overview: true,
+          eventTheme: "main"
+        }
+      ]
+    });
+
+    Timeline.attachNarrativeDecorators(
+      verticalBandSet.byId.main,
+      [projectStartEvent],
+      { eventTheme: dividerTheme }
+    );
+    Timeline.attachNarrativeDecorators(
+      verticalBandSet.byId.overview,
+      [projectStartEvent],
+      { eventTheme: dividerTheme }
+    );
+    Timeline.attachEvents(
+      [
+        verticalBandSet.byId.main,
+        verticalBandSet.byId.overview
+      ],
+      events
+    );
+    Timeline.createTimeline(
+      document.getElementById("timeline-vertical"),
+      verticalBandSet
+    );
+  </script>
+</body>
+</html>

@@ -1443,7 +1443,7 @@ for (const orientation of ["horizontal", "vertical"]) {
         );
     });
 
-    test(`${orientation} instant event color obeys eventColorScope without hiding explicit icon colors`, () => {
+    test(`${orientation} instant event color and iconColor obey eventColorScope`, () => {
         function paint(scope, eventIconColor = null) {
             const painter = makeEventPainter(orientation);
             const theme = painter._params.theme;
@@ -1471,7 +1471,9 @@ for (const orientation of ["horizontal", "vertical"]) {
         assert.equal(paint("both"), "theme-icon:purple:10");
         assert.equal(paint("label"), "theme-icon:orange:10");
         assert.equal(paint("none"), "theme-icon:orange:10");
-        assert.equal(paint("label", "green"), "theme-icon:green:10");
+        assert.equal(paint("graphic", "green"), "theme-icon:green:10");
+        assert.equal(paint("label", "green"), "theme-icon:orange:10");
+        assert.equal(paint("none", "green"), "theme-icon:orange:10");
     });
 
     test(`${orientation} instant custom icon URLs survive theme defaults but yield to event iconColor`, () => {
@@ -1524,6 +1526,96 @@ test("duration emphasis iconColor overrides event tapeColor", () => {
     );
 
     assert.equal(tape.color, "red");
+});
+
+test("duration tapeColor obeys eventColorScope", () => {
+    function paint(scope) {
+        const painter = makeEventPainter("horizontal");
+        const theme = painter._params.theme;
+        const evt = {
+            ...event("duration", 20, 80),
+            getColor: () => "purple",
+            getProperty: name => name === "tapeColor" ? "green" : null
+        };
+
+        painter._eventTheme = testEventTheme({
+            eventColorScope: scope,
+            range: { iconColor: "orange" }
+        });
+
+        return painter._paintEventTape(
+            evt,
+            0,
+            20,
+            80,
+            "gray",
+            100,
+            painter._repriseMetrics,
+            theme,
+            0
+        ).color;
+    }
+
+    assert.equal(paint("graphic"), "green");
+    assert.equal(paint("both"), "green");
+    assert.equal(paint("label"), "orange");
+    assert.equal(paint("none"), "orange");
+});
+
+test("event labelColor and textColor obey eventColorScope", () => {
+    function paint(scope, properties, emphasisSpecs = {}, disableEmphasis = false) {
+        const painter = makeEventPainter("horizontal");
+        const theme = painter._params.theme;
+        const evt = {
+            ...instantEvent("instant", 20),
+            getColor: () => properties.color ?? null,
+            getTextColor: () => properties.textColor ?? null,
+            getProperty: name => properties[name] ?? null
+        };
+
+        theme.emphasisSpecs = emphasisSpecs;
+        painter._eventTheme = testEventTheme({
+            eventColorScope: scope,
+            disableEmphasis
+        });
+
+        return painter._paintEventLabel(
+            evt,
+            "instant",
+            20,
+            0,
+            60,
+            8,
+            theme,
+            "timeline-event-label"
+        ).elmt.style.color;
+    }
+
+    assert.equal(paint("label", { labelColor: "green" }), "green");
+    assert.equal(paint("both", { textColor: "purple" }), "purple");
+    assert.equal(
+        paint("both", { labelColor: "green", textColor: "purple" }),
+        "green"
+    );
+    assert.equal(paint("graphic", { labelColor: "green" }), "");
+    assert.equal(paint("none", { textColor: "purple", color: "orange" }), "");
+    assert.equal(
+        paint(
+            "none",
+            { emphasis: "critical", labelColor: "green" },
+            { critical: { labelColor: "red" } }
+        ),
+        "red"
+    );
+    assert.equal(
+        paint(
+            "none",
+            { emphasis: "critical", labelColor: "green" },
+            { critical: { labelColor: "red" } },
+            true
+        ),
+        ""
+    );
 });
 
 test("horizontal instant toLabelGap is the exact visible dot-to-label gap", () => {
@@ -1942,6 +2034,75 @@ test("narrative range label color derives old contrast output from hex graphic c
 
     assert.notEqual(labelColor.toLowerCase(), record.graphicColor.toLowerCase());
     assert.match(labelColor, /^light-dark\(hsl\(\d+, \d+%, \d+%\), hsl\(\d+, \d+%, \d+%\)\)$/);
+});
+
+test("narrative event colours obey eventColorScope while emphasis overrides it", () => {
+    const decorator = makeNarrative("horizontal");
+    const record = {
+        kind: "range",
+        item: {
+            color: "event",
+            spanColor: "event-span",
+            labelColor: "event-label",
+            textColor: "native-label"
+        }
+    };
+
+    decorator._spanColors = ["theme-span"];
+    decorator._labelColorMode = "theme";
+    decorator._labelColor = "theme-label";
+    decorator._disableEmphasis = false;
+    decorator._emphasisSpecs = {
+        critical: {
+            spanColor: "emphasis-span",
+            labelColor: "emphasis-label"
+        }
+    };
+
+    function colors(scope) {
+        decorator._eventColorScope = scope;
+        return {
+            graphic: decorator._recordGraphicColor(
+                record,
+                "spanColor",
+                "theme-span"
+            ),
+            label: decorator._recordLabelColor(record)
+        };
+    }
+
+    assert.deepEqual(colors("none"), {
+        graphic: "theme-span",
+        label: "theme-label"
+    });
+    assert.deepEqual(colors("graphic"), {
+        graphic: "event-span",
+        label: "theme-label"
+    });
+    assert.deepEqual(colors("label"), {
+        graphic: "theme-span",
+        label: "event-label"
+    });
+    assert.deepEqual(colors("both"), {
+        graphic: "event-span",
+        label: "event-label"
+    });
+
+    record.item.emphasis = "critical";
+    assert.deepEqual(colors("none"), {
+        graphic: "emphasis-span",
+        label: "emphasis-label"
+    });
+
+    decorator._disableEmphasis = true;
+    assert.deepEqual(colors("none"), {
+        graphic: "theme-span",
+        label: "theme-label"
+    });
+
+    decorator._eventColorScope = "both";
+    delete record.item.labelColor;
+    assert.equal(decorator._recordLabelColor(record), "native-label");
 });
 
 test("horizontal narrative instant labels avoid their own divider width", () => {

@@ -136,6 +136,19 @@ function loadTimeline(defaultUnit = makeNumericUnit()) {
     });
 
     const Timeline = {
+        DateTime: {
+            MILLISECOND: 0,
+            SECOND: 1,
+            MINUTE: 2,
+            HOUR: 3,
+            DAY: 4,
+            WEEK: 5,
+            MONTH: 6,
+            YEAR: 7,
+            DECADE: 8,
+            CENTURY: 9,
+            MILLENNIUM: 10
+        },
         EventUtils: {
             getNewEventID() {
                 this.nextId = (this.nextId || 0) + 1;
@@ -257,6 +270,35 @@ test("events and Narrative on one band can use different named and instance them
     assert.equal(bandInfo.decorators[0]._eventTheme, narrativeTheme);
     assert.equal(bandInfo.decorators[0]._instants[0].eventTheme, narrativeTheme);
     assert.equal(bandInfo.theme.eventTheme, bandTheme);
+});
+
+test("attachEvents accepts one band or an array of bands", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const firstTheme = new Timeline.EventTheme({
+        id: "first",
+        instant: { iconColor: "orange" }
+    });
+    const secondTheme = new Timeline.EventTheme({
+        id: "second",
+        instant: { iconColor: "purple" }
+    });
+    const first = makeBand(Timeline, unit, firstTheme);
+    const second = makeBand(Timeline, unit, secondTheme);
+    const events = [{ id: "shared", date: 1, title: "Shared event" }];
+
+    Timeline.attachEvents(
+        [first.bandInfo, second.bandInfo],
+        events
+    );
+
+    assert.equal(first.records.length, 1);
+    assert.equal(second.records.length, 1);
+    assert.notEqual(first.records[0], second.records[0]);
+    assert.equal(first.records[0].eventTheme, firstTheme);
+    assert.equal(second.records[0].eventTheme, secondTheme);
+    assert.equal(first.eventPainter._params.eventTheme, firstTheme);
+    assert.equal(second.eventPainter._params.eventTheme, secondTheme);
 });
 
 test("both methods use the same default and injected runtime path", () => {
@@ -676,6 +718,113 @@ test("theme-icon painter wrappers retain the attached record context", () => {
     ));
 });
 
+test("attachCardinalAxis uses the band's default native-date runtime", () => {
+    const unit = makeNativeUnit();
+    const Timeline = loadTimeline(unit);
+    const { bandInfo } = makeBand(Timeline, unit);
+
+    Timeline.attachCardinalAxis(bandInfo, {
+        range: {
+            start: "2020-02-15T00:00:00Z",
+            end: "2020-12-15T00:00:00Z"
+        },
+        intervalUnit: "month",
+        unitsPerCount: 1,
+        countsPerMarker: 2,
+        anchorValue: 1,
+        startLabel: "Start",
+        endLabel: "End",
+        labelForIndex: index => String(index)
+    }, {
+        cssClass: "month-count-axis",
+        showLine: false
+    });
+
+    assert.equal(bandInfo.decorators.length, 1);
+    const axis = bandInfo.decorators[0];
+    assert.ok(axis instanceof Timeline.CardinalAxis);
+    assert.equal(axis._startDate.toISOString(), "2020-02-15T00:00:00.000Z");
+    assert.equal(axis._endDate.toISOString(), "2020-12-15T00:00:00.000Z");
+    assert.equal(axis._unit, Timeline.DateTime.MONTH);
+    assert.equal(axis._unitsPerCount, 1);
+    assert.equal(axis._countsPerMarker, 2);
+    assert.equal(axis._unitsPerMarker, 2);
+    assert.equal(axis._anchorValue, 1);
+    assert.equal(axis._startLabel, "Start");
+    assert.equal(axis._endLabel, "End");
+    assert.equal(axis._background, false);
+    assert.equal(axis._cssClass, "month-count-axis");
+    assert.equal(axis._params.showLine, false);
+});
+
+test("Planning events and cardinal axes share the band's injected runtime", () => {
+    const Timeline = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({ unit });
+    const { bandInfo, records } = makeBand(Timeline, unit);
+    bandInfo.repriseRuntime = runtime;
+
+    Timeline.attachEvents(bandInfo, [
+        { start: "3", end: 12, title: "Planning range" }
+    ]);
+    Timeline.attachCardinalAxis(bandInfo, {
+        range: { start: 0, end: 50 },
+        intervalUnit: "day",
+        unitsPerCount: 5,
+        countsPerMarker: 2,
+        anchorValue: 0
+    });
+
+    assert.equal(records[0].runtime, runtime);
+    assert.equal(records[0].getStart(), 3);
+    assert.equal(records[0].getEnd(), 12);
+    assert.equal(bandInfo.decorators.length, 1);
+    assert.equal(bandInfo.decorators[0]._runtime, runtime);
+    assert.equal(bandInfo.decorators[0]._startDate, 0);
+    assert.equal(bandInfo.decorators[0]._endDate, 50);
+    assert.equal(bandInfo.decorators[0]._unit, Timeline.DateTime.DAY);
+    assert.equal(bandInfo.decorators[0]._unitsPerCount, 5);
+    assert.equal(bandInfo.decorators[0]._countsPerMarker, 2);
+    assert.equal(bandInfo.decorators[0]._unitsPerMarker, 10);
+    assert.equal(bandInfo.decorators[0]._anchorValue, 0);
+});
+
+test("attachCardinalAxis accepts a runtime override", () => {
+    const unit = makeNativeUnit();
+    const Timeline = loadTimeline(unit);
+    const { bandInfo } = makeBand(Timeline, unit);
+    const projectedStart = new Date("1948-08-23T00:00:00Z");
+    const projectedEnd = new Date("1996-12-03T23:10:00Z");
+    const range = { semantic: "life-range" };
+
+    bandInfo.repriseRuntime = new Timeline.RepriseRuntime({
+        unit,
+        projectTimeRange() {
+            throw new Error("band runtime should not be used");
+        }
+    });
+    const override = new Timeline.RepriseRuntime({
+        unit,
+        projectTimeRange(value) {
+            assert.equal(value, range);
+            return {
+                start: projectedStart,
+                end: projectedEnd
+            };
+        }
+    });
+
+    Timeline.attachCardinalAxis(bandInfo, {
+        range,
+        intervalUnit: "year"
+    }, {
+        runtime: override
+    });
+
+    assert.equal(bandInfo.decorators[0]._startDate, projectedStart);
+    assert.equal(bandInfo.decorators[0]._endDate, projectedEnd);
+});
+
 test("legacy theme ids and flat decorator controls are rejected", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
@@ -696,5 +845,35 @@ test("legacy theme ids and flat decorator controls are rejected", () => {
             { spans: false }
         ),
         /options\.spans.*not supported/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(bandInfo, {
+            range: { start: 0, end: 10 },
+            intervalUnit: "day",
+            multiple: 2
+        }),
+        /spec\.multiple.*not supported/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            { align: null }
+        ),
+        /options\.align must be a string/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            { showLine: null }
+        ),
+        /options\.showLine must be a boolean/
     );
 });

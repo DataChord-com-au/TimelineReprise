@@ -18,7 +18,7 @@ declare namespace Timeline {
     }
 
     interface PlanningDayUnitContract
-        extends TimelineUnit<number>, DurationUnit<number> {
+        extends BandUnit<number>, DurationUnit<number> {
         getParser(): (value: unknown) => number | null;
         makeDefaultValue(): number;
         cloneValue(value: number): number;
@@ -53,7 +53,7 @@ declare namespace Timeline {
     }
 
     interface HistoricalYearUnitContract
-        extends TimelineUnit<HistoricalYear>, DurationUnit<HistoricalYear> {
+        extends BandUnit<HistoricalYear>, DurationUnit<HistoricalYear> {
         readonly HistoricalYear: typeof HistoricalYear;
         getParser(): (value: unknown) => HistoricalYear | null;
         makeDefaultValue(): HistoricalYear;
@@ -93,7 +93,7 @@ declare namespace Timeline {
         labelDuration(value: number): string;
     }
 
-    interface MaUnitContract extends TimelineUnit<Ma>, DurationUnit<Ma> {
+    interface MaUnitContract extends BandUnit<Ma>, DurationUnit<Ma> {
         readonly Ma: typeof Ma;
         getParser(): (value: unknown) => Ma | null;
         makeDefaultValue(): Ma;

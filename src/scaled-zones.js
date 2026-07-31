@@ -1,3 +1,206 @@
+class UnitScaledZoneEther {
+    constructor(params) {
+        this._params = params;
+        this._interval = params.interval;
+        this._pixelsPerInterval = params.pixelsPerInterval;
+    }
+
+    initialize(band, timeline) {
+        this._band = band;
+        this._timeline = timeline;
+        this._unit = timeline.getUnit();
+        this._segments = this._createSegments(this._params.zones ?? []);
+
+        if ("startsOn" in this._params) {
+            this._start = this._parse(this._params.startsOn);
+        } else if ("endsOn" in this._params) {
+            this._start = this._parse(this._params.endsOn);
+            this.shiftPixels(-timeline.getPixelLength());
+        } else {
+            this._start = "centersOn" in this._params
+                ? this._parse(this._params.centersOn)
+                : this._unit.makeDefaultValue();
+            this.shiftPixels(-timeline.getPixelLength() / 2);
+        }
+    }
+
+    setDate(value) {
+        this._start = this._unit.cloneValue(value);
+    }
+
+    shiftPixels(pixels) {
+        this._start = this.pixelOffsetToDate(pixels);
+    }
+
+    dateToPixelOffset(value) {
+        return this._coordinateDistanceToPixels(
+            this._coordinate(this._start),
+            this._coordinate(value)
+        );
+    }
+
+    pixelOffsetToDate(pixels) {
+        if (!Number.isFinite(pixels)) {
+            throw new RangeError(
+                "TimelineReprise scaled-zone pixel offset must be finite."
+            );
+        }
+
+        const direction = Math.sign(pixels);
+        if (direction === 0) return this._unit.cloneValue(this._start);
+
+        let coordinate = this._coordinate(this._start);
+        let remaining = Math.abs(pixels);
+
+        while (remaining > 0) {
+            const segment = this._segmentAt(coordinate, direction);
+            const boundary = direction > 0
+                ? segment.end
+                : segment.start;
+            const distance = Number.isFinite(boundary)
+                ? Math.abs(boundary - coordinate)
+                : Number.POSITIVE_INFINITY;
+            const availablePixels = distance *
+                segment.magnify /
+                this._getScale();
+
+            if (remaining <= availablePixels) {
+                coordinate += direction *
+                    remaining *
+                    this._getScale() /
+                    segment.magnify;
+                remaining = 0;
+            } else {
+                coordinate = boundary;
+                remaining -= availablePixels;
+            }
+        }
+
+        return this._unit.fromNumber(coordinate);
+    }
+
+    zoom(zoomIn) {
+        const steps = this._band?._zoomSteps;
+        if (!Array.isArray(steps) || steps.length === 0) return 0;
+
+        const previousIndex = this._band._zoomIndex;
+        const nextIndex = zoomIn
+            ? Math.max(0, previousIndex - 1)
+            : Math.min(steps.length - 1, previousIndex + 1);
+        const previousInterval = this._interval;
+        const nextInterval = Number(
+            steps[nextIndex].interval ?? steps[nextIndex].unit
+        );
+
+        if (!Number.isFinite(nextInterval) || nextInterval <= 0) return 0;
+
+        this._band._zoomIndex = nextIndex;
+        this._interval = nextInterval;
+        this._pixelsPerInterval =
+            steps[nextIndex].pixelsPerInterval ?? this._pixelsPerInterval;
+        return nextInterval - previousInterval;
+    }
+
+    _parse(value) {
+        const parsed = this._unit.parseFromObject(value);
+        this._coordinate(parsed);
+        return parsed;
+    }
+
+    _coordinate(value) {
+        const coordinate = this._unit.toNumber(value);
+        if (!Number.isFinite(coordinate)) {
+            throw new TypeError(
+                "TimelineReprise scaled-zone unit projection must be finite."
+            );
+        }
+        return coordinate;
+    }
+
+    _createSegments(zones) {
+        const projected = zones.map(zone => {
+            const first = this._coordinate(zone.start);
+            const second = this._coordinate(zone.end);
+            return {
+                start: Math.min(first, second),
+                end: Math.max(first, second),
+                magnify: zone.magnify
+            };
+        });
+        const boundaries = [...new Set(
+            projected.flatMap(zone => [zone.start, zone.end])
+        )].sort((left, right) => left - right);
+        const segments = [];
+        let start = Number.NEGATIVE_INFINITY;
+
+        for (const end of [...boundaries, Number.POSITIVE_INFINITY]) {
+            const magnify = projected.reduce((result, zone) =>
+                zone.start < end && zone.end > start
+                    ? result * zone.magnify
+                    : result,
+            1);
+            segments.push({ start, end, magnify });
+            start = end;
+        }
+
+        return segments;
+    }
+
+    _segmentAt(coordinate, direction) {
+        let segment = null;
+        if (direction > 0) {
+            segment = this._segments.find(candidate =>
+                coordinate >= candidate.start &&
+                coordinate < candidate.end
+            );
+        } else {
+            for (let index = this._segments.length - 1; index >= 0; index--) {
+                const candidate = this._segments[index];
+                if (
+                    coordinate > candidate.start &&
+                    coordinate <= candidate.end
+                ) {
+                    segment = candidate;
+                    break;
+                }
+            }
+        }
+
+        if (segment == null) {
+            throw new RangeError(
+                "TimelineReprise could not resolve a scaled-zone segment."
+            );
+        }
+        return segment;
+    }
+
+    _coordinateDistanceToPixels(start, end) {
+        const direction = Math.sign(end - start);
+        if (direction === 0) return 0;
+
+        let coordinate = start;
+        let pixels = 0;
+
+        while (direction * (end - coordinate) > 0) {
+            const segment = this._segmentAt(coordinate, direction);
+            const boundary = direction > 0
+                ? Math.min(end, segment.end)
+                : Math.max(end, segment.start);
+            pixels += direction *
+                Math.abs(boundary - coordinate) *
+                segment.magnify /
+                this._getScale();
+            coordinate = boundary;
+        }
+
+        return pixels;
+    }
+
+    _getScale() {
+        return this._interval / this._pixelsPerInterval;
+    }
+}
+
 (function () {
     if (typeof Timeline === "undefined" || !Timeline.HotZoneGregorianEtherPainter) return;
 
@@ -136,3 +339,5 @@
 
     proto._timelineUtilsHotZoneBoundaryPatch = true;
 }());
+
+export { UnitScaledZoneEther };

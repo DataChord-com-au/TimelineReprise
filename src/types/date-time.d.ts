@@ -42,7 +42,7 @@ declare namespace Timeline {
         ): TimelineLabeller<T>;
     }
 
-    const NativeDateUnit: TimelineUnit<Date> & DurationUnit<Date>;
+    const NativeDateUnit: BandUnit<Date> & DurationUnit<Date>;
     const DATE_TIME_UNIT_NAMES: readonly DateTimeUnitName[];
 
     function resolveTimelineDateTimeUnit(

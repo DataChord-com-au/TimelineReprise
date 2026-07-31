@@ -4,9 +4,9 @@ Event layout routing for Timeline Reprise. Unless stated otherwise, dimensions
 are CSS pixels.
 
 The properties belong to
-[`Timeline.EventTheme`](timeline-reprise-event-theme.md). A literal assigned to
-the SIMILE band theme's `eventTheme` field is validated and converted when the
-band is initialized. Event layout and Narrative consume the same resolved
+[`Timeline.EventTheme`](timeline-reprise-event-theme.md). Load authored
+literals with `Timeline.loadEventThemes()` and select a registered id in the
+Reprise band spec. Event layout and Narrative consume the same resolved
 instance. Properties used only by Narrative remain in that model and are
 ignored by event layout; see the
 [Narrative theme reference](timeline-reprise-narrative.md#theme).
@@ -14,7 +14,6 @@ The reference below lists the `eventTheme` properties consumed by event
 layout; unlisted fields do not configure this painter.
 
 ```js
-var theme = Timeline.ClassicTheme.create();
 var emphasisSpecs = Timeline.loadEmphasisStyles([
     {
         id: "critical",
@@ -23,15 +22,15 @@ var emphasisSpecs = Timeline.loadEmphasisStyles([
     }
 ]);
 
-theme.emphasisSpecs = emphasisSpecs;
-theme.eventTheme = {
+var eventThemes = Timeline.loadEventThemes([{
+    id: "events",
     labels: true,
     bubbles: true,
     bubble: {
         width: 320,
         maxHeight: null
     },
-    eventColorScope: "graphic",
+    eventColorScope: "both",
     track: {
         horizontal: {
             offset: 12
@@ -78,29 +77,31 @@ theme.eventTheme = {
             toEventGap: 12
         }
     }
-};
+}]);
 ```
 
-Then pass `theme` into the band:
+Then select the theme and emphasis registry in the Reprise band set:
 
 ```js
-Timeline.createBandInfo({
-    eventSource: eventSource,
-    date: "Mar 1 2020",
-    width: "80%",
-    intervalUnit: Timeline.DateTime.MONTH,
-    intervalPixels: 110,
-    theme: theme
+var bandSet = Timeline.createBandSet({
+    eventTheme: "events",
+    emphasisSpecs: emphasisSpecs,
+    initialDate: "2020-03-01",
+    bands: [{
+        id: "main",
+        width: "100%",
+        intervalUnit: "month",
+        intervalPixels: 110
+    }]
 });
 ```
 
 Attach events through the Reprise workflow before creating the timeline:
 
 ```js
-Timeline.attachEvents(bandInfo, events);
+Timeline.attachEvents(bandSet.byId.main, events);
+var timeline = Timeline.createTimeline(container, bandSet);
 ```
-
-Create a fresh theme object for each timeline when a page shows horizontal and vertical timelines together.
 
 Orientation-specific properties are read from `horizontal` or `vertical` when
 the painter is initialised.
@@ -133,37 +134,36 @@ Sets the optional maximum event bubble height. `null` means no maximum.
 Narrative consumes the same property.
 
 ### `eventTheme.eventColorScope`
-Controls whether an authored item `color` is applied to its label, graphic,
-both, or neither. Event layout and Narrative use the same values and meaning.
+Controls which event-supplied colours may affect rendering. Event layout,
+overview, and Narrative use the same values and meaning.
 
 Values:
 
-- `none`
-- `label`
-- `graphic`
-- `both`
+- `none` - ignore all event-supplied graphic and label colours
+- `label` - allow `labelColor`, its `textColor` alias, and `color` on labels
+- `graphic` - allow `iconColor`, `tapeColor`, and `color` on graphics
+- `both` - allow event-supplied colours on both channels
 
 Reprise default: `graphic`.
 
-Without an emphasis override, explicit event colours such as `iconColor`,
-`labelColor`, `textColor`, or `tapeColor` override this scope.
+Named emphasis colours remain above this gate unless emphasis is disabled.
 
 ### `eventTheme.disableEmphasis`
 Set to `true` to ignore named emphasis styles on this band.
 
 Default: `false`.
 
-### `theme.emphasisSpecs`
+### `emphasisSpecs`
 Registry of `Timeline.EmphasisStyle` objects, normally produced by
-`Timeline.loadEmphasisStyles()`. This registry is separate from
-`theme.eventTheme`; the event theme only controls whether the registry is
-disabled for the band.
+`Timeline.loadEmphasisStyles()` and supplied as a Reprise band option. It is
+separate from the EventTheme; the EventTheme only controls whether the
+registry is disabled for the band.
 
 An emphasis spec is applied only when all three are true:
 
 - `eventTheme.disableEmphasis` is not `true`
 - the event has `emphasis: "key"`
-- `theme.emphasisSpecs.key` exists
+- `emphasisSpecs.key` exists
 
 When active, each defined emphasis property overrides the corresponding event
 and theme result. Undefined emphasis properties leave the lower-level result
@@ -227,12 +227,12 @@ Instant-dot colour precedence, from lowest to highest, is:
 
 1. timeline default blue
 2. `eventTheme.instant.iconColor`
-3. the event's `iconColor`
-4. an applied emphasis `iconColor`
+3. the event's `color` when the scope includes `graphic`
+4. the event's `iconColor` when the scope includes `graphic`
+5. an applied emphasis `iconColor`
 
-An event `color` also colours the dot when the effective `eventColorScope` is
-`graphic` or `both`; the scope can come from the theme, event, or applied
-emphasis. Explicit `iconColor` values are not disabled by `eventColorScope`.
+The scope can come from the theme or event. `iconColor` is the more specific
+event field and therefore wins over `color`.
 An authored event `icon` URL is preserved instead of applying the theme/default
 dot colour, but an event or emphasis `iconColor` deliberately replaces it.
 
@@ -373,21 +373,24 @@ Provides the event colour used according to `eventColorScope`.
 
 ### `iconColor`
 Sets one instant event's dot colour. An applied emphasis `iconColor` takes
-precedence. On range events, use `tapeColor` for an event-only override.
+precedence. It applies only when `eventColorScope` includes `graphic`. On range
+events, use `tapeColor`.
 
 ### `emphasis`
-References a named spec from `theme.emphasisSpecs`. It applies unless
+References a named spec from the band's `emphasisSpecs`. It applies unless
 `eventTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
-Sets one event label colour.
+Preferred Reprise field for one event label colour. It applies only when
+`eventColorScope` includes `label`.
 
 ### `textColor`
-Native SIMILE text-colour override. `labelColor` takes precedence when both are
-set.
+Native SIMILE compatibility alias for `labelColor`. Prefer `labelColor` in new
+code. `labelColor` takes precedence when both are set.
 
 ### `tapeColor`
-Sets the tape and sparkline colour for one range event.
+Sets the tape and sparkline colour for one range event when `eventColorScope`
+includes `graphic`.
 
 ```js
 {
@@ -400,7 +403,8 @@ Sets the tape and sparkline colour for one range event.
 }
 ```
 
-If `tapeColor` is not set, the event colour is used, then the theme range colour.
+Within a graphic-enabled scope, `tapeColor` wins over `color`. Otherwise the
+theme range colour is used.
 
 ---
 [Back to top](#event-layout)<br>

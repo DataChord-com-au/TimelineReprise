@@ -15,30 +15,6 @@
       margin: 24px;
     }
 
-    .example-section {
-      margin-top: 28px;
-    }
-
-    .example-section h2 {
-      margin-bottom: 8px;
-    }
-
-    .timeline-frame {
-      border-width: 1px;
-      border-style: solid;
-      border-color: #5f6368;
-    }
-
-    #timeline-horizontal {
-      height: 420px;
-    }
-
-    #timeline-vertical {
-      width: 800px;
-      max-width: 100%;
-      height: 560px;
-    }
-
     @media (prefers-color-scheme: dark) {
       body {
         background: #202124;
@@ -54,14 +30,14 @@
     unresolved, and dynamically dated boundaries.
   </p>
 
-  <section class="example-section">
+  <section style="margin-top: 28px;">
     <h2>Horizontal Timeline</h2>
-    <div id="timeline-horizontal" class="timeline-frame"></div>
+    <div id="timeline-horizontal" style="height: 420px;"></div>
   </section>
 
-  <section class="example-section">
+  <section style="margin-top: 28px;">
     <h2>Vertical Timeline</h2>
-    <div id="timeline-vertical" class="timeline-frame"></div>
+    <div id="timeline-vertical" style="width: 800px; max-width: 100%; height: 560px;"></div>
   </section>
 
   <script>
@@ -75,7 +51,7 @@
       return date.toISOString().slice(0, 10);
     }
 
-    var impreciseRangesEvents = [
+    var events = [
       {
         start: "2026-01-01",
         end: "2026-03-01",
@@ -148,10 +124,9 @@
       }
     ];
 
-    function createImpreciseRangesTheme() {
-      var theme = Timeline.ClassicTheme.create();
-
-      theme.eventTheme = {
+    Timeline.loadEventThemes([
+      {
+        id: "main",
         track: {
           horizontal: {
             offset: 12
@@ -164,87 +139,57 @@
           width: 4,
           iconColor: "blue",
           horizontal: {
-            eventRoutingThreshold: 28,
-            toLabelGap: 0,
-            labelRoutingGap: 8,
-            labelTrackGap: 6,
-            tapeGap: 5,
-            sparklineStagger: 8,
-            stickyLeftInset: 4
+            tapeGap: 5
           },
           vertical: {
-            eventRoutingThreshold: 28,
-            toLabelGap: 0,
-            labelRoutingGap: 4,
-            labelTrackGap: 6,
-            tapeGap: 5,
-            stickyTopInset: 4,
-            toEventGap: 12
+            tapeGap: 5
           }
         }
-      };
-
-      return theme;
-    }
-
-    function createHorizontalBands(eventSource, theme) {
-      return [
-        Timeline.createBandInfo({
-          eventSource: eventSource,
-          date: "Apr 1 2026",
-          width: "100%",
-          intervalUnit: Timeline.DateTime.MONTH,
-          intervalPixels: 90,
-          theme: theme
-        })
-      ];
-    }
-
-    function createVerticalBands(eventSource, theme) {
-      return [
-        Timeline.createBandInfo({
-          eventSource: eventSource,
-          date: "Apr 1 2026",
-          width: "100%",
-          intervalUnit: Timeline.DateTime.MONTH,
-          intervalPixels: 90,
-          theme: theme
-        })
-      ];
-    }
-
-    var horizontalEventSource = new Timeline.DefaultEventSource();
-    var verticalEventSource = new Timeline.DefaultEventSource();
-    var horizontalBands = createHorizontalBands(
-      horizontalEventSource,
-      createImpreciseRangesTheme()
-    );
-    var verticalBands = createVerticalBands(
-      verticalEventSource,
-      createImpreciseRangesTheme()
-    );
-
-    Timeline.attachEvents(horizontalBands[0], impreciseRangesEvents);
-    Timeline.attachEvents(verticalBands[0], impreciseRangesEvents);
-
-    var horizontalTimeline = Timeline.create(
-      document.getElementById("timeline-horizontal"),
-      horizontalBands
-    );
-
-    var verticalTimeline = Timeline.create(
-      document.getElementById("timeline-vertical"),
-      verticalBands,
-      Timeline.VERTICAL
-    );
+      }
+    ]);
 
     var clampRange = {
       start: new Date("2024-01-01T00:00:00Z"),
       end: new Date("2028-01-01T00:00:00Z")
     };
 
-    Timeline.clampBandChains(horizontalTimeline, clampRange);
-    Timeline.clampBandChains(verticalTimeline, clampRange);
+    var horizontalBandSet = Timeline.createBandSet({
+      orientation: "horizontal",
+      initialDate: today,
+      clampRange: clampRange,
+
+      bands: [
+        {
+          id: "main",
+          width: "100%",
+          intervalUnit: "month",
+          intervalPixels: 90,
+          eventTheme: "main"
+        }
+      ]
+    });
+
+    Timeline.attachEvents(horizontalBandSet.byId.main, events);
+    Timeline.createTimeline(document.getElementById("timeline-horizontal"), horizontalBandSet);
+
+    var verticalBandSet = Timeline.createBandSet({
+      orientation: "vertical",
+      initialDate: today,
+      clampRange: clampRange,
+
+      bands: [
+        {
+          id: "main",
+          width: "100%",
+          intervalUnit: "month",
+          intervalPixels: 90,
+          eventTheme: "main"
+        }
+      ]
+    });
+
+    Timeline.attachEvents(verticalBandSet.byId.main, events);
+    Timeline.createTimeline(document.getElementById("timeline-vertical"), verticalBandSet);
   </script>
 </body>
 </html>

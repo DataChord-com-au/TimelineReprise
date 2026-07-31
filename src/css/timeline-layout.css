@@ -27,6 +27,14 @@
   white-space: nowrap;
 }
 
+.timeline-horizontal .timeline-date-label-em {
+  height: 1.5em;
+}
+
+.timeline-vertical .timeline-date-label-em {
+  width: 5em;
+}
+
 .timeline-vertical
   .timeline-date-label.timeline-reprise-date-label-left {
   padding-left: 4px;

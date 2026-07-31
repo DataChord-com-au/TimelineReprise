@@ -13,8 +13,7 @@ const _ATTACHMENT_COLOUR_FIELDS = [
     "iconColor",
     "tapeColor",
     "spanColor",
-    "lineColor",
-    "overviewColor"
+    "lineColor"
 ];
 const _ATTACHMENT_RESERVED_RECORD_FIELDS = new Set([
     "eventTheme",
@@ -124,7 +123,7 @@ function _attachmentResolveContext(bandInfo, options, caller) {
         bandInfo.theme
     );
     const runtime = resolveRepriseRuntime(
-        resolvedOptions.runtime ?? null,
+        resolvedOptions.runtime ?? bandInfo.repriseRuntime ?? null,
         {
             unit,
             labeller: _attachmentResolveBandLabeller(bandInfo, unit)
@@ -446,29 +445,50 @@ function renderAttachedEventField(event, field, target, extra = {}) {
     return value;
 }
 
-function attachEvents(bandInfo, events = [], options = {}) {
+function attachEvents(bandInfoOrBandInfos, events = [], options = {}) {
     const caller = `${_ATTACHMENT_MODULE_LABEL}.attachEvents`;
-    const context = _attachmentResolveContext(bandInfo, options, caller);
-
-    if (typeof bandInfo.eventSource?.addMany !== "function") {
-        throw new TypeError(
-            `${caller} \`bandInfo.eventSource\` must provide addMany(events).`
+    const bandInfos = Array.isArray(bandInfoOrBandInfos)
+        ? bandInfoOrBandInfos
+        : [bandInfoOrBandInfos];
+    const attachments = bandInfos.map((bandInfo, index) => {
+        const bandCaller = bandInfos.length === 1
+            ? caller
+            : `${caller} bandInfos[${index}]`;
+        const context = _attachmentResolveContext(
+            bandInfo,
+            options,
+            bandCaller
         );
-    }
-    if (!_attachmentIsObject(bandInfo.eventPainter)) {
-        throw new TypeError(`${caller} \`bandInfo.eventPainter\` must be an object.`);
-    }
 
-    const records = _attachmentPrepareRecords(events, context, caller);
-    const painter = bandInfo.eventPainter;
-    painter._params = _attachmentIsObject(painter._params)
-        ? painter._params
-        : {};
-    painter._params.eventTheme = context.eventTheme;
-    painter._params.runtime = context.runtime;
-    painter._eventTheme = context.eventTheme;
-    painter._runtime = context.runtime;
-    bandInfo.eventSource.addMany(records);
+        if (typeof bandInfo.eventSource?.addMany !== "function") {
+            throw new TypeError(
+                `${bandCaller} \`bandInfo.eventSource\` must provide addMany(events).`
+            );
+        }
+        if (!_attachmentIsObject(bandInfo.eventPainter)) {
+            throw new TypeError(
+                `${bandCaller} \`bandInfo.eventPainter\` must be an object.`
+            );
+        }
+
+        return {
+            bandInfo,
+            context,
+            records: _attachmentPrepareRecords(events, context, bandCaller)
+        };
+    });
+
+    for (const { bandInfo, context, records } of attachments) {
+        const painter = bandInfo.eventPainter;
+        painter._params = _attachmentIsObject(painter._params)
+            ? painter._params
+            : {};
+        painter._params.eventTheme = context.eventTheme;
+        painter._params.runtime = context.runtime;
+        painter._eventTheme = context.eventTheme;
+        painter._runtime = context.runtime;
+        bandInfo.eventSource.addMany(records);
+    }
 }
 
 function attachNarrativeDecorators(bandInfo, events = [], options = {}) {

@@ -30,11 +30,6 @@
       line-height: 1.5;
     }
 
-    .timeline-frame {
-      height: 460px;
-      border: 1px solid #5f6368;
-    }
-
     .status {
       box-sizing: border-box;
       min-height: 8em;
@@ -82,53 +77,55 @@
     <button id="run-stress" type="button">Run alternating stress</button>
   </div>
 
-  <div id="timeline" class="timeline-frame"></div>
+  <div id="timeline" style="height: 460px;"></div>
   <pre id="status" class="status"></pre>
 
   <script>
     var clampStart = new Date("2024-01-01T00:00:00Z");
     var clampEnd = new Date("2028-01-01T00:00:00Z");
     var resetDate = new Date("2026-01-01T00:00:00Z");
-    var eventSource = new Timeline.DefaultEventSource();
-    var theme = Timeline.ClassicTheme.create();
+    var bandIds = ["coarse", "medium", "detail"];
 
-    function createBand(width, intervalUnit, intervalPixels, multiple = 1) {
-      return Timeline.createBandInfo({
-        eventSource: eventSource,
-        date: resetDate,
-        width: width,
-        intervalUnit: intervalUnit,
-        intervalPixels: intervalPixels,
-        multiple: multiple,
-        theme: theme
-      });
-    }
+    var bandSet = Timeline.createBandSet({
+      orientation: "horizontal",
+      initialDate: resetDate,
+      clampRange: {
+        start: clampStart,
+        end: clampEnd
+      },
+      syncTarget: "detail",
 
-    var bandInfos = [
-      createBand("28%", Timeline.DateTime.YEAR, 50),
-      createBand("32%", Timeline.DateTime.MONTH, 90),
-      createBand("40%", Timeline.DateTime.DAY, 30, 7)
-    ];
-
-    bandInfos[0].syncWith = 2;
-    bandInfos[0].highlight = true;
-    bandInfos[1].syncWith = 2;
-    bandInfos[1].highlight = true;
-
-    var timeline = Timeline.create(
-      document.getElementById("timeline"),
-      bandInfos
-    );
-    var clamp = Timeline.clampBandChains(timeline, {
-      start: clampStart,
-      end: clampEnd
+      bands: [
+        {
+          id: "coarse",
+          width: "28%",
+          intervalUnit: "year",
+          intervalPixels: 50
+        },
+        {
+          id: "medium",
+          width: "32%",
+          intervalUnit: "month",
+          intervalPixels: 90
+        },
+        {
+          id: "detail",
+          width: "40%",
+          intervalUnit: "day",
+          intervalPixels: 30,
+          multiple: 7
+        }
+      ]
     });
-    var bands = [
-      timeline.getBand(0),
-      timeline.getBand(1),
-      timeline.getBand(2)
-    ];
-    var scaleNames = ["coarse", "medium", "detail"];
+
+    var timeline = Timeline.createTimeline(
+      document.getElementById("timeline"),
+      bandSet
+    );
+    var clamp = bandSet.clampController;
+    var bands = bandIds.map(function (id) {
+      return timeline.getBand(bandSet.indexById[id]);
+    });
     var pendingStatusFrame = null;
     var stressTimer = null;
 
@@ -147,7 +144,7 @@
         var signedOffset = (offsetDays >= 0 ? "+" : "") +
           offsetDays.toFixed(4);
 
-        return scaleNames[index].padEnd(8) +
+        return bandIds[index].padEnd(8) +
           " center " + formatCenter(center) +
           "  offset from master " + signedOffset + " days";
       });

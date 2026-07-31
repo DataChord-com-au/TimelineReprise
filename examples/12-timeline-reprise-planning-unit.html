@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Planning Unit</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Planning Unit</h1>
+  <p>
+    This example uses Timeline.PlanningDayUnit. Day zero, numeric strings,
+    ranges, labels, durations, bubbles, and a cardinal axis are handled by the
+    same Reprise runtime.
+  </p>
+
+  <ul>
+    <li>the main band uses normal Planning day labels</li>
+    <li>one cardinal count is five Planning days</li>
+    <li>the cardinal band displays every second count: 0, 2, 4, and so on</li>
+    <li>both attachments inherit PlanningDayUnit from the band set</li>
+  </ul>
+
+  <div id="timeline" style="height: 420px;"></div>
+
+  <script>
+    Timeline.loadEventThemes([
+      {
+        id: "planning",
+        track: {
+          horizontal: {
+            offset: 36
+          }
+        },
+        instant: {
+          iconColor: "orange"
+        },
+        range: {
+          width: 4,
+          iconColor: "green"
+        }
+      }
+    ]);
+
+    var events = [
+      {
+        start: 0,
+        title: "Kickoff at day zero",
+        description: "The runtime accepts numeric zero as a real instant.",
+        iconColor: "orange"
+      },
+      {
+        start: "3",
+        end: 12,
+        title: "Range from string to number",
+        description: "The unit parses numeric strings and numbers through parseFromObject().",
+        color: "green"
+      },
+      {
+        start: 18,
+        title: "Decision point",
+        description: "A normal numeric instant.",
+        iconColor: "blue"
+      },
+      {
+        start: 25,
+        end: "42",
+        title: "Delivery window",
+        description: "A numeric range ending with a string value.",
+        color: "purple"
+      }
+    ];
+
+    var bandSet = Timeline.createBandSet({
+      unit: Timeline.PlanningDayUnit,
+      initialDate: 20,
+      eventTheme: "planning",
+      syncTarget: "main",
+
+      bands: [
+        {
+          id: "main",
+          width: "75%",
+          interval: 10,
+          intervalPixels: 90
+        },
+        {
+          id: "cardinal",
+          width: "25%",
+          interval: 10,
+          intervalPixels: 90,
+          intervalMarkers: false
+        }
+      ]
+    });
+
+    Timeline.attachEvents(bandSet.byId.main, events);
+    Timeline.attachCardinalAxis(
+      bandSet.byId.cardinal,
+      {
+        range: {
+          start: 0,
+          end: 50
+        },
+        intervalUnit: "day",
+        unitsPerCount: 5,
+        countsPerMarker: 2,
+        anchorValue: 0
+      }
+    );
+    Timeline.createTimeline(
+      document.getElementById("timeline"),
+      bandSet
+    );
+  </script>
+</body>
+</html>

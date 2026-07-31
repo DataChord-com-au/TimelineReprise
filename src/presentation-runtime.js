@@ -5,7 +5,7 @@ import { resolveDisplayProfile } from "./theme-registry.js";
 const _RUNTIME_LABEL = "TimelineReprise.RepriseRuntime";
 const _RENDER_TARGETS = new Set(["text", "html"]);
 
-function _isObject(value) {
+function _runtimeIsObject(value) {
     return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -74,6 +74,37 @@ function _parseUnitValue(unit, value) {
     return Number.isFinite(reflexive) && reflexive === 0 ? parsed : null;
 }
 
+function _defaultProjectTimeValue(value) {
+    return _parseUnitValue(this.unit, value);
+}
+
+function _defaultProjectTimeRange(value) {
+    if (!_runtimeIsObject(value)) return null;
+
+    const hasStart = _hasOwn(value, "start");
+    const hasEnd = _hasOwn(value, "end");
+    if (!hasStart && !hasEnd) return null;
+
+    let start = hasStart ? this.projectTimeValue(value.start) : null;
+    let end = hasEnd ? this.projectTimeValue(value.end) : null;
+    if ((hasStart && start == null) || (hasEnd && end == null)) return null;
+
+    if (start != null && end != null) {
+        const order = this.unit.compare(start, end);
+        if (!Number.isFinite(order)) return null;
+        if (order > 0) {
+            const swap = start;
+            start = end;
+            end = swap;
+        }
+    }
+
+    return Object.freeze({
+        ...(start == null ? {} : { start }),
+        ...(end == null ? {} : { end })
+    });
+}
+
 function _readAuxiliaryEndpoint(unit, sources, field, method) {
     for (const source of sources) {
         const direct = _readDirectField(source, field);
@@ -139,7 +170,7 @@ function _canonicalRange(unit, startValue, endValue, auxiliarySources = []) {
 }
 
 function _readCanonicalLike(unit, value, auxiliarySources = [value]) {
-    if (!_isObject(value)) return null;
+    if (!_runtimeIsObject(value)) return null;
 
     if (
         value.kind === "range" ||
@@ -215,7 +246,7 @@ function _defaultReadEventTime(event) {
 }
 
 function _labelText(value) {
-    if (_isObject(value) && _hasOwn(value, "text")) return value.text;
+    if (_runtimeIsObject(value) && _hasOwn(value, "text")) return value.text;
     return value;
 }
 
@@ -274,7 +305,7 @@ function _hasIndeterminateDurationRange(event) {
         const eventTime = _readDirectField(current, "eventTime");
         if (
             eventTime.found &&
-            _isObject(eventTime.value) &&
+            _runtimeIsObject(eventTime.value) &&
             eventTime.value.kind === "range" &&
             (
                 eventTime.value.start === "open" ||
@@ -532,11 +563,11 @@ function _resolveDefaultLabeller(unit) {
 }
 
 function assertRepriseRuntime(runtime, caller = _RUNTIME_LABEL) {
-    if (!_isObject(runtime)) {
+    if (!_runtimeIsObject(runtime)) {
         throw new TypeError(`${caller} must be an object.`);
     }
     if (
-        !_isObject(runtime.unit) ||
+        !_runtimeIsObject(runtime.unit) ||
         typeof runtime.unit.parseFromObject !== "function" ||
         typeof runtime.unit.compare !== "function"
     ) {
@@ -545,7 +576,7 @@ function assertRepriseRuntime(runtime, caller = _RUNTIME_LABEL) {
         );
     }
     if (
-        !_isObject(runtime.labeller) ||
+        !_runtimeIsObject(runtime.labeller) ||
         typeof runtime.labeller.labelPrecise !== "function" ||
         typeof runtime.labeller.labelInterval !== "function"
     ) {
@@ -555,6 +586,12 @@ function assertRepriseRuntime(runtime, caller = _RUNTIME_LABEL) {
     }
     if (typeof runtime.readEventTime !== "function") {
         throw new TypeError(`${caller}.readEventTime must be a function.`);
+    }
+    if (typeof runtime.projectTimeValue !== "function") {
+        throw new TypeError(`${caller}.projectTimeValue must be a function.`);
+    }
+    if (typeof runtime.projectTimeRange !== "function") {
+        throw new TypeError(`${caller}.projectTimeRange must be a function.`);
     }
     if (typeof runtime.render !== "function") {
         throw new TypeError(`${caller}.render must be a function.`);
@@ -571,6 +608,8 @@ class RepriseRuntime {
         unit = _resolveDefaultUnit(),
         labeller = null,
         readEventTime = _defaultReadEventTime,
+        projectTimeValue = _defaultProjectTimeValue,
+        projectTimeRange = _defaultProjectTimeRange,
         templateRenderer = new TemplateRenderer(),
         render = _defaultRender
     } = {}) {
@@ -584,6 +623,8 @@ class RepriseRuntime {
         this.labeller = labeller ?? _resolveDefaultLabeller(unit);
         this.templateRenderer = templateRenderer;
         this._readEventTime = readEventTime;
+        this._projectTimeValue = projectTimeValue;
+        this._projectTimeRange = projectTimeRange;
         this._render = render;
 
         assertRepriseRuntime(this, `${this.constructor.label}.ctor`);
@@ -592,6 +633,14 @@ class RepriseRuntime {
 
     readEventTime(event) {
         return this._readEventTime.call(this, event);
+    }
+
+    projectTimeValue(value) {
+        return this._projectTimeValue.call(this, value);
+    }
+
+    projectTimeRange(value) {
+        return this._projectTimeRange.call(this, value);
     }
 
     render(template, event, context = {}) {

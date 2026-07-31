@@ -10,14 +10,14 @@ const _BUILTIN_FORMATTERS = Object.freeze({
     LINES: "lines"
 });
 
-function _isObject(value) {
+function _templateIsObject(value) {
     return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
 function _assertSelectorExtension(extension, caller, index) {
     const path = `${caller}.selectorExtensions[${index}]`;
 
-    if (!_isObject(extension)) {
+    if (!_templateIsObject(extension)) {
         throw new TypeError(`${path} must be an object.`);
     }
     if (typeof extension.hasSelector !== "function") {
@@ -43,7 +43,7 @@ class TemplateRenderer {
     constructor({ formatters = {}, selectorExtensions = [] } = {}) {
         const caller = `${this.constructor.label}.ctor`;
 
-        if (!_isObject(formatters)) {
+        if (!_templateIsObject(formatters)) {
             throw new TypeError(`${caller}.formatters must be an object.`);
         }
         if (!Array.isArray(selectorExtensions)) {

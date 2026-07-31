@@ -12,43 +12,36 @@
 </head>
 <body>
   <h1>SIMILE Timeline Reprise: Default Baseline</h1>
-  <p>This example shows a timeline created with Reprise's default settings.</p>
+  <p>This example shows a timeline using the CSS and patches provided by Timeline Reprise.</p>
 
   <div id="timeline"></div>
 
   <script>
-    var eventSource = new Timeline.DefaultEventSource();
-
-    var bandInfos = [
-      Timeline.createBandInfo({
-        eventSource: eventSource,
-        date: "Jan 1 2020",
-        intervalUnit: Timeline.DateTime.MONTH,
-        intervalPixels: 100
-      })
+    var events = [
+      {
+        start: "2020-01-01",
+        title: "Timeline Reprise loaded",
+        description: "The timeline is using Reprise defaults."
+      },
+      {
+        start: "2020-06-01",
+        end: "2020-09-01",
+        title: "Range event",
+        description: "No event presentation options were supplied."
+      }
     ];
 
-    Timeline.attachEvents(
-      bandInfos[0],
-      [
-        {
-          start: "2020-01-01",
-          title: "Timeline Reprise loaded",
-          description: "The timeline is using Reprise defaults."
-        },
-        {
-          start: "2020-06-01",
-          end: "2020-09-01",
-          title: "Range event",
-          description: "No event presentation options were supplied."
-        }
-      ]
-    );
+    var bandSet = Timeline.createBandSet({
+      initialDate: "Jan 1 2020",
+      bands: [{
+        id: "main",
+        intervalUnit: "month",
+        intervalPixels: 100
+      }]
+    });
 
-    var timeline = Timeline.create(
-      document.getElementById("timeline"),
-      bandInfos
-    );
+    Timeline.attachEvents(bandSet.byId.main, events);
+    Timeline.createTimeline(document.getElementById("timeline"), bandSet);
   </script>
 </body>
 </html>

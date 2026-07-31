@@ -1,9 +1,8 @@
 # EventTheme
 
 `Timeline.EventTheme` is Timeline Reprise's single event-presentation model.
-SIMILE's native theme remains the per-band base at `bandInfo.theme` and
-`band._theme`; Reprise attaches the band's resolved model at
-`nativeTheme.eventTheme`.
+Reprise resolves the selected model while it constructs a band and carries it
+on the internal native theme.
 
 Authored literals are validated and converted when they are loaded or first
 resolved:
@@ -47,26 +46,23 @@ fallback resolution converts it and replaces `nativeTheme.eventTheme` with the
 resulting instance. When no fallback exists, the defined Reprise default is
 attached instead.
 
-```js
-var nativeTheme = Timeline.ClassicTheme.create();
-nativeTheme.eventTheme = {
-    labels: false
-};
-
-var resolved = Timeline.resolveEventTheme(null, nativeTheme);
-resolved instanceof Timeline.EventTheme;              // true
-nativeTheme.eventTheme === resolved;                   // true
-```
-
-For band construction,
-`Timeline.composeEventTheme(nativeTheme, explicit)` resolves and attaches an
-explicit registry selection or instance:
+Application code selects a registered theme while constructing the band:
 
 ```js
-var nativeTheme = Timeline.ClassicTheme.create();
-var resolved = Timeline.composeEventTheme(nativeTheme, "editorial");
-nativeTheme.eventTheme === resolved;                   // true
+var bandSet = Timeline.createBandSet({
+    eventTheme: "editorial",
+    bands: [{
+        id: "main",
+        width: "100%",
+        intervalUnit: "month",
+        intervalPixels: 100
+    }]
+});
 ```
+
+`Timeline.resolveEventTheme()` and `Timeline.composeEventTheme()` remain
+available to Reprise internals and advanced integrations, but normal band
+construction does not need a native theme object.
 
 Select a theme for normal-event attachment with:
 
@@ -85,7 +81,7 @@ Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
 ```
 
 An explicit selection must be a registered id or an `EventTheme` instance.
-Object literals belong in the registry or at `nativeTheme.eventTheme`.
+Object literals belong in the registry.
 The two methods may select different themes on the same band.
 
 `tooltips` is an optional boolean that defaults to `true`. Narrative uses an

@@ -14,13 +14,6 @@
       font-family: sans-serif;
       margin: 24px;
     }
-
-    #timeline {
-      height: 180px;
-      border-width: 1px;
-      border-style: solid;
-      border-color: #5f6368;
-    }
     
     @media (prefers-color-scheme: dark) {
       body {
@@ -36,86 +29,80 @@
     This example shows overview band styling using a theme.
   </p>
   <ul>
+    <li>the main band can expand while the overview band keeps a predictable size</li>
     <li>the theme sets the overview track offset</li>
     <li>the theme sets default colours for event ticks and duration tapes</li>
-    <li>individual events can still override the overview colour</li>
+    <li>individual events do not override the overview colour because the theme <code>eventColorScope</code> is set to <code>none</code></li>
   </ul>
   
-  <div id="timeline"></div>
+  <div id="timeline" style="height: 180px;"></div>
 
   <script>
-    var mainEventSource = new Timeline.DefaultEventSource();
-    var overviewEventSource = new Timeline.DefaultEventSource();
-
-    var theme = Timeline.ClassicTheme.create();
-
-    theme.eventTheme = {
-      track: {
-        horizontal: {
-          offset: 20,
-          gap: 4
-        }
-      },
-      instant: {
-        tickWidth: 8,
-        iconColor: "orange"
-      },
-      range: {
-        width: 3,
-        iconColor: "green"
-      }
-    };
-
-    var bandInfos = [
-      Timeline.createBandInfo({
-        eventSource: mainEventSource,
-        date: "Jan 1 2020",
-        width: "70%",
-        intervalUnit: Timeline.DateTime.MONTH,
-        intervalPixels: 100
-      }),
-      Timeline.createBandInfo({
-        eventSource: overviewEventSource,
-        date: "Jan 1 2020",
-        width: "30%",
-        intervalUnit: Timeline.DateTime.YEAR,
-        intervalPixels: 200,
-        overview: true,
-        theme: theme
-      })
-    ];
-
-    bandInfos[1].syncWith = 0;
-    bandInfos[1].highlight = true;
-
     var events = [
-        {
-          start: "2020-01-01",
-          title: "Local library loaded",
-          description: "SIMILE Timeline is running from local files."
-        },
-        {
-          start: "2020-06-01",
-          end: "2020-09-01",
-          title: "Range event",
-          description: ""
-        },
-        {
-          start: "2020-07-01",
-          end: "2020-10-15",
-          title: "Second Range event",
-          description: "",
-          overviewColor: "purple"
-        }
+      {
+        start: "2020-01-01",
+        title: "Instant event"
+      },
+      {
+        start: "2020-03-01",
+        end: "2020-06-01",
+        title: "Range event"
+      },
+      {
+        start: "2020-07-01",
+        end: "2020-10-15",
+        title: "Second Range event",
+        color: "purple",
+        description: "Range has an event color override of Purple, but is ignored for the overview."
+      }
     ];
 
-    Timeline.attachEvents(bandInfos[0], events);
-    Timeline.attachEvents(bandInfos[1], events);
+    Timeline.loadEventThemes([
+      {
+        id: "overview",
+        eventColorScope: "none",
+        track: {
+          horizontal: {
+            offset: 20,
+            gap: 4
+          }
+        },
+        instant: {
+          tickWidth: 8,
+          iconColor: "orange"
+        },
+        range: {
+          width: 3,
+          iconColor: "green"
+        }
+      }
+    ]);
 
-    var timeline = Timeline.create(
-      document.getElementById("timeline"),
-      bandInfos
-    );
+    var bandSet = Timeline.createBandSet({
+      initialDate: "Jan 1 2020",
+      syncTarget: "main",
+      highlight: "overview",
+
+      bands: [
+        {
+          id: "main",
+          width: "*",
+          intervalUnit: "month",
+          intervalPixels: 100
+        },
+        {
+          id: "overview",
+          width: "30%",
+          intervalUnit: "year",
+          intervalPixels: 200,
+          overview: true,
+          eventTheme: "overview"
+        }
+      ]
+    });
+
+    Timeline.attachEvents([bandSet.byId.main, bandSet.byId.overview], events);
+    Timeline.createTimeline(document.getElementById("timeline"), bandSet);
   </script>
 </body>
 </html>

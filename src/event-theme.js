@@ -4,7 +4,7 @@ import { TIMELINE_ORIENTATIONS } from "./orientation.js";
 
 const _MODULE_LABEL = "TimelineReprise";
 
-function _isPlainObject(value) {
+function _eventThemeIsPlainObject(value) {
     if (value == null || typeof value !== "object" || Array.isArray(value)) {
         return false;
     }
@@ -22,7 +22,7 @@ function deepFreezePlain(value) {
         return Object.freeze(value);
     }
 
-    if (_isPlainObject(value)) {
+    if (_eventThemeIsPlainObject(value)) {
         Object.values(value).forEach(deepFreezePlain);
         return Object.freeze(value);
     }
@@ -35,7 +35,7 @@ function clonePlain(value) {
         return value.map(clonePlain);
     }
 
-    if (_isPlainObject(value)) {
+    if (_eventThemeIsPlainObject(value)) {
         return Object.fromEntries(
             Object.entries(value).map(([key, item]) => [key, clonePlain(item)])
         );
@@ -50,7 +50,8 @@ function mergePlain(base, override) {
     for (const [key, value] of Object.entries(override)) {
         if (value === undefined) continue;
 
-        result[key] = _isPlainObject(value) && _isPlainObject(result[key])
+        result[key] = _eventThemeIsPlainObject(value) &&
+            _eventThemeIsPlainObject(result[key])
             ? mergePlain(result[key], value)
             : clonePlain(value);
     }
@@ -253,7 +254,7 @@ class EventTheme {
     static get label() { return `${_MODULE_LABEL}.${this.displayName || this.name || '<anonymous class>'}`; }
 
     static #assertPlainObject(value, caller) {
-        if (!_isPlainObject(value)) {
+        if (!_eventThemeIsPlainObject(value)) {
             throw new TypeError(`${caller} must be an object.`);
         }
     }
@@ -513,7 +514,7 @@ function deriveEventTheme(base, overrides = {}) {
     if (!(base instanceof EventTheme)) {
         throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`base\` must be an EventTheme.`);
     }
-    if (!_isPlainObject(overrides)) {
+    if (!_eventThemeIsPlainObject(overrides)) {
         throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`overrides\` must be an object.`);
     }
 

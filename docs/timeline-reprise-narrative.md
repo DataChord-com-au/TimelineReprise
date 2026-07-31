@@ -2,7 +2,8 @@
 
 Adds narrative span and divider decorators to a timeline band.
 
-Attach Narrative data to a band info before `Timeline.create()`:
+Attach Narrative data to a Reprise band info before
+`Timeline.createTimeline()`:
 
 ```js
 Timeline.attachNarrativeDecorators(bandInfo, [
@@ -24,19 +25,27 @@ The attachment workflow reads plain data objects. Narrative records are not
 added to `bandInfo.eventSource`.
 
 Narrative parses and renders through the
-[presentation runtime](timeline-reprise-presentation-runtime.md). Without an
-explicit runtime it uses the band event source's configured unit and an
-explicit `bandInfo.labeller`. Supply `runtime` in the attachment options to
-replace rendering or to use a different SIMILE unit contract:
+[presentation runtime](timeline-reprise-presentation-runtime.md). A
+Reprise-created band retains the runtime selected during construction:
 
 ```js
-Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
-    runtime: new Timeline.RepriseRuntime({
-        unit: planningUnit,
-        labeller: planningLabeller
-    })
+var bandSet = Timeline.createBandSet({
+    unit: Timeline.PlanningDayUnit,
+    bands: [{
+        id: "main",
+        width: "100%",
+        interval: 10,
+        intervalPixels: 100
+    }]
 });
+
+Timeline.attachNarrativeDecorators(
+    bandSet.byId.main,
+    narrativeEvents
+);
 ```
+
+An attachment-level runtime remains available as an explicit override.
 
 All date, numeric, and wrapped values are parsed by
 `runtime.unit.parseFromObject()`. Range chronology is normalized with
@@ -114,12 +123,12 @@ Optional:
 ## Theme
 
 Narrative and event layout consume the same resolved
-[`Timeline.EventTheme`](timeline-reprise-event-theme.md). A literal on the
-band's native `theme.eventTheme` is validated and converted during
-initialization:
+[`Timeline.EventTheme`](timeline-reprise-event-theme.md). Load emphasis styles
+and EventThemes through the Reprise registries, then select them in the band
+spec:
 
 ```js
-theme.emphasisSpecs = Timeline.loadEmphasisStyles([
+var emphasisSpecs = Timeline.loadEmphasisStyles([
     {
         id: "lifeEvent",
         labelColor: "purple",
@@ -127,7 +136,8 @@ theme.emphasisSpecs = Timeline.loadEmphasisStyles([
     }
 ]);
 
-theme.eventTheme = {
+var eventThemes = Timeline.loadEventThemes([{
+    id: "narrative",
     spans: true,
     dividers: true,
     labels: true,
@@ -177,7 +187,18 @@ theme.eventTheme = {
         zIndex: 5,
         labelZIndex: 114
     }
-};
+}]);
+
+var bandSet = Timeline.createBandSet({
+    eventTheme: "narrative",
+    emphasisSpecs: emphasisSpecs,
+    bands: [{
+        id: "main",
+        width: "100%",
+        intervalUnit: "month",
+        intervalPixels: 100
+    }]
+});
 ```
 
 ### `eventTheme.spans`
@@ -201,29 +222,28 @@ bubbles are disabled, but only bubbles use the pointer cursor and click
 handler.
 
 ### `eventTheme.eventColorScope`
-Controls where an item `color` is applied.
+Controls which item-supplied colours may affect rendering.
 
 Values:
 
-- `none`
-- `label`
-- `graphic`
-- `both`
+- `none` - ignore all item-supplied graphic and label colours
+- `label` - allow `labelColor`, its `textColor` alias, and `color` on labels
+- `graphic` - allow `spanColor`, `lineColor`, and `color` on graphics
+- `both` - allow item-supplied colours on both channels
 
 Default: `graphic`.
 
-Without an emphasis override, explicit item colours such as `labelColor`,
-`spanColor`, or `lineColor` override this scope.
+Named emphasis colours remain above this gate unless emphasis is disabled.
 
 ### `eventTheme.disableEmphasis`
 Set to `true` to ignore named emphasis styles on this decorator.
 
 Default: `false`.
 
-### `theme.emphasisSpecs`
+### `emphasisSpecs`
 Registry of `Timeline.EmphasisStyle` objects, normally produced by
-`Timeline.loadEmphasisStyles()`. It remains on the native band theme at
-`theme.emphasisSpecs`; it is not a Narrative decorator option.
+`Timeline.loadEmphasisStyles()` and supplied as a Reprise band option. It is
+not a Narrative decorator option.
 
 An emphasis spec is applied only when all three are true:
 
@@ -409,13 +429,15 @@ References a named spec from the band theme's `emphasisSpecs` registry. It
 applies unless `eventTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
-Sets one narrative label colour.
+Preferred Reprise field for one narrative label colour. It applies only when
+`eventColorScope` includes `label`. Native `textColor` remains a compatibility
+alias; `labelColor` wins when both are present.
 
 ### `spanColor`
-Sets one range span colour.
+Sets one range span colour when `eventColorScope` includes `graphic`.
 
 ### `lineColor`
-Sets one instant divider colour.
+Sets one instant divider colour when `eventColorScope` includes `graphic`.
 
 ---
 [Back to top](#narrative)<br>

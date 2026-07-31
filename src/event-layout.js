@@ -216,44 +216,47 @@ import {
         return stringValue(evt?.getColor?.());
     }
 
-    function getExplicitLabelColor(evt, theme, eventTheme) {
-        const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "labelColor");
-        if (emphasisColor != null) return emphasisColor;
-
+    function getExplicitLabelColor(evt) {
         return stringValue(getEventProperty(evt, "labelColor")) ||
             stringValue(evt?.getTextColor?.()) ||
             stringValue(getEventProperty(evt, "textColor"));
     }
 
     function getEventLabelColor(evt, theme, eventTheme) {
-        const explicit = getExplicitLabelColor(evt, theme, eventTheme);
+        const emphasisColor = getEmphasisColor(
+            evt,
+            theme,
+            eventTheme,
+            "labelColor"
+        );
+        if (emphasisColor != null) return emphasisColor;
+
+        const scope = getEventColorScope(evt, eventTheme);
+        if (scope !== "label" && scope !== "both") return null;
+
+        const explicit = getExplicitLabelColor(evt);
         if (explicit != null) return resolveCssColor(explicit) || explicit;
 
-        const scope = getEventColorScope(evt, eventTheme);
         const eventColor = getEventColor(evt);
-
-        return (scope === "label" || scope === "both") && eventColor != null
+        return eventColor != null
             ? resolveCssColor(eventColor) || eventColor
             : null;
-    }
-
-    function getScopedEventGraphicColor(evt, eventTheme) {
-        const scope = getEventColorScope(evt, eventTheme);
-        if (scope !== "graphic" && scope !== "both") return null;
-
-        const color = getEventColor(evt);
-        return color != null ? resolveCssColor(color) || color : null;
     }
 
     function getEventInstantIconColor(evt, theme, eventTheme) {
         const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "iconColor");
         if (emphasisColor != null) return emphasisColor;
 
-        const eventColor = stringValue(getEventProperty(evt, "iconColor"));
-        if (eventColor != null) return resolveCssColor(eventColor) || eventColor;
+        const scope = getEventColorScope(evt, eventTheme);
+        if (scope === "graphic" || scope === "both") {
+            const iconColor = stringValue(getEventProperty(evt, "iconColor"));
+            if (iconColor != null) return resolveCssColor(iconColor) || iconColor;
 
-        const scopedColor = getScopedEventGraphicColor(evt, eventTheme);
-        if (scopedColor != null) return scopedColor;
+            const eventColor = getEventColor(evt);
+            if (eventColor != null) {
+                return resolveCssColor(eventColor) || eventColor;
+            }
+        }
 
         // An authored icon URL is already a more specific graphic than the
         // theme/default dot colour. Event and emphasis colour overrides above
@@ -856,14 +859,15 @@ import {
         const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "iconColor");
         if (emphasisColor != null) return emphasisColor;
 
-        const tapeColor = stringValue(getEventProperty(evt, "tapeColor"));
-        if (tapeColor != null) return resolveCssColor(tapeColor) || tapeColor;
-
         const scope = getEventColorScope(evt, eventTheme);
-        const eventColor = getEventColor(evt);
+        if (scope === "graphic" || scope === "both") {
+            const tapeColor = stringValue(getEventProperty(evt, "tapeColor"));
+            if (tapeColor != null) return resolveCssColor(tapeColor) || tapeColor;
 
-        if ((scope === "graphic" || scope === "both") && eventColor != null) {
-            return resolveCssColor(eventColor) || eventColor;
+            const eventColor = getEventColor(evt);
+            if (eventColor != null) {
+                return resolveCssColor(eventColor) || eventColor;
+            }
         }
 
         return resolveCssColor(eventTheme.range.iconColor) ||

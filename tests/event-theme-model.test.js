@@ -43,11 +43,12 @@ function loadTimeline() {
                 left: left + "px",
                 top: top + "px",
                 width: width + "px",
-                height: height + "px"
+                height: height + "px",
+                backgroundColor: color
             }
         };
 
-        return { left, top, width, height, elmt };
+        return { left, top, width, height, color, elmt };
     };
     OverviewEventPainter.prototype.paint = function () {};
 
@@ -321,10 +322,10 @@ test("overview geometry separates instant ticks from tapes with track gap", () =
         nativeTheme
     );
 
-    assert.equal(tick.top, 5);
-    assert.equal(tick.height, 7);
-    assert.equal(tick.elmt.style.top, "5px");
-    assert.equal(tick.elmt.style.height, "7px");
+    assert.equal(tick.top, 1);
+    assert.equal(tick.height, 11);
+    assert.equal(tick.elmt.style.top, "1px");
+    assert.equal(tick.elmt.style.height, "11px");
 
     const tape = overview._paintEventTape(
         { getProperty: () => null },
@@ -340,6 +341,100 @@ test("overview geometry separates instant ticks from tapes with track gap", () =
     assert.equal(tape.top, 17);
     assert.equal(tape.height, 4);
     assert.equal(tape.top - (tick.top + tick.height), 5);
+});
+
+test("overview uses standard event colours and eventColorScope", () => {
+    const Timeline = loadTimeline();
+    const nativeTheme = {
+        emphasisSpecs: {
+            critical: { iconColor: "emphasis" }
+        },
+        event: {
+            overviewTrack: {
+                offset: 12,
+                tickHeight: 6,
+                height: 3,
+                gap: 4
+            },
+            duration: { color: "native-range" }
+        },
+        eventTheme: {
+            eventColorScope: "graphic",
+            instant: {
+                tickWidth: 6,
+                iconColor: "theme-instant"
+            },
+            range: {
+                width: 3,
+                iconColor: "theme-range"
+            }
+        }
+    };
+    const band = { _theme: nativeTheme };
+    const timeline = {
+        isHorizontal: () => true,
+        isVertical: () => false
+    };
+    const metrics = {
+        tickOffset: 12,
+        trackOffset: 16,
+        trackHeight: 3,
+        trackGap: 4,
+        trackIncrement: 7
+    };
+    const overview = new Timeline.OverviewEventPainter({ theme: nativeTheme });
+
+    function event(properties = {}) {
+        return {
+            getClassName: () => null,
+            getColor: () => properties.color ?? null,
+            getProperty: name => properties[name] ?? null
+        };
+    }
+
+    function tick(properties) {
+        return overview._paintEventTick(
+            event(properties),
+            25,
+            null,
+            100,
+            metrics,
+            nativeTheme
+        ).elmt.style.backgroundColor;
+    }
+
+    function tape(properties) {
+        return overview._paintEventTape(
+            event(properties),
+            0,
+            25,
+            45,
+            null,
+            100,
+            metrics,
+            nativeTheme,
+            null
+        ).color;
+    }
+
+    overview.initialize(band, timeline);
+
+    assert.equal(tick({ color: "event", eventColorScope: "graphic" }), "event");
+    assert.equal(tick({ color: "event", eventColorScope: "label" }), "theme-instant");
+    assert.equal(tick({ iconColor: "instant", eventColorScope: "graphic" }), "instant");
+    assert.equal(tick({ iconColor: "instant", eventColorScope: "label" }), "theme-instant");
+    assert.equal(tape({ color: "event", eventColorScope: "both" }), "event");
+    assert.equal(tape({ color: "event", eventColorScope: "none" }), "theme-range");
+    assert.equal(tape({ tapeColor: "range", eventColorScope: "graphic" }), "range");
+    assert.equal(tape({ tapeColor: "range", eventColorScope: "none" }), "theme-range");
+    assert.equal(
+        tick({ emphasis: "critical", eventColorScope: "none" }),
+        "emphasis"
+    );
+    assert.equal(
+        tape({ emphasis: "critical", eventColorScope: "none" }),
+        "emphasis"
+    );
 });
 
 test("EventTheme selects a registered validated DisplayProfile", () => {

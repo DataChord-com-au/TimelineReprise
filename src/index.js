@@ -36,12 +36,17 @@ import {
     attachEvents,
     attachNarrativeDecorators
 } from "./attachments.js";
+import {
+    createBand,
+    createBandSet,
+    createTimeline
+} from "./bands.js";
+import { attachCardinalAxis } from "./cardinal-axis.js";
 import { clampBandChains } from "./clamping.js";
 import { Reprise } from "./version.js";
 import "./core.js";
 import "./ether-interval-marker.js";
 import "./overview.js";
-import "./cardinal-axis.js";
 import "./scaled-zones.js";
 import "./event-layout.js";
 import "./narrative.js";
@@ -63,8 +68,12 @@ export {
     Reprise,
     RepriseRuntime,
     TemplateRenderer,
+    attachCardinalAxis,
     attachEvents,
     attachNarrativeDecorators,
+    createBand,
+    createBandSet,
+    createTimeline,
     clampBandChains,
     composeEventTheme,
     assertColorString,

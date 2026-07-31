@@ -493,15 +493,18 @@ import {
         const emphasisColor = emphasis.found ? stringValue(emphasis.value) : null;
         if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
 
-        const explicit = this._itemValue(record.item, explicitNames);
-        const explicitColor = explicit.found ? stringValue(explicit.value) : null;
-        if (explicitColor != null) return resolveCssColor(explicitColor) || explicitColor;
-
         const scope = this._recordColorScope(record);
-        const itemColor = this._itemColor(record.item);
+        if (scope === "graphic" || scope === "both") {
+            const explicit = this._itemValue(record.item, explicitNames);
+            const explicitColor = explicit.found ? stringValue(explicit.value) : null;
+            if (explicitColor != null) {
+                return resolveCssColor(explicitColor) || explicitColor;
+            }
 
-        if ((scope === "graphic" || scope === "both") && itemColor != null) {
-            return resolveCssColor(itemColor) || itemColor;
+            const itemColor = this._itemColor(record.item);
+            if (itemColor != null) {
+                return resolveCssColor(itemColor) || itemColor;
+            }
         }
 
         const tagColor = stringValue(taggedFallback);
@@ -532,15 +535,23 @@ import {
         const emphasisColor = emphasis.found ? stringValue(emphasis.value) : null;
         if (emphasisColor != null) return resolveCssColor(emphasisColor) || emphasisColor;
 
-        const labelValue = this._itemValue(record.item, "labelColor");
-        const labelColor = labelValue.found ? stringValue(labelValue.value) : null;
-        if (labelColor != null) return resolveCssColor(labelColor) || labelColor;
-
         const scope = this._recordColorScope(record);
-        const itemColor = this._itemColor(record.item);
+        if (scope === "label" || scope === "both") {
+            const labelValue = this._itemValue(
+                record.item,
+                ["labelColor", "textColor"]
+            );
+            const labelColor = labelValue.found
+                ? stringValue(labelValue.value)
+                : null;
+            if (labelColor != null) {
+                return resolveCssColor(labelColor) || labelColor;
+            }
 
-        if ((scope === "label" || scope === "both") && itemColor != null) {
-            return resolveCssColor(itemColor) || itemColor;
+            const itemColor = this._itemColor(record.item);
+            if (itemColor != null) {
+                return resolveCssColor(itemColor) || itemColor;
+            }
         }
 
         if (this._labelColorMode === "theme") {

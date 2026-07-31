@@ -1362,6 +1362,51 @@ test("Narrative bubbles use the same distinct image container and native image s
     );
 });
 
+test("RepriseRuntime projects band values and ranges through its unit by default", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({ unit });
+
+    assert.equal(runtime.projectTimeValue("12"), 12);
+    assert.equal(runtime.projectTimeValue("invalid"), null);
+    const reversed = runtime.projectTimeRange({ start: "20", end: "5" });
+    assert.equal(reversed.start, 5);
+    assert.equal(reversed.end, 20);
+
+    const openEnded = runtime.projectTimeRange({ start: "5" });
+    assert.equal(openEnded.start, 5);
+    assert.equal(Object.hasOwn(openEnded, "end"), false);
+});
+
+test("RepriseRuntime accepts injected semantic band projections", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makeNativeDateUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        projectTimeValue(value) {
+            return new Date(`${value}T00:00:00Z`);
+        },
+        projectTimeRange(value) {
+            return {
+                start: this.projectTimeValue(value.from),
+                end: this.projectTimeValue(value.to)
+            };
+        }
+    });
+
+    assert.equal(
+        runtime.projectTimeValue("2026-01-01").toISOString(),
+        "2026-01-01T00:00:00.000Z"
+    );
+    assert.equal(
+        runtime.projectTimeRange({
+            from: "2024-01-01",
+            to: "2028-01-01"
+        }).end.toISOString(),
+        "2028-01-01T00:00:00.000Z"
+    );
+});
+
 test("bubbles without images do not add an image container or run imageStyler", () => {
     const { Timeline, bubbleCalls } = loadTimeline();
     const doc = makeDocument();

@@ -142,27 +142,47 @@ function loadTimeline() {
     vm.runInContext(source("ether-interval-marker.js"), context, {
         filename: "src/ether-interval-marker.js"
     });
-    vm.runInContext(source("cardinal-axis.js"), context, {
-        filename: "src/cardinal-axis.js"
-    });
+    vm.runInContext(
+        source("cardinal-axis.js")
+            .replace(/^import\s+[\s\S]*?from\s+"[^"]+";\s*$/gm, "")
+            .replace(/^export\s*\{\s*attachCardinalAxis\s*\};?\s*$/m, ""),
+        context,
+        { filename: "src/cardinal-axis.js" }
+    );
 
     Timeline.createHotZoneBandInfo = function () {
         return {};
     };
-    vm.runInContext(source("scaled-zones.js"), context, {
-        filename: "src/scaled-zones.js"
-    });
+    vm.runInContext(
+        source("scaled-zones.js")
+            .replace(
+                /^export\s*\{\s*UnitScaledZoneEther\s*\};?\s*$/m,
+                ""
+            ),
+        context,
+        {
+            filename: "src/scaled-zones.js"
+        }
+    );
 
     return { DAY, WEEK, Timeline };
 }
 
-function makePainterFixture(horizontal, labelInterval) {
+function makePainterFixture(
+    horizontal,
+    labelInterval,
+    intervalMarkers = true,
+    values = null
+) {
     const document = {
         createElement: makeElement
     };
     const layers = [];
-    const start = new Date("2024-01-01T00:00:00Z");
-    const end = new Date("2024-01-03T00:00:00Z");
+    const start = values?.start ?? new Date("2024-01-01T00:00:00Z");
+    const end = values?.end ?? new Date("2024-01-03T00:00:00Z");
+    const cloneValue = values?.cloneValue ?? (value =>
+        new Date(value.getTime())
+    );
     const timeline = {
         getDocument() {
             return document;
@@ -172,14 +192,16 @@ function makePainterFixture(horizontal, labelInterval) {
         }
     };
     const band = {
+        _bandInfo: { intervalMarkers },
         createLayerDiv(zIndex) {
             const layer = makeElement();
             layer.zIndex = zIndex;
             layers.push(layer);
             return layer;
         },
-        dateToPixelOffset(date) {
-            return (date.getTime() - start.getTime()) / (60 * 60 * 1000);
+        dateToPixelOffset(value) {
+            return values?.dateToPixelOffset?.(value) ??
+                (value.getTime() - start.getTime()) / (60 * 60 * 1000);
         },
         getLabeller() {
             return {
@@ -187,10 +209,10 @@ function makePainterFixture(horizontal, labelInterval) {
             };
         },
         getMaxDate() {
-            return new Date(end.getTime());
+            return cloneValue(end);
         },
         getMinDate() {
-            return new Date(start.getTime());
+            return cloneValue(start);
         },
         getTimeZone() {
             return 0;
@@ -222,11 +244,11 @@ function markerTick(label) {
     );
 }
 
-test("ClassicTheme enables ether date markers by default", () => {
+test("ClassicTheme contains only marker presentation defaults", () => {
     const { Timeline } = loadTimeline();
     const marker = Timeline.ClassicTheme.create().ether.interval.marker;
 
-    assert.equal(marker.show, true);
+    assert.equal(Object.hasOwn(marker, "show"), false);
     assert.equal(marker.hLength, null);
     assert.equal(marker.vLength, "2.5em");
 });
@@ -282,14 +304,13 @@ test("Gregorian markers render by default with a fixed vertical 2.5em tick", () 
     assert.ok(labels.every(label => markerTick(label).style.width === "2.5em"));
 });
 
-test("marker.show false retains Gregorian highlights and interval lines", () => {
+test("intervalMarkers false retains Gregorian highlights and interval lines", () => {
     const { DAY, Timeline } = loadTimeline();
     const theme = Timeline.ClassicTheme.create();
-    theme.ether.interval.marker.show = false;
     const fixture = makePainterFixture(false, () => ({
         text: "Hidden marker",
         emphasized: false
-    }));
+    }), false);
     const painter = new Timeline.GregorianEtherPainter({
         theme,
         unit: DAY
@@ -314,12 +335,11 @@ test("marker.show false retains Gregorian highlights and interval lines", () => 
 test("marker visibility remains independent of line and weekend settings", () => {
     const { DAY, WEEK, Timeline } = loadTimeline();
     const theme = Timeline.ClassicTheme.create();
-    theme.ether.interval.marker.show = false;
     theme.ether.interval.line.show = false;
     const noLineFixture = makePainterFixture(false, () => ({
         text: "Hidden marker",
         emphasized: false
-    }));
+    }), false);
     const noLinePainter = new Timeline.GregorianEtherPainter({
         theme,
         unit: DAY
@@ -333,7 +353,7 @@ test("marker visibility remains independent of line and weekend settings", () =>
     const weekendFixture = makePainterFixture(false, () => ({
         text: "Hidden week",
         emphasized: false
-    }));
+    }), false);
     const weekendPainter = new Timeline.GregorianEtherPainter({
         theme,
         unit: WEEK
@@ -528,11 +548,9 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
     const { DAY, Timeline } = loadTimeline();
     const theme = Timeline.ClassicTheme.create();
     const nativeMarker = theme.ether.interval.marker;
-    nativeMarker.show = false;
     nativeMarker.hLength = "3em";
     nativeMarker.vLength = "4em";
     const markerTheme = {
-        show: true,
         hLength: "6em",
         vLength: "7em"
     };
@@ -541,7 +559,7 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
     const verticalFixture = makePainterFixture(false, () => ({
         text: "Unused",
         emphasized: false
-    }));
+    }), false);
     const verticalCardinal = new Timeline.CardinalAxis({
         labelForIndex: index => `Vertical cardinal marker ${index}`,
         markerTheme,
@@ -568,7 +586,7 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
     const horizontalFixture = makePainterFixture(true, () => ({
         text: "Unused",
         emphasized: false
-    }));
+    }), false);
     const horizontalCardinal = new Timeline.CardinalAxis({
         labelForIndex: index => `Horizontal cardinal marker ${index}`,
         markerTheme,
@@ -600,6 +618,54 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
     assert.deepEqual(markerTheme, markerThemeBefore);
 });
 
+test("cardinal axes advance scalar values through the injected unit", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const changes = [];
+    const planningUnit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change(value, delta) {
+            changes.push({ value, delta });
+            return value + delta;
+        }
+    };
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 30,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value * 9
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit: planningUnit },
+        startDate: 0,
+        endDate: 30,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 5,
+        countsPerMarker: 2,
+        anchorValue: 1
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(
+        dateLabels(fixture.layer("ether-markers")).map(label => label.innerHTML),
+        ["1", "3", "5", "7"]
+    );
+    assert.deepEqual(changes, [
+        { value: 0, delta: 10 },
+        { value: 10, delta: 10 },
+        { value: 20, delta: 10 },
+        { value: 30, delta: 10 }
+    ]);
+});
+
 test("cardinal and hot-zone painters use the shared marker theme", () => {
     const { DAY, Timeline } = loadTimeline();
     const cardinalTheme = Timeline.ClassicTheme.create();
@@ -626,11 +692,10 @@ test("cardinal and hot-zone painters use the shared marker theme", () => {
     );
 
     const hotZoneTheme = Timeline.ClassicTheme.create();
-    hotZoneTheme.ether.interval.marker.show = false;
     const hotZoneFixture = makePainterFixture(false, () => ({
         text: "Hidden hot-zone marker",
         emphasized: false
-    }));
+    }), false);
     const hotZone = new Timeline.HotZoneGregorianEtherPainter({
         theme: hotZoneTheme,
         unit: DAY,
@@ -680,6 +745,14 @@ test("year-count and quarterly painters use the shared tick geometry", () => {
 test("Reprise CSS separates tick geometry and aligns vertical labels", () => {
     const css = source(path.join("css", "timeline-layout.css"));
 
+    assert.match(
+        css,
+        /\.timeline-horizontal\s+\.timeline-date-label-em\s*\{[^}]*\bheight\s*:\s*1\.5em\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-vertical\s+\.timeline-date-label-em\s*\{[^}]*\bwidth\s*:\s*5em\b/s
+    );
     assert.match(
         css,
         /\.timeline-date-label\.timeline-reprise-date-label-ticked\s*\{[^}]*\bborder-width\s*:\s*0\b[^}]*\bheight\s*:\s*auto\b[^}]*\bwidth\s*:\s*auto\b/s

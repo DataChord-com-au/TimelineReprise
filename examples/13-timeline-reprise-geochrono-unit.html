@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Geochrono Unit</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Geochrono Unit</h1>
+  <p>
+    This example uses Timeline.Ma and Timeline.MaUnit. Reprise creates the
+    wrapper-aware band and runtime, normalizes ranges to older-to-younger order,
+    and renders Ma labels and durations without a domain adapter.
+  </p>
+
+  <div id="timeline" style="height: 460px;"></div>
+
+  <script>
+    Timeline.loadDisplayProfiles([
+      {
+        id: "maEvents",
+        label: {
+          title: {
+            range: "{join(' - ', title, duration)}"
+          }
+        },
+        bubble: {
+          bubbleStart: "{start}",
+          bubbleEnd: {
+            range: "{end}"
+          },
+          bubbleDuration: {
+            range: "{duration}"
+          }
+        }
+      },
+      {
+        id: "maNarrative",
+        label: {
+          caption: {
+            range: "{duration}"
+          }
+        }
+      }
+    ]);
+
+    Timeline.loadEventThemes([
+      {
+        id: "maEvents",
+        presentation: "maEvents",
+        track: {
+          horizontal: {
+            count: 3,
+            offset: 124
+          }
+        },
+        instant: {
+          iconColor: "orange"
+        },
+        range: {
+          width: 5,
+          iconColor: "green",
+          colors: [
+            "rgba(76, 175, 80, 1)",
+            "rgba(66, 133, 244, 1)"
+          ]
+        }
+      },
+      {
+        id: "maNarrative",
+        presentation: "maNarrative",
+        bubbles: false,
+        track: {
+          horizontal: {
+            count: 3,
+            offset: 36
+          }
+        },
+        instant: {
+          iconColor: "orange"
+        },
+        range: {
+          width: 5,
+          iconColor: "green",
+          colors: [
+            "rgba(76, 175, 80, 1)",
+            "rgba(66, 133, 244, 1)"
+          ]
+        }
+      }
+    ]);
+
+    var narrativeEvents = [
+      {
+        startDate: new Timeline.Ma(50),
+        endDate: new Timeline.Ma(100),
+        title: "Reversed wrapper range",
+        caption: "Input is 50 Ma to 100 Ma. The runtime renders it as 100 Ma to 50 Ma.",
+        spanColor: "rgba(155, 107, 211, 0.35)",
+        track: 2
+      },
+      {
+        date: new Timeline.Ma(75),
+        title: "Wrapped instant",
+        caption: "A Narrative instant supplied as an Ma wrapper.",
+        lineColor: "orange",
+        track: 1
+      }
+    ];
+
+    var events = [
+      {
+        start: new Timeline.Ma(150),
+        end: new Timeline.Ma(135),
+        title: "Older interval",
+        description: "Event values are MA wrapper objects.",
+        color: "green"
+      },
+      {
+        start: new Timeline.Ma(118),
+        title: "Point sample",
+        description: "A point event using the same wrapper unit.",
+        iconColor: "blue"
+      },
+      {
+        start: new Timeline.Ma(95),
+        end: new Timeline.Ma(72),
+        title: "Younger interval",
+        description: "Chronology runs left to right from older to younger.",
+        color: "red"
+      }
+    ];
+
+    var bandSet = Timeline.createBandSet({
+      unit: Timeline.MaUnit,
+      initialDate: new Timeline.Ma(100),
+      eventTheme: "maEvents",
+      bands: [
+        {
+          id: "main",
+          width: "100%",
+          interval: 25,
+          intervalPixels: 120
+        }
+      ]
+    });
+
+    Timeline.attachEvents(bandSet.byId.main, events);
+    Timeline.attachNarrativeDecorators(
+      bandSet.byId.main,
+      narrativeEvents,
+      {
+        eventTheme: "maNarrative"
+      }
+    );
+
+    Timeline.createTimeline(
+      document.getElementById("timeline"),
+      bandSet
+    );
+  </script>
+</body>
+</html>

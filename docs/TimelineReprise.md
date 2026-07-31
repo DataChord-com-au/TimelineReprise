@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v2.2.3`
+Version: `v3.0.0`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -50,6 +50,7 @@ external files under `dist/images/`.
 
 ## Reference
 ### [Core](timeline-reprise-core.md)
+### [Bands](timeline-reprise-bands.md)
 ### [Timeline Units and Durations](timeline-reprise-units.md)
 ### [EventTheme](timeline-reprise-event-theme.md)
 ### [Display Profiles](timeline-reprise-display-profiles.md)
@@ -70,12 +71,12 @@ external files under `dist/images/`.
 ### [05-timeline-reprise-overview.html](../examples/05-timeline-reprise-overview.html)
 ### [06-timeline-reprise-scales.html](../examples/06-timeline-reprise-scales.html)
 ### [07-timeline-reprise-imprecise-ranges.html](../examples/07-timeline-reprise-imprecise-ranges.html)
-### [08-timeline-reprise-event-layout.html](../examples/08-timeline-reprise-event-layout.html)
-### [09-timeline-reprise-narrative.html](../examples/09-timeline-reprise-narrative.html)
-### [10-timeline-reprise-filtered-theme.html](../examples/10-timeline-reprise-filtered-theme.html)
-### [11-timeline-reprise-planning-unit.html](../examples/11-timeline-reprise-planning-unit.html)
-### [12-timeline-reprise-geochrono-unit.html](../examples/12-timeline-reprise-geochrono-unit.html)
-### [13-timeline-reprise-clamp-stress.html](../examples/13-timeline-reprise-clamp-stress.html)
+### [08-timeline-reprise-clamp-stress.html](../examples/08-timeline-reprise-clamp-stress.html)
+### [09-timeline-reprise-event-layout.html](../examples/09-timeline-reprise-event-layout.html)
+### [10-timeline-reprise-narrative.html](../examples/10-timeline-reprise-narrative.html)
+### [11-timeline-reprise-filtered-theme.html](../examples/11-timeline-reprise-filtered-theme.html)
+### [12-timeline-reprise-planning-unit.html](../examples/12-timeline-reprise-planning-unit.html)
+### [13-timeline-reprise-geochrono-unit.html](../examples/13-timeline-reprise-geochrono-unit.html)
 ### [14-timeline-reprise-historical-year-unit.html](../examples/14-timeline-reprise-historical-year-unit.html)
 
 

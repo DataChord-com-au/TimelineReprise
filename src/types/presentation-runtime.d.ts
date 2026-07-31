@@ -62,6 +62,8 @@ declare namespace Timeline {
     interface RepriseRuntimeContract<T = unknown> {
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
+        projectTimeValue(value: unknown): T | null;
+        projectTimeRange(value: unknown): ClampRange<T> | null;
         readEventTime(event: object): CanonicalEventTime<T> | null;
         render(
             template: unknown,
@@ -78,6 +80,14 @@ declare namespace Timeline {
             this: RepriseRuntimeContract<T>,
             event: object
         ) => CanonicalEventTime<T> | null;
+        projectTimeValue?: (
+            this: RepriseRuntimeContract<T>,
+            value: unknown
+        ) => T | null;
+        projectTimeRange?: (
+            this: RepriseRuntimeContract<T>,
+            value: unknown
+        ) => ClampRange<T> | null;
         render?: (
             this: RepriseRuntimeContract<T>,
             template: unknown,
@@ -96,6 +106,8 @@ declare namespace Timeline {
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
         readonly templateRenderer: TemplateRenderer;
+        projectTimeValue(value: unknown): T | null;
+        projectTimeRange(value: unknown): ClampRange<T> | null;
         readEventTime(event: object): CanonicalEventTime<T> | null;
         render(
             template: unknown,

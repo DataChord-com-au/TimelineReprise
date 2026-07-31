@@ -9,10 +9,7 @@ declare namespace Timeline {
         | null;
 
     interface EtherIntervalMarkerTheme {
-        /**
-         * Whether ether interval date markers are rendered. Defaults to true.
-         */
-        show?: boolean;
+        show?: never;
 
         /**
          * Marker alignment for a horizontal timeline.

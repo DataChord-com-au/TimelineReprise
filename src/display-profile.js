@@ -26,7 +26,7 @@ const _FIELDS_BY_SURFACE = Object.freeze({
     ])
 });
 
-function _isPlainObject(value) {
+function _displayIsPlainObject(value) {
     if (
         value == null ||
         typeof value !== "object" ||
@@ -45,7 +45,7 @@ function _deepFreezePlain(value) {
         value.forEach(_deepFreezePlain);
         return Object.freeze(value);
     }
-    if (_isPlainObject(value)) {
+    if (_displayIsPlainObject(value)) {
         Object.values(value).forEach(_deepFreezePlain);
         return Object.freeze(value);
     }
@@ -89,7 +89,7 @@ class DisplayProfile {
 
     _validateSurface(surfaceSpec, surface, caller) {
         const path = `${caller}.${surface}`;
-        if (!_isPlainObject(surfaceSpec)) {
+        if (!_displayIsPlainObject(surfaceSpec)) {
             throw new TypeError(`${path} must be an object.`);
         }
 
@@ -114,7 +114,7 @@ class DisplayProfile {
             this.templateRenderer.validateTemplate(templateSpec, { caller });
             return templateSpec;
         }
-        if (!_isPlainObject(templateSpec)) {
+        if (!_displayIsPlainObject(templateSpec)) {
             throw new TypeError(
                 `${caller} must be a string or an instant/range template object.`
             );
@@ -146,7 +146,7 @@ class DisplayProfile {
 
         const templateSpec = this[surface]?.[field];
         if (typeof templateSpec === "string") return templateSpec;
-        if (!_isPlainObject(templateSpec)) return null;
+        if (!_displayIsPlainObject(templateSpec)) return null;
 
         const shape = eventTime?.kind;
         return _SHAPES.includes(shape)
