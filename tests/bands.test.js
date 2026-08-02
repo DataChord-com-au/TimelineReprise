@@ -394,6 +394,14 @@ test("Reprise owns native-date band construction and band-set wiring", () => {
         ),
         "#eee"
     );
+    assert.ok(timeline.getBand(0)._div.classes.has("timeline-reprise-band"));
+    assert.ok(timeline.getBand(0)._div.classes.has("timeline-reprise-band-tone-1"));
+    assert.ok(timeline.getBand(0)._div.classes.has("timeline-band-main"));
+    assert.equal(timeline.getBand(0)._div.dataset.timelineBandId, "main");
+    assert.ok(timeline.getBand(1)._div.classes.has("timeline-reprise-band"));
+    assert.ok(timeline.getBand(1)._div.classes.has("timeline-reprise-band-tone-2"));
+    assert.ok(timeline.getBand(1)._div.classes.has("timeline-band-overview"));
+    assert.equal(timeline.getBand(1)._div.dataset.timelineBandId, "overview");
     assert.equal(clampCalls[0].timeline, timeline);
     assert.equal(
         clampCalls[0].range.start.toISOString(),
@@ -405,6 +413,58 @@ test("Reprise owns native-date band construction and band-set wiring", () => {
     );
 });
 
+test("Reprise band presentation cycles dark-mode tone classes beyond five bands", () => {
+    const { createBandSet, createTimeline } = loadBands();
+    const bandSet = createBandSet({
+        syncTarget: "band0",
+        bands: Array.from({ length: 6 }, (_, index) => ({
+            id: `band${index}`,
+            width: `${100 / 6}%`,
+            intervalUnit: "month",
+            intervalPixels: 100
+        }))
+    });
+    const timeline = createTimeline({}, bandSet);
+
+    assert.deepEqual(
+        Array.from({ length: 6 }, (_, index) =>
+            [...timeline.getBand(index)._div.classes]
+                .filter(name => name.startsWith("timeline-reprise-band-tone-"))
+                .sort()
+        ),
+        [
+            ["timeline-reprise-band-tone-1"],
+            ["timeline-reprise-band-tone-2"],
+            ["timeline-reprise-band-tone-3"],
+            ["timeline-reprise-band-tone-4"],
+            ["timeline-reprise-band-tone-5"],
+            ["timeline-reprise-band-tone-1"]
+        ]
+    );
+});
+
+test("dark-mode band backgrounds use overridable cycling variables", () => {
+    const css = fs.readFileSync(
+        path.join(__dirname, "..", "src", "css", "dark-mode.css"),
+        "utf8"
+    );
+
+    for (let index = 1; index <= 5; index++) {
+        assert.match(
+            css,
+            new RegExp(`--timeline-reprise-band-bg-${index}\\s*:`)
+        );
+        assert.match(
+            css,
+            new RegExp(
+                `\\.timeline-reprise-band-tone-${index}\\s+\\.timeline-ether-bg\\s*\\{[^}]*` +
+                `var\\(--timeline-band-background-color,\\s*var\\(--timeline-reprise-band-bg-${index}\\)\\)`,
+                "s"
+            )
+        );
+    }
+});
+
 test("Reprise builds scalar-unit bands without native band-info assembly", () => {
     const { createBand, nativeBandCalls } = loadBands();
     const planningUnit = makeUnit();
@@ -414,6 +474,7 @@ test("Reprise builds scalar-unit bands without native band-info assembly", () =>
         interval: 10,
         intervalPixels: 90,
         intervalMarkers: false,
+        markerAlign: "Top",
         eventTheme: "planning"
     });
 
@@ -424,7 +485,39 @@ test("Reprise builds scalar-unit bands without native band-info assembly", () =>
     assert.equal(bandInfo.eventSource._events.unit, planningUnit);
     assert.equal(bandInfo.theme.eventTheme, "planning");
     assert.equal(bandInfo.intervalMarkers, false);
+    assert.equal(bandInfo.markerAlign, "Top");
     assert.equal(bandInfo.etherPainter._intervalMarkers, false);
+    assert.equal(bandInfo.etherPainter._markerAlign, "Top");
+});
+
+test("markerAlign is direct band behavior with band-set defaults", () => {
+    const { createBandSet, nativeBandCalls } = loadBands();
+    const bandSet = createBandSet({
+        markerAlign: "Top",
+        syncTarget: "main",
+        bands: [
+            {
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            },
+            {
+                id: "overview",
+                markerAlign: "Bottom",
+                intervalUnit: "year",
+                intervalPixels: 200
+            }
+        ]
+    });
+
+    assert.equal(bandSet.byId.main.markerAlign, "Top");
+    assert.equal(bandSet.byId.overview.markerAlign, "Bottom");
+    assert.equal(nativeBandCalls[0].align, "Top");
+    assert.equal(nativeBandCalls[1].align, "Bottom");
+    assert.equal(
+        bandSet.byId.main.theme.ether.interval.marker.hAlign,
+        "Bottom"
+    );
 });
 
 test("historical-year markers align independently in BCE and CE", () => {
@@ -768,6 +861,17 @@ test("intervalMarkers is direct band behavior with band-set defaults", () => {
             }]
         }),
         /intervalMarkers must be a boolean/
+    );
+    assert.throws(
+        () => createBandSet({
+            markerAlign: "center",
+            bands: [{
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            }]
+        }),
+        /markerAlign must be 'Top', 'Bottom', 'Left', or 'Right'/
     );
 });
 

@@ -374,13 +374,16 @@ Optional maximum bubble popup height.
 ## Layer Theme
 
 ### `eventTheme.layer.zIndex`
-Z-index for span and divider graphics.
+Z-index for span graphics. Defaults to `5`, below date/unit and cardinal-axis
+markers.
 
 ### `eventTheme.layer.labelZIndex`
 Z-index for narrative labels.
 
-The defaults place Narrative graphics behind ether markers and Narrative
-labels above ether markers but below normal event content. The normal event
+By default, Narrative instant divider lines render on a separate layer at
+z-index `101`, above the date/unit and cardinal-axis marker layers. Narrative
+spans remain below those marker layers. Narrative labels default to z-index
+`114`, above marker layers but below normal event content. The normal event
 layer passes pointer input through its empty area, so Narrative labels remain
 interactive while tapes, icons, and event labels retain precedence where they
 overlap.

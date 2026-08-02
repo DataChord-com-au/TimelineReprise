@@ -343,6 +343,209 @@ test("overview geometry separates instant ticks from tapes with track gap", () =
     assert.equal(tape.top - (tick.top + tick.height), 5);
 });
 
+function singleEventSource() {
+    return {
+        getEventReverseIterator: () => {
+            let remaining = 1;
+            return {
+                hasNext: () => remaining > 0,
+                next: () => {
+                    remaining -= 1;
+                    return {};
+                }
+            };
+        }
+    };
+}
+
+function captureVerticalOriginalMetrics(Timeline, {
+    markerAlign = "Right",
+    track = {
+        horizontal: {
+            offset: 12
+        }
+    }
+} = {}) {
+    const nativeTheme = {
+        event: {
+            track: {
+                offset: 2,
+                height: 20,
+                gap: 2
+            },
+            instant: {
+                iconWidth: 10,
+                iconHeight: 10
+            },
+            label: {},
+            duration: { color: "gray" }
+        },
+        eventTheme: {
+            track,
+            instant: {
+                width: 10,
+                height: 10
+            },
+            range: {
+                width: 4
+            }
+        }
+    };
+    const band = {
+        _theme: nativeTheme,
+        _bandInfo: { markerAlign },
+        getEventSource: singleEventSource,
+        getMinDate: () => new Date(0),
+        getMaxDate: () => new Date(1),
+        getViewOffset: () => 0,
+        getViewLength: () => 200,
+        getViewWidth: () => 300,
+        updateEventTrackInfo: () => {},
+        getLabeller: () => Timeline.NativeDateUnit.createLabeller()
+    };
+    const timeline = {
+        isHorizontal: () => false,
+        isVertical: () => true,
+        getUnit: () => Timeline.NativeDateUnit
+    };
+    const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme });
+    let paintedMetrics = null;
+
+    painter.initialize(band, timeline);
+    painter._band = band;
+    painter._timeline = timeline;
+    painter._prepareForPainting = function () {
+        this._tracks = [];
+        this._highlightLayer = { style: {} };
+        this._lineLayer = { style: {} };
+        this._eventLayer = { style: {} };
+        this._repriseTapeLaneStarts = [];
+        this._repriseTapeLaneEnds = [];
+        this._repriseTapeLanes = {};
+        this._repriseTapeLabels = [];
+        this._repriseTapeBars = [];
+        this._repriseEventLaneSpans = [];
+        this._repriseEventLanes = {};
+        this._reprisePointIcons = [];
+        this._reprisePointTapes = [];
+        this._reprisePointLabels = [];
+    };
+    painter._fireEventPaintListeners = () => {};
+    painter.paintEvent = function (evt, metrics) {
+        paintedMetrics = metrics;
+    };
+    painter.paint();
+
+    return paintedMetrics;
+}
+
+function captureVerticalOverviewMetrics(Timeline, {
+    markerAlign = "Right",
+    track = {
+        horizontal: {
+            offset: 12
+        }
+    }
+} = {}) {
+    const nativeTheme = {
+        event: {
+            overviewTrack: {
+                offset: 20,
+                tickHeight: 7,
+                height: 2,
+                gap: 1
+            },
+            duration: { color: "gray" }
+        },
+        eventTheme: {
+            track,
+            instant: {
+                tickWidth: 11,
+                iconColor: "orange"
+            },
+            range: {
+                width: 4,
+                iconColor: "green"
+            }
+        }
+    };
+    const band = {
+        _theme: nativeTheme,
+        _bandInfo: { markerAlign },
+        getEventSource: singleEventSource,
+        getMinDate: () => new Date(0),
+        getMaxDate: () => new Date(1),
+        updateEventTrackInfo: () => {}
+    };
+    const timeline = {
+        isHorizontal: () => false,
+        isVertical: () => true
+    };
+    const overview = new Timeline.OverviewEventPainter({ theme: nativeTheme });
+    let paintedMetrics = null;
+
+    overview.initialize(band, timeline);
+    overview._prepareForPainting = function () {
+        this._tracks = [];
+        this._highlightLayer = { style: {} };
+        this._eventLayer = { style: {} };
+    };
+    overview.paintEvent = function (evt, metrics) {
+        paintedMetrics = metrics;
+    };
+    overview.paint();
+
+    return paintedMetrics;
+}
+
+test("vertical left markerAlign supplies a larger default event offset", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(
+        captureVerticalOriginalMetrics(Timeline, { markerAlign: "Right" }).trackOffset,
+        2
+    );
+    assert.equal(
+        captureVerticalOriginalMetrics(Timeline, { markerAlign: "Left" }).trackOffset,
+        48
+    );
+    assert.equal(
+        captureVerticalOriginalMetrics(Timeline, {
+            markerAlign: "Left",
+            track: {
+                vertical: {
+                    offset: 14
+                }
+            }
+        }).trackOffset,
+        14
+    );
+});
+
+test("vertical left markerAlign supplies a larger default overview offset", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(
+        captureVerticalOverviewMetrics(Timeline, { markerAlign: "Right" }).tickOffset,
+        2
+    );
+    assert.equal(
+        captureVerticalOverviewMetrics(Timeline, { markerAlign: "Left" }).tickOffset,
+        48
+    );
+    assert.equal(
+        captureVerticalOverviewMetrics(Timeline, {
+            markerAlign: "Left",
+            track: {
+                vertical: {
+                    offset: 14
+                }
+            }
+        }).tickOffset,
+        14
+    );
+});
+
 test("overview uses standard event colours and eventColorScope", () => {
     const Timeline = loadTimeline();
     const nativeTheme = {

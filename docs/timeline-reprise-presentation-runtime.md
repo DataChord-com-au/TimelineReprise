@@ -18,6 +18,8 @@ A runtime is an object with:
 - `projectTimeValue(value)` - projects one authored value onto the primitive
   timeline unit.
 - `projectTimeRange(range)` - projects an authored one-sided or bounded range.
+- `projectCardinalAxis(context)` - optional hook for projected cardinal-axis
+  ranges and marker positions.
 - `readEventTime(event)` - returns a canonical instant or range.
 - `render(template, event, context)` - returns text, HTML, or a DOM fragment for
   one field.
@@ -90,6 +92,43 @@ Band construction requires the complete timeline-unit contract, including
 `cloneValue(value)` and `change(value, delta)`. A cardinal axis over non-date
 values uses those methods with `compare()` to advance its projected values.
 Native-date cardinal axes retain SIMILE's calendar interval stepping.
+
+Cardinal axes call `runtime.projectTimeRange()` for their authored `range`
+unless the runtime provides `projectCardinalAxis(context)`. The optional
+cardinal hook returns:
+
+```js
+{
+    range: { start: projectedStart, end: projectedEnd },
+    markerAtIndex: function (index) {
+        return projectedMarkerValue;
+    },
+    indexAtValue: function (value, bracket) {
+        return partialAnchorRelativeIndex;
+    }
+}
+```
+
+The context contains the original authored `range`, `intervalUnit`,
+`resolvedIntervalUnit`, `unitsPerCount`, `countsPerMarker`, `anchor`, and
+`finishing`, and `truncatePreviousMarkerThreshold`. `markerAtIndex(0)` must
+return the projected anchor boundary. Each later index is anchor-relative,
+even when the anchor is `range.end`.
+`indexAtValue()` is optional. Reprise calls it for `finishing: "truncate"` when
+the terminal boundary falls between two complete markers. The `bracket`
+argument contains `previousMarker`, `nextMarker`, `previousIndex`, `nextIndex`,
+`anchor`, and `finishing`. Return a non-negative finite partial index, or
+`null` to let Reprise interpolate in the band's projected primitive coordinate
+space.
+
+Reprise owns start-anchored and end-anchored marker policy, countdown labelling
+indexes, physical boundary labels, chronological painting order, and incomplete
+final interval handling through `finishing: "drop"`, `"truncate"`, or
+`"extend"`. The runtime owns marker quantum semantics when simple primitive
+stepping would be wrong. For `finishing: "extend"`, Reprise asks
+`markerAtIndex()` for the next complete marker beyond the opposite boundary;
+a Chronicle-style runtime can resolve that marker in Chronicle terms and then
+return its projected primitive timeline value.
 
 ## Canonical event time
 

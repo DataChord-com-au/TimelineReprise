@@ -60,12 +60,68 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
             : 1;
         this._unitsPerMarker = this._unitsPerCount * this._countsPerMarker;
         this._anchorValue = params.anchorValue ?? 0;
+        this._markerAtIndex = params.markerAtIndex ?? null;
+        this._indexAtValue = params.indexAtValue ?? null;
+        if (
+            this._markerAtIndex != null &&
+            typeof this._markerAtIndex !== "function"
+        ) {
+            throw new TypeError(
+                "Timeline.CardinalAxis markerAtIndex must be a function."
+            );
+        }
+        if (
+            this._indexAtValue != null &&
+            typeof this._indexAtValue !== "function"
+        ) {
+            throw new TypeError(
+                "Timeline.CardinalAxis indexAtValue must be a function."
+            );
+        }
+        this._anchor = params.anchor ?? "start";
+        if (this._anchor !== "start" && this._anchor !== "end") {
+            throw new RangeError(
+                "Timeline.CardinalAxis anchor must be 'start' or 'end'."
+            );
+        }
+        this._finishing = params.finishing ?? "drop";
+        if (
+            this._finishing !== "drop" &&
+            this._finishing !== "truncate" &&
+            this._finishing !== "extend"
+        ) {
+            throw new RangeError(
+                "Timeline.CardinalAxis finishing must be 'drop', 'truncate', or 'extend'."
+            );
+        }
+        if (this._anchor === "end" && this._endDate == null) {
+            throw new RangeError(
+                "Timeline.CardinalAxis anchor 'end' requires endDate."
+            );
+        }
+        this._truncatePreviousMarkerThreshold =
+            params.truncatePreviousMarkerThreshold ?? 0.4;
+        if (
+            !Number.isFinite(this._truncatePreviousMarkerThreshold) ||
+            this._truncatePreviousMarkerThreshold < 0 ||
+            this._truncatePreviousMarkerThreshold > 1
+        ) {
+            throw new RangeError(
+                "Timeline.CardinalAxis truncatePreviousMarkerThreshold must be a finite number from 0 to 1."
+            );
+        }
         this._startLabel = params.startLabel;
         this._endLabel = params.endLabel;
         var countsPerMarker = this._countsPerMarker;
         var anchorValue = this._anchorValue;
         this._labelForIndex = params.labelForIndex || function (index) {
-            return String(anchorValue + index * countsPerMarker);
+            var value = anchorValue + index * countsPerMarker;
+            var rounded = Math.round(value);
+
+            if (Math.abs(value - rounded) > 1e-9) {
+                rounded = Math.round(value * 10) / 10;
+            }
+            return String(Object.is(rounded, -0) ? 0 : rounded);
         };
         this._background = params.background !== false;
         this._cssClass = params.cssClass || null;
@@ -168,14 +224,78 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
             return result;
         };
 
-        var addStep = function (value) {
+        var changeDateByInterval = function (date, direction) {
+            var dateTime = globalThis.SimileAjax?.DateTime;
+
+            switch (p._unit) {
+            case dateTime?.MILLISECOND:
+                date.setTime(date.getTime() + direction);
+                break;
+            case dateTime?.SECOND:
+                date.setTime(date.getTime() + direction * 1000);
+                break;
+            case dateTime?.MINUTE:
+                date.setTime(date.getTime() + direction * 60 * 1000);
+                break;
+            case dateTime?.HOUR:
+                date.setTime(date.getTime() + direction * 60 * 60 * 1000);
+                break;
+            case dateTime?.DAY:
+                date.setUTCDate(date.getUTCDate() + direction);
+                break;
+            case dateTime?.WEEK:
+                date.setUTCDate(date.getUTCDate() + direction * 7);
+                break;
+            case dateTime?.MONTH:
+                date.setUTCMonth(date.getUTCMonth() + direction);
+                break;
+            case dateTime?.YEAR:
+                date.setUTCFullYear(date.getUTCFullYear() + direction);
+                break;
+            case dateTime?.DECADE:
+                date.setUTCFullYear(date.getUTCFullYear() + direction * 10);
+                break;
+            case dateTime?.CENTURY:
+                date.setUTCFullYear(date.getUTCFullYear() + direction * 100);
+                break;
+            case dateTime?.MILLENNIUM:
+                date.setUTCFullYear(date.getUTCFullYear() + direction * 1000);
+                break;
+            default:
+                if (
+                    direction > 0 &&
+                    typeof globalThis.SimileAjax?.DateTime?.incrementByInterval === "function"
+                ) {
+                    globalThis.SimileAjax.DateTime.incrementByInterval(
+                        date,
+                        p._unit
+                    );
+                    break;
+                }
+                throw new TypeError(
+                    "Timeline.CardinalAxis date interval unit is not supported."
+                );
+            }
+        };
+
+        var addStep = function (value, direction) {
             var next;
 
             if (isNativeDate(value)) {
                 next = cloneValue(value);
 
                 for (var i = 0; i < p._unitsPerMarker; i++) {
-                    SimileAjax.DateTime.incrementByInterval(next, p._unit);
+                    if (
+                        direction > 0 &&
+                        typeof globalThis.SimileAjax?.DateTime?.incrementByInterval === "function"
+                    ) {
+                        globalThis.SimileAjax.DateTime.incrementByInterval(
+                            next,
+                            p._unit
+                        );
+                    } else {
+                        changeDateByInterval(next, direction);
+                    }
                 }
             } else {
                 if (typeof p._valueUnit?.change !== "function") {
@@ -185,13 +305,17 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
                 }
                 next = p._valueUnit.change(
                     cloneValue(value),
-                    p._unitsPerMarker
+                    direction * p._unitsPerMarker
                 );
             }
 
-            if (compare(next, value) <= 0) {
+            if (
+                direction > 0
+                    ? compare(next, value) <= 0
+                    : compare(next, value) >= 0
+            ) {
                 throw new RangeError(
-                    "Timeline.CardinalAxis timeline unit change() must advance values."
+                    "Timeline.CardinalAxis timeline unit change() must move values in the marker direction."
                 );
             }
             return next;
@@ -208,27 +332,215 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
             };
         };
 
-        var date = cloneValue(this._startDate);
+        var direction = this._anchor === "end" ? -1 : 1;
+        var anchorDate = this._anchor === "end"
+            ? this._endDate
+            : this._startDate;
+        var oppositeDate = this._anchor === "end"
+            ? this._startDate
+            : this._endDate;
+        var markers = [];
+
+        var isPastOpposite = function (date) {
+            if (oppositeDate == null) return false;
+            return direction > 0
+                ? compare(date, oppositeDate) > 0
+                : compare(date, oppositeDate) < 0;
+        };
+
+        var isBeforeViewport = function (date) {
+            return direction > 0
+                ? compare(date, minDate) < 0
+                : compare(date, maxDate) > 0;
+        };
+
+        var isPastViewport = function (date) {
+            return direction > 0
+                ? compare(date, maxDate) > 0
+                : compare(date, minDate) < 0;
+        };
+
+        var addMarker = function (date, index) {
+            if (compare(date, minDate) < 0 || compare(date, maxDate) > 0) return;
+            if (markers.some(marker => compare(marker.date, date) === 0)) return;
+
+            markers.push({
+                date: cloneValue(date),
+                index
+            });
+        };
+
+        var removeMarker = function (date) {
+            var markerIndex = markers.findIndex(marker =>
+                compare(marker.date, date) === 0
+            );
+
+            if (markerIndex >= 0) markers.splice(markerIndex, 1);
+        };
+
+        var projectedRatio = function (start, end, value) {
+            if (typeof p._band?.dateToPixelOffset !== "function") return null;
+
+            var startPixel = Number(p._band.dateToPixelOffset(start));
+            var endPixel = Number(p._band.dateToPixelOffset(end));
+            var valuePixel = Number(p._band.dateToPixelOffset(value));
+            var span = endPixel - startPixel;
+
+            if (
+                !Number.isFinite(startPixel) ||
+                !Number.isFinite(endPixel) ||
+                !Number.isFinite(valuePixel) ||
+                Math.abs(span) < 1e-9
+            ) {
+                return null;
+            }
+
+            return (valuePixel - startPixel) / span;
+        };
+
+        var truncatedIndexInfo = function (previousDate, pastDate, pastIndex) {
+            if (previousDate == null) {
+                return {
+                    index: pastIndex,
+                    ratio: null,
+                    previousIndex: pastIndex - 1
+                };
+            }
+
+            if (typeof p._indexAtValue === "function") {
+                var semanticIndex = p._indexAtValue(
+                    oppositeDate,
+                    Object.freeze({
+                        previousMarker: cloneValue(previousDate),
+                        nextMarker: cloneValue(pastDate),
+                        previousIndex: pastIndex - 1,
+                        nextIndex: pastIndex,
+                        anchor: p._anchor,
+                        finishing: p._finishing
+                    })
+                );
+
+                if (semanticIndex != null) {
+                    if (!Number.isFinite(semanticIndex) || semanticIndex < 0) {
+                        throw new TypeError(
+                            "Timeline.CardinalAxis indexAtValue() must return a non-negative finite number or null."
+                        );
+                    }
+                    return {
+                        index: semanticIndex,
+                        ratio: semanticIndex - (pastIndex - 1),
+                        previousIndex: pastIndex - 1
+                    };
+                }
+            }
+
+            var ratio = projectedRatio(previousDate, pastDate, oppositeDate);
+            if (!Number.isFinite(ratio)) {
+                return {
+                    index: pastIndex,
+                    ratio: null,
+                    previousIndex: pastIndex - 1
+                };
+            }
+
+            var clampedRatio = Math.max(0, Math.min(1, ratio));
+            return {
+                index: pastIndex - 1 + clampedRatio,
+                ratio: clampedRatio,
+                previousIndex: pastIndex - 1
+            };
+        };
+
+        var usesProjectedMarkers = typeof this._markerAtIndex === "function";
+        var projectedMarkerAtIndex = function (markerIndex) {
+            var value = p._markerAtIndex(markerIndex);
+            return value == null ? null : cloneValue(value);
+        };
+        var nextMarker = function (current, markerIndex) {
+            if (!usesProjectedMarkers) return addStep(current, direction);
+
+            var next = projectedMarkerAtIndex(markerIndex);
+            if (next == null) return null;
+            if (
+                direction > 0
+                    ? compare(next, current) <= 0
+                    : compare(next, current) >= 0
+            ) {
+                throw new RangeError(
+                    "Timeline.CardinalAxis markerAtIndex() must move values in the marker direction."
+                );
+            }
+            return next;
+        };
+
+        var date = usesProjectedMarkers
+            ? projectedMarkerAtIndex(0)
+            : cloneValue(anchorDate);
         var index = 0;
 
-        while (compare(date, minDate) < 0) {
-            date = addStep(date);
-            index++;
+        if (date == null) {
+            throw new RangeError(
+                "Timeline.CardinalAxis markerAtIndex(0) must return the projected anchor value."
+            );
+        }
+        if (compare(date, anchorDate) !== 0) {
+            throw new RangeError(
+                "Timeline.CardinalAxis markerAtIndex(0) must match the projected anchor boundary."
+            );
         }
 
-        while (compare(date, maxDate) <= 0) {
-            if (this._endDate != null && compare(date, this._endDate) > 0) break;
+        var previousDate = null;
 
-            var isStart = compare(date, this._startDate) === 0;
+        while (true) {
+            if (isPastOpposite(date)) {
+                if (this._finishing === "truncate" && oppositeDate != null) {
+                    var truncated = truncatedIndexInfo(
+                        previousDate,
+                        date,
+                        index
+                    );
+                    addMarker(
+                        oppositeDate,
+                        truncated.index
+                    );
+                    if (
+                        previousDate != null &&
+                        truncated.previousIndex > 0 &&
+                        truncated.ratio != null &&
+                        truncated.ratio < this._truncatePreviousMarkerThreshold
+                    ) {
+                        removeMarker(previousDate);
+                    }
+                } else if (this._finishing === "extend") {
+                    addMarker(date, index);
+                }
+                break;
+            }
+
+            if (!isBeforeViewport(date)) addMarker(date, index);
+            if (isPastViewport(date)) break;
+            if (oppositeDate != null && compare(date, oppositeDate) === 0) break;
+
+            previousDate = date;
+            index++;
+            date = nextMarker(date, index);
+            if (date == null) break;
+        }
+
+        markers.sort((left, right) => compare(left.date, right.date));
+
+        for (var marker of markers) {
+            var markerDate = marker.date;
+            var isStart = compare(markerDate, this._startDate) === 0;
             var isEnd = this._endDate != null &&
-                compare(date, this._endDate) === 0;
+                compare(markerDate, this._endDate) === 0;
 
             var text = isStart && this._startLabel != null ? this._startLabel
                 : isEnd && this._endLabel != null ? this._endLabel
-                : this._labelForIndex(index);
+                : this._labelForIndex(marker.index);
 
             var div = this._intervalMarkerLayout.createIntervalMarker(
-                date,
+                markerDate,
                 makeLabeller(text, isStart || isEnd),
                 this._unit,
                 this._markerLayer,
@@ -238,26 +550,6 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
             div.style.cursor = "default";
             div.style.userSelect = "none";
             if (p._cssClass) div.className += " " + p._cssClass;
-
-            date = addStep(date);
-            index++;
-        }
-
-        if (this._endDate != null && this._endLabel != null &&
-            compare(this._endDate, minDate) >= 0 &&
-            compare(this._endDate, maxDate) <= 0
-        ) {
-            var divEnd = this._intervalMarkerLayout.createIntervalMarker(
-                this._endDate,
-                makeLabeller(this._endLabel, true),
-                this._unit,
-                this._markerLayer,
-                this._lineLayer
-            );
-
-            divEnd.style.cursor = "default";
-            divEnd.style.userSelect = "none";
-            if (p._cssClass) divEnd.className += " " + p._cssClass;
         }
 
         this._markerLayer.style.display = "block";
@@ -275,6 +567,9 @@ const _CARDINAL_SPEC_FIELDS = new Set([
     "unitsPerCount",
     "countsPerMarker",
     "anchorValue",
+    "anchor",
+    "finishing",
+    "truncatePreviousMarkerThreshold",
     "startLabel",
     "endLabel",
     "labelForIndex"
@@ -348,6 +643,44 @@ function _cardinalOptionalString(value, name) {
     return value;
 }
 
+function _cardinalProjectAxis(runtime, context, caller) {
+    if (typeof runtime.projectCardinalAxis === "function") {
+        const projection = runtime.projectCardinalAxis(Object.freeze({ ...context }));
+
+        if (!_cardinalIsObject(projection)) {
+            throw new RangeError(
+                `${caller} runtime.projectCardinalAxis() must return a projection object.`
+            );
+        }
+        if (typeof projection.markerAtIndex !== "function") {
+            throw new TypeError(
+                `${caller} runtime.projectCardinalAxis().markerAtIndex must be a function.`
+            );
+        }
+        if (
+            _cardinalHasOwn(projection, "indexAtValue") &&
+            projection.indexAtValue != null &&
+            typeof projection.indexAtValue !== "function"
+        ) {
+            throw new TypeError(
+                `${caller} runtime.projectCardinalAxis().indexAtValue must be a function or null.`
+            );
+        }
+
+        return {
+            range: projection.range,
+            markerAtIndex: projection.markerAtIndex,
+            indexAtValue: projection.indexAtValue ?? null
+        };
+    }
+
+    return {
+        range: runtime.projectTimeRange(context.range),
+        markerAtIndex: null,
+        indexAtValue: null
+    };
+}
+
 function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
     const caller = _CARDINAL_ATTACHMENT_LABEL;
 
@@ -375,13 +708,6 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         throw new TypeError(`${caller} Timeline.CardinalAxis is not available.`);
     }
 
-    const runtime = _cardinalRuntime(bandInfo, options);
-    const range = runtime.projectTimeRange(spec.range);
-
-    if (!_cardinalIsObject(range) || !_cardinalHasOwn(range, "start") || range.start == null) {
-        throw new RangeError(`${caller} spec.range must project to a concrete start.`);
-    }
-
     const intervalUnit = resolveTimelineDateTimeUnit(
         spec.intervalUnit,
         `${caller} spec.intervalUnit`
@@ -402,6 +728,33 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
     if (!Number.isFinite(anchorValue)) {
         throw new RangeError(
             `${caller} spec.anchorValue must be a finite number.`
+        );
+    }
+    const anchor = spec.anchor ?? "start";
+    if (anchor !== "start" && anchor !== "end") {
+        throw new RangeError(
+            `${caller} spec.anchor must be 'start' or 'end'.`
+        );
+    }
+    const finishing = spec.finishing ?? "drop";
+    if (
+        finishing !== "drop" &&
+        finishing !== "truncate" &&
+        finishing !== "extend"
+    ) {
+        throw new RangeError(
+            `${caller} spec.finishing must be 'drop', 'truncate', or 'extend'.`
+        );
+    }
+    const truncatePreviousMarkerThreshold =
+        spec.truncatePreviousMarkerThreshold ?? 0.4;
+    if (
+        !Number.isFinite(truncatePreviousMarkerThreshold) ||
+        truncatePreviousMarkerThreshold < 0 ||
+        truncatePreviousMarkerThreshold > 1
+    ) {
+        throw new RangeError(
+            `${caller} spec.truncatePreviousMarkerThreshold must be a finite number from 0 to 1.`
         );
     }
     if (
@@ -438,6 +791,28 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         throw new TypeError(`${caller} options.showLine must be a boolean.`);
     }
 
+    const runtime = _cardinalRuntime(bandInfo, options);
+    const projection = _cardinalProjectAxis(runtime, {
+        range: spec.range,
+        intervalUnit: spec.intervalUnit,
+        resolvedIntervalUnit: intervalUnit,
+        unitsPerCount,
+        countsPerMarker,
+        anchor,
+        finishing,
+        truncatePreviousMarkerThreshold
+    }, caller);
+    const range = projection.range;
+
+    if (!_cardinalIsObject(range) || !_cardinalHasOwn(range, "start") || range.start == null) {
+        throw new RangeError(`${caller} spec.range must project to a concrete start.`);
+    }
+    if (anchor === "end" && (!_cardinalHasOwn(range, "end") || range.end == null)) {
+        throw new RangeError(
+            `${caller} spec.range must project to a concrete end when spec.anchor is 'end'.`
+        );
+    }
+
     const cardinalAxis = new globalThis.Timeline.CardinalAxis({
         theme: options.theme ?? bandInfo.theme,
         markerTheme: options.markerTheme,
@@ -448,6 +823,11 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         unitsPerCount,
         countsPerMarker,
         anchorValue,
+        anchor,
+        finishing,
+        truncatePreviousMarkerThreshold,
+        markerAtIndex: projection.markerAtIndex,
+        indexAtValue: projection.indexAtValue,
         startLabel: _cardinalOptionalString(spec.startLabel, "spec.startLabel"),
         endLabel: _cardinalOptionalString(spec.endLabel, "spec.endLabel"),
         labelForIndex: spec.labelForIndex,

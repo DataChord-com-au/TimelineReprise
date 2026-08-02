@@ -3,6 +3,7 @@
  */
 declare namespace Timeline {
     type BandWidth = number | string;
+    type BandMarkerAlign = "Top" | "Bottom" | "Left" | "Right";
 
     interface NativeTheme {
         eventTheme?: EventTheme | EventThemeConfig;
@@ -59,6 +60,7 @@ declare namespace Timeline {
         theme: NativeTheme;
         decorators?: object[];
         intervalMarkers?: boolean;
+        markerAlign?: BandMarkerAlign | null;
         syncWith?: number;
         highlight?: boolean;
         repriseRuntime?: RepriseRuntimeContract<T>;
@@ -79,6 +81,7 @@ declare namespace Timeline {
         intervalUnit: number;
         intervalPixels: number;
         multiple?: number;
+        markerAlign?: BandMarkerAlign | string | null;
         theme?: NativeTheme;
         timeZone?: number;
         labeller?: TimelineLabeller<T>;

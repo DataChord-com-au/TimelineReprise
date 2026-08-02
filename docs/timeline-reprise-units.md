@@ -92,7 +92,7 @@ semantics. If such a coordinate is formatted, its containing whole year is
 used.
 
 See
-[the historical-year example](../examples/14-timeline-reprise-historical-year-unit.html)
+[the historical-year example](../examples/15-timeline-reprise-historical-year-unit.html)
 for BCE/CE axis labels and sample data covering ancient Egypt, the Greek
 world, and Rome.
 

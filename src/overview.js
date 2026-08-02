@@ -5,6 +5,8 @@ import { getAttachedEventContext } from "./attachments.js";
     if (Timeline._overviewEventThemePatchApplied) return;
     Timeline._overviewEventThemePatchApplied = true;
 
+    const LEFT_ALIGNED_VERTICAL_MARKER_TRACK_OFFSET = 48;
+
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
     }
@@ -132,6 +134,30 @@ import { getAttachedEventContext } from "./attachments.js";
             : fallback;
     }
 
+    function getBandMarkerAlign(painter) {
+        return painter._band?._bandInfo?.markerAlign ??
+            painter._band?.markerAlign ??
+            null;
+    }
+
+    function isConfiguredTrackOffset(painter) {
+        const eventTheme = painter._eventTheme;
+        const orientation = getOrientation(painter._timeline);
+
+        return typeof eventTheme?._hasConfigured === "function" &&
+            (
+                eventTheme._hasConfigured("track.offset") ||
+                (orientation != null &&
+                    eventTheme._hasConfigured(`track.${orientation}.offset`))
+            );
+    }
+
+    function getDefaultTrackOffset(painter, track) {
+        return isVertical(painter) && getBandMarkerAlign(painter) === "Left"
+            ? LEFT_ALIGNED_VERTICAL_MARKER_TRACK_OFFSET
+            : nonNegativeOr(track.offset, 0);
+    }
+
     function getNativeOverviewTrack(painter, theme) {
         return theme?.event?.overviewTrack ||
             painter._nativeTheme?.event?.overviewTrack ||
@@ -158,7 +184,10 @@ import { getAttachedEventContext } from "./attachments.js";
         this._prepareForPainting();
 
         const track = getOrientationSpec(this._eventTheme.track, this._timeline);
-        const trackOffset = nonNegativeOr(track.offset, 0);
+        const defaultTrackOffset = getDefaultTrackOffset(this, track);
+        const trackOffset = isConfiguredTrackOffset(this)
+            ? nonNegativeOr(track.offset, defaultTrackOffset)
+            : defaultTrackOffset;
         const trackGap = nonNegativeOr(track.gap, 0);
         const rangeWidth = this._eventTheme.range.width;
         const metrics = {

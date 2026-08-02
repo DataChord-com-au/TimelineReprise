@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v3.0.0`
+Version: `v3.1.0`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -26,6 +26,28 @@ The intended shape is progressive: pages can load only the original library, add
 The files under `src/` are build inputs. `src/index.js` is the ordered
 browser ESM entry, each JavaScript source has a matching declaration under
 `src/types/`, and stylesheet inputs live under `src/css/`.
+
+## Changelog
+
+### v3.1.0
+
+- Extended `Timeline.attachCardinalAxis()` with start/end anchors and
+  `drop`, `truncate`, and `extend` finishing modes for incomplete boundary
+  intervals.
+- Added the optional `runtime.projectCardinalAxis()` hook so domain runtimes
+  can supply projected marker positions for non-linear or semantic scales.
+- Added band-level `markerAlign` so date and unit marker placement is behavior
+  on the band, separate from visual marker theme settings.
+- Added a larger default event and overview track offset for vertical bands
+  with left-aligned markers.
+- Layered Narrative instant divider lines above date/unit and cardinal-axis
+  markers by default, while keeping Narrative spans below marker layers.
+- Cycled dark-mode band background tones across all Reprise bands with
+  per-timeline CSS variable overrides.
+- Added optional cardinal-axis `indexAtValue()` projection support so
+  truncated terminal markers can use semantic partial indexes.
+- Added `truncatePreviousMarkerThreshold` for cardinal axes so crowded
+  truncate labels suppress the adjacent complete marker by default.
 
 
 ## Browser Widget Usage
@@ -70,14 +92,15 @@ external files under `dist/images/`.
 ### [04-timeline-reprise-colors.html](../examples/04-timeline-reprise-colors.html)
 ### [05-timeline-reprise-overview.html](../examples/05-timeline-reprise-overview.html)
 ### [06-timeline-reprise-scales.html](../examples/06-timeline-reprise-scales.html)
-### [07-timeline-reprise-imprecise-ranges.html](../examples/07-timeline-reprise-imprecise-ranges.html)
-### [08-timeline-reprise-clamp-stress.html](../examples/08-timeline-reprise-clamp-stress.html)
-### [09-timeline-reprise-event-layout.html](../examples/09-timeline-reprise-event-layout.html)
-### [10-timeline-reprise-narrative.html](../examples/10-timeline-reprise-narrative.html)
-### [11-timeline-reprise-filtered-theme.html](../examples/11-timeline-reprise-filtered-theme.html)
-### [12-timeline-reprise-planning-unit.html](../examples/12-timeline-reprise-planning-unit.html)
-### [13-timeline-reprise-geochrono-unit.html](../examples/13-timeline-reprise-geochrono-unit.html)
-### [14-timeline-reprise-historical-year-unit.html](../examples/14-timeline-reprise-historical-year-unit.html)
+### [07-timeline-reprise-cardinal-axis.html](../examples/07-timeline-reprise-cardinal-axis.html)
+### [08-timeline-reprise-imprecise-ranges.html](../examples/08-timeline-reprise-imprecise-ranges.html)
+### [09-timeline-reprise-clamp-stress.html](../examples/09-timeline-reprise-clamp-stress.html)
+### [10-timeline-reprise-event-layout.html](../examples/10-timeline-reprise-event-layout.html)
+### [11-timeline-reprise-narrative.html](../examples/11-timeline-reprise-narrative.html)
+### [12-timeline-reprise-filtered-theme.html](../examples/12-timeline-reprise-filtered-theme.html)
+### [13-timeline-reprise-planning-unit.html](../examples/13-timeline-reprise-planning-unit.html)
+### [14-timeline-reprise-geochrono-unit.html](../examples/14-timeline-reprise-geochrono-unit.html)
+### [15-timeline-reprise-historical-year-unit.html](../examples/15-timeline-reprise-historical-year-unit.html)
 
 
 ---

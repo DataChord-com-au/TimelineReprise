@@ -61,6 +61,9 @@ Sets spacing between instant ticks and the first range tape, and between range t
 ### `eventTheme.track.vertical.offset`
 Sets the cross-axis edge where instant ticks end for vertical timelines.
 Range tapes begin after `eventTheme.track.vertical.gap`.
+When omitted on a vertical band with `markerAlign: "Left"`, Reprise uses a
+larger default offset of `48` so overview ticks and tapes clear the marker
+edge. Set this value explicitly to tune that clearance.
 
 ### `eventTheme.track.vertical.gap`
 Sets spacing between instant ticks and the first range tape, and between range tape tracks, for vertical timelines.

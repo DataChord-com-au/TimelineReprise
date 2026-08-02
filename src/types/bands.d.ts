@@ -35,6 +35,7 @@ declare namespace Timeline {
         eventTheme?: EventThemeSelection | null;
         etherTheme?: EtherTheme | null;
         intervalMarkers?: boolean;
+        markerAlign?: BandMarkerAlign | string | null;
         emphasisSpecs?: Readonly<Record<string, EmphasisStyle>> | null;
         backgroundColor?: string | null;
         scaledZones?: boolean | string | readonly string[];

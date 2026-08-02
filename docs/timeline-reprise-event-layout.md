@@ -189,7 +189,10 @@ Sets native SIMILE event track placement.
 `track.vertical` is used on vertical timelines.
 
 ### `eventTheme.track.*.offset`
-Sets the cross-axis offset before event content. Defaults to `2`.
+Sets the cross-axis offset before event content. Defaults to `2`, except on a
+vertical band with `markerAlign: "Left"`, where the omitted offset defaults to
+`48` so event content clears the marker edge. An authored
+`eventTheme.track.vertical.offset` overrides that band-level fallback.
 
 ### `eventTheme.track.horizontal.gap`
 Currently has no meaningful visual effect in the Reprise horizontal event

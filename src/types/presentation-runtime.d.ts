@@ -33,6 +33,38 @@ declare namespace Timeline {
         readonly text: string;
     }
 
+    type CardinalAxisAnchor = "start" | "end";
+    type CardinalAxisFinishing = "extend" | "truncate" | "drop";
+
+    interface CardinalAxisProjectionContext {
+        readonly range: unknown;
+        readonly intervalUnit: DateTimeUnitName | number;
+        readonly resolvedIntervalUnit: number;
+        readonly unitsPerCount: number;
+        readonly countsPerMarker: number;
+        readonly anchor: CardinalAxisAnchor;
+        readonly finishing: CardinalAxisFinishing;
+        readonly truncatePreviousMarkerThreshold: number;
+    }
+
+    interface CardinalAxisIndexContext<T = unknown> {
+        readonly previousMarker: T;
+        readonly nextMarker: T;
+        readonly previousIndex: number;
+        readonly nextIndex: number;
+        readonly anchor: CardinalAxisAnchor;
+        readonly finishing: CardinalAxisFinishing;
+    }
+
+    interface CardinalAxisProjection<T = unknown> {
+        readonly range: ClampRange<T>;
+        markerAtIndex(index: number): T | null;
+        indexAtValue?(
+            value: T,
+            context: CardinalAxisIndexContext<T>
+        ): number | null;
+    }
+
     interface RenderContext<T = unknown> {
         readonly field: string;
         readonly target: RenderTarget;
@@ -64,6 +96,9 @@ declare namespace Timeline {
         readonly labeller: TimelineLabeller<T>;
         projectTimeValue(value: unknown): T | null;
         projectTimeRange(value: unknown): ClampRange<T> | null;
+        projectCardinalAxis?(
+            context: CardinalAxisProjectionContext
+        ): CardinalAxisProjection<T> | null;
         readEventTime(event: object): CanonicalEventTime<T> | null;
         render(
             template: unknown,
@@ -88,6 +123,10 @@ declare namespace Timeline {
             this: RepriseRuntimeContract<T>,
             value: unknown
         ) => ClampRange<T> | null;
+        projectCardinalAxis?: (
+            this: RepriseRuntimeContract<T>,
+            context: CardinalAxisProjectionContext
+        ) => CardinalAxisProjection<T> | null;
         render?: (
             this: RepriseRuntimeContract<T>,
             template: unknown,
@@ -108,6 +147,9 @@ declare namespace Timeline {
         readonly templateRenderer: TemplateRenderer;
         projectTimeValue(value: unknown): T | null;
         projectTimeRange(value: unknown): ClampRange<T> | null;
+        projectCardinalAxis?(
+            context: CardinalAxisProjectionContext
+        ): CardinalAxisProjection<T> | null;
         readEventTime(event: object): CanonicalEventTime<T> | null;
         render(
             template: unknown,

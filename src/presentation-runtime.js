@@ -593,6 +593,12 @@ function assertRepriseRuntime(runtime, caller = _RUNTIME_LABEL) {
     if (typeof runtime.projectTimeRange !== "function") {
         throw new TypeError(`${caller}.projectTimeRange must be a function.`);
     }
+    if (
+        runtime.projectCardinalAxis != null &&
+        typeof runtime.projectCardinalAxis !== "function"
+    ) {
+        throw new TypeError(`${caller}.projectCardinalAxis must be a function.`);
+    }
     if (typeof runtime.render !== "function") {
         throw new TypeError(`${caller}.render must be a function.`);
     }
@@ -610,6 +616,7 @@ class RepriseRuntime {
         readEventTime = _defaultReadEventTime,
         projectTimeValue = _defaultProjectTimeValue,
         projectTimeRange = _defaultProjectTimeRange,
+        projectCardinalAxis = null,
         templateRenderer = new TemplateRenderer(),
         render = _defaultRender
     } = {}) {
@@ -626,6 +633,20 @@ class RepriseRuntime {
         this._projectTimeValue = projectTimeValue;
         this._projectTimeRange = projectTimeRange;
         this._render = render;
+
+        if (projectCardinalAxis != null) {
+            if (typeof projectCardinalAxis !== "function") {
+                throw new TypeError(
+                    `${this.constructor.label}.ctor projectCardinalAxis must be a function.`
+                );
+            }
+            Object.defineProperty(this, "projectCardinalAxis", {
+                value(context) {
+                    return projectCardinalAxis.call(this, context);
+                },
+                enumerable: true
+            });
+        }
 
         assertRepriseRuntime(this, `${this.constructor.label}.ctor`);
         Object.freeze(this);

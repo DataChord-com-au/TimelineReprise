@@ -45,6 +45,25 @@ function _assertPositiveNumber(value, caller) {
     return value;
 }
 
+function _normalizeBandMarkerAlign(value, caller) {
+    if (value == null) return null;
+
+    const normalized = String(value).trim().toLowerCase();
+    const align = {
+        top: "Top",
+        bottom: "Bottom",
+        left: "Left",
+        right: "Right"
+    }[normalized];
+
+    if (align == null) {
+        throw new RangeError(
+            `${caller} markerAlign must be 'Top', 'Bottom', 'Left', or 'Right'.`
+        );
+    }
+    return align;
+}
+
 function _assertBandUnit(unit, caller) {
     const methods = [
         "parseFromObject",
@@ -163,12 +182,13 @@ function _unitIntervalValues(unit, lower, upper, interval) {
 }
 
 class UnitEtherPainter {
-    constructor({ interval, intervalMarkers, theme }) {
+    constructor({ interval, intervalMarkers, markerAlign, theme }) {
         this._interval = _assertPositiveNumber(
             interval,
             `${_BAND_MODULE_LABEL}.UnitEtherPainter interval`
         );
         this._intervalMarkers = intervalMarkers;
+        this._markerAlign = markerAlign ?? null;
         this._theme = theme;
     }
 
@@ -229,8 +249,8 @@ class UnitEtherPainter {
         const horizontal = this._timeline.isHorizontal();
         const markerTheme = this._theme?.ether?.interval?.marker ?? {};
         const align = horizontal
-            ? markerTheme.hAlign ?? "Bottom"
-            : markerTheme.vAlign ?? "Right";
+            ? this._markerAlign ?? markerTheme.hAlign ?? "Bottom"
+            : this._markerAlign ?? markerTheme.vAlign ?? "Right";
 
         this._lineLayer.innerHTML = "";
         this._markerLayer.innerHTML = "";
@@ -511,6 +531,7 @@ function _nativeBandInfo(spec, runtime, eventSource, theme, zones, caller) {
         backgroundColor: _backgroundColor,
         scaledZones: _scaledZones,
         intervalMarkers: _intervalMarkers,
+        markerAlign: _markerAlign,
         interval: _interval,
         etherPainter: _etherPainter,
         ...nativeSpec
@@ -526,6 +547,7 @@ function _nativeBandInfo(spec, runtime, eventSource, theme, zones, caller) {
         labeller: runtime.labeller,
         theme
     };
+    if (spec.markerAlign != null) params.align = spec.markerAlign;
 
     if (_bandHasOwn(nativeSpec, "date")) {
         params.date = _projectRequiredValue(
@@ -585,6 +607,7 @@ function _unitBandInfo(spec, runtime, eventSource, theme, zones, caller) {
         : spec.etherPainter ?? new UnitEtherPainter({
             interval,
             intervalMarkers: spec.intervalMarkers,
+            markerAlign: spec.markerAlign,
             theme
         });
 
@@ -633,6 +656,10 @@ function createBand(spec = {}, context = {}) {
         throw new TypeError(`${caller} intervalMarkers must be a boolean.`);
     }
     resolved.intervalMarkers = intervalMarkers;
+    resolved.markerAlign = _normalizeBandMarkerAlign(
+        resolved.markerAlign,
+        caller
+    );
     const eventSource = resolved.eventSource ??
         _makeEventSource(runtime.unit, caller);
     const theme = _createNativeTheme(resolved, caller);
@@ -661,6 +688,11 @@ function createBand(spec = {}, context = {}) {
             configurable: true,
             enumerable: true,
             value: intervalMarkers
+        },
+        markerAlign: {
+            configurable: true,
+            enumerable: true,
+            value: resolved.markerAlign
         },
         repriseBackgroundColor: {
             configurable: true,
@@ -833,7 +865,6 @@ function _applyBandPresentation(timeline, bandSet, caller) {
         const id = bandInfo.repriseBandId;
         const backgroundColor = bandInfo.repriseBackgroundColor;
 
-        if (id == null && backgroundColor == null) continue;
         if (
             typeof globalThis.Element === "function" &&
             !(bandElement instanceof Element)
@@ -843,6 +874,10 @@ function _applyBandPresentation(timeline, bandSet, caller) {
             );
         }
 
+        bandElement.classList.add(
+            "timeline-reprise-band",
+            `timeline-reprise-band-tone-${index % 5 + 1}`
+        );
         if (id != null) {
             bandElement.classList.add(`timeline-band-${id}`);
             bandElement.dataset.timelineBandId = id;

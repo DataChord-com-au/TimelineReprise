@@ -46,7 +46,7 @@
     <ul>
       <li>duration and point events use the same data as the horizontal timeline</li>
       <li>labels are orthogonal to the time direction, so layout pressure moves sideways</li>
-      <li>the overview band sits beside the main band instead of below it</li>
+      <li>the overview band sits to the left of the main band instead of below it</li>
     </ul>
     <div id="timeline-vertical" style="width: 800px; max-width: 100%; height: 560px;"></div>
   </section>
@@ -119,9 +119,6 @@
         id: "main",
         track: {
           horizontal: {
-            offset: 12
-          },
-          vertical: {
             offset: 12
           }
         },
@@ -210,22 +207,23 @@
     var verticalBandSet = Timeline.createBandSet({
       orientation: "vertical",
       initialDate: "2020-03-01",
+      markerAlign: "Left",
       syncTarget: "main",
 
       bands: [
-        {
-          id: "main",
-          width: "*",
-          intervalUnit: "month",
-          intervalPixels: 90,
-          eventTheme: "main"
-        },
         {
           id: "overview",
           width: 100,
           intervalUnit: "year",
           intervalPixels: 180,
           overview: true,
+          eventTheme: "main"
+        },
+        {
+          id: "main",
+          width: "*",
+          intervalUnit: "month",
+          intervalPixels: 90,
           eventTheme: "main"
         }
       ]

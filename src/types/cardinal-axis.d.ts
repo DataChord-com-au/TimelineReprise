@@ -5,6 +5,10 @@ declare namespace Timeline {
         unitsPerCount?: number;
         countsPerMarker?: number;
         anchorValue?: number;
+        anchor?: CardinalAxisAnchor;
+        finishing?: CardinalAxisFinishing;
+        truncatePreviousMarkerThreshold?: number;
+        markerAtIndex?: ((index: number) => T | null) | null;
         startLabel?: string | null;
         endLabel?: string | null;
         labelForIndex?: (index: number) => string;
@@ -29,9 +33,16 @@ declare namespace Timeline {
         unitsPerCount?: number;
         countsPerMarker?: number;
         anchorValue?: number;
+        anchor?: CardinalAxisAnchor;
+        finishing?: CardinalAxisFinishing;
+        truncatePreviousMarkerThreshold?: number;
         startLabel?: string | null;
         endLabel?: string | null;
         labelForIndex?: (index: number) => string;
+        indexAtValue?: ((
+            value: T,
+            context: CardinalAxisIndexContext<T>
+        ) => number | null) | null;
         background?: boolean;
         cssClass?: string | null;
         align?: string;

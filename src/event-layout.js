@@ -19,6 +19,7 @@ import {
     const DEFAULT_INSTANT_ICON_SIZE = 9;
     const DEFAULT_INSTANT_ICON_COLOR = "blue";
     const DEFAULT_RANGE_TAPE_COLOR = "blue";
+    const LEFT_ALIGNED_VERTICAL_MARKER_TRACK_OFFSET = 48;
     const EVENT_GRAPHIC_Z_INDEX = 0;
     const EVENT_SPARKLINE_Z_INDEX = 1;
     const EVENT_LABEL_Z_INDEX = 2;
@@ -367,6 +368,35 @@ import {
         return painter._timeline?.isVertical?.() === true;
     }
 
+    function getBandMarkerAlign(painter) {
+        return painter._band?._bandInfo?.markerAlign ??
+            painter._band?.markerAlign ??
+            null;
+    }
+
+    function isConfiguredTrackOffset(painter) {
+        const eventTheme = painter._eventTheme;
+        const orientation = getOrientation(painter._timeline);
+
+        return typeof eventTheme?._hasConfigured === "function" &&
+            (
+                eventTheme._hasConfigured("track.offset") ||
+                (orientation != null &&
+                    eventTheme._hasConfigured(`track.${orientation}.offset`))
+            );
+    }
+
+    function getDefaultTrackOffset(painter, nativeTrack) {
+        if (
+            isVertical(painter) &&
+            getBandMarkerAlign(painter) === "Left"
+        ) {
+            return LEFT_ALIGNED_VERTICAL_MARKER_TRACK_OFFSET;
+        }
+
+        return finiteOr(nativeTrack.offset, 2);
+    }
+
     function transposeVerticalPaintedRect(data, { swapSize = false } = {}) {
         const left = data.left;
         const top = data.top;
@@ -501,9 +531,12 @@ import {
             positiveOr(instant.height, positiveOr(instant.width, DEFAULT_INSTANT_ICON_SIZE))
         );
         const trackGap = finiteOr(track.gap, finiteOr(nativeTrack.gap, 2));
+        const defaultTrackOffset = getDefaultTrackOffset(painter, nativeTrack);
 
         return {
-            trackOffset: finiteOr(track.offset, finiteOr(nativeTrack.offset, 2)),
+            trackOffset: isConfiguredTrackOffset(painter)
+                ? finiteOr(track.offset, defaultTrackOffset)
+                : defaultTrackOffset,
             trackHeight,
             trackGap,
             trackIncrement: trackHeight + trackGap,

@@ -43,12 +43,14 @@ Override the inset when the original gap, or another gap, is wanted:
 ## Ether Interval Date Markers
 
 Use the direct `intervalMarkers` band option to control whether the normal
-interval labels are rendered. Marker dimensions and alignment remain
+interval labels are rendered. Use the direct `markerAlign` band option to
+choose the band edge for normal date or unit markers. Marker dimensions remain
 presentation settings under `etherTheme.interval.marker`:
 
 ```js
 var bandSet = Timeline.createBandSet({
     intervalMarkers: false,
+    markerAlign: "Top",
     etherTheme: {
         interval: {
             marker: {
@@ -69,13 +71,17 @@ var bandSet = Timeline.createBandSet({
 - `intervalMarkers` defaults to `true`. Setting it to `false` leaves the normal
   ether painter active, including synced highlights, backgrounds, interval
   lines, weekends, and grid marks.
+- `markerAlign` accepts `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`. It is
+  band behavior, not theme. For horizontal timelines use `"Top"` or
+  `"Bottom"`; for vertical timelines use `"Left"` or `"Right"`.
 - `hLength` is the tick's cross-axis length on a horizontal timeline. It
   defaults to `null`, retaining SIMILE's existing native marker sizing.
 - `vLength` is the tick's cross-axis length on a vertical timeline. It defaults
   to `"2.5em"`.
 
-The `h` and `v` prefixes follow SIMILE's existing `hAlign` and `vAlign`
-convention. Each length accepts a CSS length string, `"label"`, or `null`.
+The `h` and `v` length prefixes follow SIMILE's existing horizontal and
+vertical marker convention. Each length accepts a CSS length string, `"label"`,
+or `null`.
 `"label"` makes the tick follow the rendered cross-axis extent of the label,
 including its visual-box padding. A CSS length sizes only the tick; the
 `.timeline-date-label` retains its natural rendered size. `null` leaves the

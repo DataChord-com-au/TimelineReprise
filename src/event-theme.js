@@ -44,6 +44,20 @@ function clonePlain(value) {
     return value;
 }
 
+function collectExplicitFields(value, prefix = [], fields = new Set()) {
+    if (!_eventThemeIsPlainObject(value)) return fields;
+
+    for (const [key, item] of Object.entries(value)) {
+        if (item === undefined) continue;
+
+        const path = [...prefix, key];
+        fields.add(path.join("."));
+        collectExplicitFields(item, path, fields);
+    }
+
+    return fields;
+}
+
 function mergePlain(base, override) {
     const result = clonePlain(base);
 
@@ -490,12 +504,15 @@ class EventTheme {
         this.#assertPresentation(theme.presentation, `${caller}.presentation`);
     }
 
-    constructor(config = {}) {
+    constructor(config = {}, options = {}) {
         const caller = `${this.constructor.label}.ctor`;
         this.constructor.#assertPlainObject(config, caller);
 
         const theme = mergePlain(_EVENT_THEME_DEFAULTS, config);
         const id = validateThemeSpecId(config.id, `${caller}.id`);
+        const explicitFields = options.explicitFields instanceof Set
+            ? new Set(options.explicitFields)
+            : collectExplicitFields(config);
 
         if (id === undefined) {
             delete theme.id;
@@ -505,8 +522,18 @@ class EventTheme {
 
         this.constructor.#assertThemeShape(theme, caller);
 
+        Object.defineProperty(this, "_repriseExplicitFields", {
+            configurable: false,
+            enumerable: false,
+            value: explicitFields
+        });
         Object.assign(this, deepFreezePlain(theme));
         Object.freeze(this);
+    }
+
+    _hasConfigured(path) {
+        const key = Array.isArray(path) ? path.join(".") : String(path);
+        return this._repriseExplicitFields.has(key);
     }
 }
 
@@ -518,10 +545,15 @@ function deriveEventTheme(base, overrides = {}) {
         throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`overrides\` must be an object.`);
     }
 
+    const explicitFields = new Set(base._repriseExplicitFields ?? []);
+    for (const path of collectExplicitFields(overrides)) {
+        explicitFields.add(path);
+    }
+
     return new EventTheme(mergePlain(
         Object.fromEntries(Object.entries(base)),
         overrides
-    ));
+    ), { explicitFields });
 }
 
 const defaultEventTheme = new EventTheme();

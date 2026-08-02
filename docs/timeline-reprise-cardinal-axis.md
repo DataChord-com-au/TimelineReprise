@@ -38,6 +38,33 @@ Timeline.attachCardinalAxis(bandSet.byId.dayCount, {
 });
 ```
 
+Use an end anchor for countdown scales. Marker index `0` is assigned to
+`range.end`, and later indexes step backwards from that boundary:
+
+```js
+Timeline.attachCardinalAxis(bandSet.byId.remaining, {
+    range: { start: 0, end: 50 },
+    intervalUnit: "day",
+    unitsPerCount: 5,
+    countsPerMarker: 2,
+    anchor: "end",
+    anchorValue: 0,
+    endLabel: "Due"
+});
+```
+
+Unaligned ranges can choose how the incomplete opposite boundary is handled:
+
+```js
+Timeline.attachCardinalAxis(bandSet.byId.dayCount, {
+    range: { start: 0, end: 47 },
+    intervalUnit: "day",
+    unitsPerCount: 5,
+    countsPerMarker: 2,
+    finishing: "truncate"
+});
+```
+
 The cardinal specification is a plain object. It does not have a class or
 registry because it describes one contextual attachment rather than a reusable,
 composable theme.
@@ -69,22 +96,68 @@ to `1`.
 
 ### `anchorValue`
 
-Finite cardinal value assigned to the range's first marker. Defaults to `0`.
+Finite cardinal value assigned to the selected anchor marker. Defaults to `0`.
 For example, `anchorValue: 0` with `countsPerMarker: 2` labels markers `0`, `2`,
 `4`, and so on. Using `anchorValue: 1` labels them `1`, `3`, `5`, and so on.
 
+### `anchor`
+
+Boundary assigned `anchorValue`. Defaults to `"start"`.
+
+- `"start"` - marker index `0` is `range.start`; markers advance
+  chronologically.
+- `"end"` - marker index `0` is `range.end`; markers advance backwards.
+
+Painting remains in chronological screen order. With an end anchor, default
+labels therefore appear as a countdown toward the end boundary.
+
+### `finishing`
+
+How to handle a bounded range whose opposite boundary is not aligned to a
+complete marker step. Defaults to `"drop"`.
+
+- `"drop"` - omit the incomplete boundary marker.
+- `"truncate"` - render a terminal marker at the exact projected boundary.
+- `"extend"` - render the next complete marker beyond that boundary.
+
+If the opposite boundary is aligned exactly to a marker step, it is rendered
+normally for every finishing mode. For an end anchor, the opposite boundary is
+`range.start`.
+
+For an unaligned truncated boundary, the terminal marker receives a fractional
+anchor-relative index between the preceding complete marker and the next
+complete marker. The default label rounds fractional generated values to one
+decimal place.
+
+### `truncatePreviousMarkerThreshold`
+
+Optional ratio from `0` to `1` used only by `finishing: "truncate"`. Defaults
+to `0.4`.
+
+When the truncated terminal marker falls less than this fraction of a marker
+step after the previous complete marker, Reprise omits that previous complete
+marker to avoid crowded labels such as `0`, `1`, `1.1`. A value of `0` keeps
+the previous marker for every unaligned truncate; a value of `1` drops it for
+every unaligned truncate except an exact next-step boundary. The anchor marker
+is not removed by this threshold.
+
 ### `labelForIndex(index)`
 
-Optional label function receiving the zero-based marker index. The default
-returns `String(anchorValue + index * countsPerMarker)`.
+Optional label function receiving the zero-based marker index away from the
+selected anchor. The index is anchor-relative, not painting-order-relative.
+For truncated terminal markers, `index` can be fractional. The default returns
+`String(anchorValue + index * countsPerMarker)`, rounded to one decimal place
+when the generated value is fractional.
 
 ### `startLabel`
 
-Optional label replacing the first generated index label.
+Optional label replacing the generated label whenever the physical
+`range.start` boundary is rendered.
 
 ### `endLabel`
 
-Optional label replacing the final boundary label.
+Optional label replacing the generated label whenever the physical `range.end`
+boundary is rendered.
 
 ## Runtime injection
 
@@ -110,11 +183,44 @@ Timeline.attachCardinalAxis(
 );
 ```
 
-The runtime's `projectTimeRange()` interprets the authored `range`. The
-cardinal painter then uses `runtime.unit.cloneValue()`, `compare()`, and
+By default, the runtime's `projectTimeRange()` interprets the authored `range`.
+The cardinal painter then uses `runtime.unit.cloneValue()`, `compare()`, and
 `change()` for non-date values. The positive delta supplied to `change()` is
 `unitsPerCount * countsPerMarker`. Native JavaScript dates retain SIMILE's
 calendar-aware interval stepping using the same product.
+
+A runtime may instead provide `projectCardinalAxis(context)`. That hook returns
+the projected physical range plus `markerAtIndex(index)`, where `index` is the
+non-negative marker count away from the selected anchor. It may also return
+`indexAtValue(value, bracket)` for partial marker positions:
+
+The context includes `range`, `intervalUnit`, `resolvedIntervalUnit`,
+`unitsPerCount`, `countsPerMarker`, `anchor`, `finishing`, and
+`truncatePreviousMarkerThreshold`.
+
+```js
+{
+    range: { start: projectedStart, end: projectedEnd },
+    markerAtIndex: function (index) {
+        return projectedMarkerValue;
+    },
+    indexAtValue: function (value, bracket) {
+        return partialAnchorRelativeIndex;
+    }
+}
+```
+
+`indexAtValue()` is used for `finishing: "truncate"` when the opposite boundary
+falls between two complete markers. `bracket` contains `previousMarker`,
+`nextMarker`, `previousIndex`, `nextIndex`, `anchor`, and `finishing`. Returning
+`null` lets Reprise fall back to interpolation in the band's projected
+primitive coordinate space.
+
+Reprise still owns `anchor`, `finishing`, labels, and painting order, but the
+runtime owns the domain quantum used to produce each marker and any semantic
+partial index. With `finishing: "extend"`, Reprise asks for the next marker
+index; the runtime resolves that marker in domain terms and returns its
+projected timeline value.
 
 This is the extension point for another scale type or for a Chronicle Time
 runtime supplied by TimelineUtils. Reprise remains responsible for constructing
@@ -131,7 +237,8 @@ The optional third argument accepts:
 - `theme` - native theme override; defaults to `bandInfo.theme`
 - `markerTheme` - cardinal-axis marker overrides
 - `cssClass` - class added to generated markers
-- `align` - SIMILE marker alignment value
+- `align` - cardinal-axis marker alignment value independent of band
+  `markerAlign`
 - `showLine` - whether SIMILE draws interval lines
 
 Marker options inherit the shared `theme.ether.interval.marker` settings
@@ -186,7 +293,7 @@ Projected timeline value where the cardinal axis starts.
 startDate: new Date("2020-02-15T00:00:00Z")
 ```
 
-The first label is index `0` unless `startLabel` is supplied.
+The first label is index `0` unless `anchor: "end"` is supplied.
 
 ### `endDate`
 Optional projected timeline value where the cardinal axis stops.
@@ -217,14 +324,36 @@ countsPerMarker: 2
 ```
 
 ### `anchorValue`
-Cardinal value assigned to the first marker.
+Cardinal value assigned to the selected anchor marker.
 
 ```js
 anchorValue: 0
 ```
 
+### `anchor`
+Boundary assigned index `0`.
+
+```js
+anchor: "end"
+```
+
+### `finishing`
+Handling for incomplete opposite-boundary intervals.
+
+```js
+finishing: "truncate"
+```
+
+### `truncatePreviousMarkerThreshold`
+Ratio below which a truncated terminal marker suppresses the previous complete
+marker. Defaults to `0.4`.
+
+```js
+truncatePreviousMarkerThreshold: 0.4
+```
+
 ### `labelForIndex(index)`
-Returns the label text for each index.
+Returns the label text for each anchor-relative index.
 
 ```js
 labelForIndex: function (index) {
@@ -232,15 +361,42 @@ labelForIndex: function (index) {
 }
 ```
 
+### `markerAtIndex(index)`
+Optional low-level callback returning the projected timeline value for an
+anchor-relative marker index.
+
+```js
+markerAtIndex: function (index) {
+    return projectedDomainMarker(index);
+}
+```
+
+The attachment API supplies this from `runtime.projectCardinalAxis()` when the
+runtime provides that hook. Ordinary callers should prefer
+`Timeline.attachCardinalAxis()`.
+
+### `indexAtValue(value, bracket)`
+Optional low-level callback returning a semantic fractional anchor-relative
+index for a truncated boundary value.
+
+```js
+indexAtValue: function (value, bracket) {
+    return partialAnchorRelativeIndex;
+}
+```
+
+The attachment API supplies this from `runtime.projectCardinalAxis()` when the
+runtime returns it.
+
 ### `startLabel`
-Optional label for the first marker.
+Optional label for the physical start boundary when it is rendered.
 
 ```js
 startLabel: "Start"
 ```
 
 ### `endLabel`
-Optional label for the end marker.
+Optional label for the physical end boundary when it is rendered.
 
 ```js
 endLabel: "End"
@@ -263,7 +419,8 @@ cssClass: "month-count-axis"
 ```
 
 ### `align`
-Optional SIMILE marker alignment value.
+Optional cardinal-axis marker alignment value. This does not change the
+band's normal date or unit marker alignment.
 
 ### `showLine`
 Controls whether SIMILE draws interval lines.

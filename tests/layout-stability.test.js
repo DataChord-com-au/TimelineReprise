@@ -1966,6 +1966,81 @@ function narrativePlacement(records) {
     }));
 }
 
+test("narrative defaults layer spans below markers and instant dividers above markers", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const layers = [];
+    const document = {
+        createElement: () => ({
+            children: [],
+            className: "",
+            style: {},
+            appendChild(child) {
+                this.children.push(child);
+            },
+            setAttribute() {},
+            removeAttribute() {}
+        })
+    };
+    const band = {
+        createLayerDiv(zIndex, className = "") {
+            const layer = {
+                zIndex,
+                className,
+                children: [],
+                attributes: {},
+                style: {},
+                appendChild(child) {
+                    this.children.push(child);
+                },
+                setAttribute(name, value) {
+                    this.attributes[name] = value;
+                }
+            };
+
+            layers.push(layer);
+            return layer;
+        },
+        removeLayerDiv() {},
+        dateToPixelOffset: value => value,
+        getViewOffset: () => 0,
+        getViewLength: () => 200,
+        getViewWidth: () => 200
+    };
+    const timeline = {
+        getDocument: () => document,
+        isHorizontal: () => true,
+        isVertical: () => false
+    };
+    const decorator = new NarrativeDecorator({
+        ranges: [{ start: 0, end: 20 }],
+        instants: [{ date: 10 }]
+    });
+
+    decorator._labels = false;
+    decorator._runtime = {
+        readEventTime(item) {
+            return Object.hasOwn(item, "date")
+                ? { kind: "instant", value: item.date }
+                : { kind: "range", start: item.start, end: item.end };
+        }
+    };
+    decorator._band = band;
+    decorator._timeline = timeline;
+    decorator.paint();
+
+    const spanLayer = layers.find(layer =>
+        layer.className.includes("timeline-narrative-visual-layer")
+    );
+    const dividerLayer = layers.find(layer =>
+        layer.className.includes("timeline-narrative-divider-layer")
+    );
+
+    assert.equal(spanLayer.zIndex, 5);
+    assert.equal(dividerLayer.zIndex, 101);
+    assert.equal(spanLayer.children[0].className, "timeline-narrative-span");
+    assert.equal(dividerLayer.children[0].className, "timeline-narrative-instant-line");
+});
+
 test("horizontal narrative labels keep their existing themed routing without item track pins", () => {
     const decorator = makeNarrative("horizontal");
     decorator._trackOffset = 12;

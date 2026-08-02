@@ -15,6 +15,9 @@ import {
 
     const DEFAULT_HORIZONTAL_TRACK_SIZE = 18;
     const DEFAULT_VERTICAL_TRACK_SIZE = 120;
+    const DEFAULT_NARRATIVE_LAYER_Z_INDEX = 5;
+    const DEFAULT_NARRATIVE_DIVIDER_Z_INDEX = 101;
+    const DEFAULT_NARRATIVE_LABEL_Z_INDEX = 114;
     const HORIZONTAL_STICKY_CONTACT_SIZE = 12;
     const VERTICAL_STICKY_CONTACT_SIZE = 6;
 
@@ -227,6 +230,11 @@ import {
         return value != null && value !== "";
     }
 
+    function hasConfiguredThemePath(theme, path) {
+        return typeof theme?._hasConfigured === "function" &&
+            theme._hasConfigured(path);
+    }
+
     Timeline.NarrativeDecorator = function (params) {
         params = params || {};
         this._eventThemeSelection = params.eventTheme ?? null;
@@ -241,6 +249,7 @@ import {
         this._band = null;
         this._timeline = null;
         this._layerDiv = null;
+        this._dividerLayerDiv = null;
         this._labelLayerDiv = null;
         this._rangeRecords = [];
         this._instantRecords = [];
@@ -300,8 +309,21 @@ import {
             "graphic"
         );
         this._labelColor = themedValue({}, labelTheme, "color", null);
-        this._zIndex = themedFinite({}, layerTheme, "zIndex", 5);
-        this._labelZIndex = themedFinite({}, layerTheme, "labelZIndex", 114);
+        this._zIndex = themedFinite(
+            {},
+            layerTheme,
+            "zIndex",
+            DEFAULT_NARRATIVE_LAYER_Z_INDEX
+        );
+        this._dividerZIndex = hasConfiguredThemePath(eventTheme, "layer.zIndex")
+            ? this._zIndex
+            : DEFAULT_NARRATIVE_DIVIDER_Z_INDEX;
+        this._labelZIndex = themedFinite(
+            {},
+            layerTheme,
+            "labelZIndex",
+            DEFAULT_NARRATIVE_LABEL_Z_INDEX
+        );
 
         this._spanColors = themedValue({}, rangeTheme, "colors", null);
         this._instantIconColor = themedValue({}, instantTheme, "iconColor", null);
@@ -737,12 +759,23 @@ import {
 
     Timeline.NarrativeDecorator.prototype.paint = function () {
         if (this._layerDiv != null) this._band.removeLayerDiv(this._layerDiv);
+        if (this._dividerLayerDiv != null) this._band.removeLayerDiv(this._dividerLayerDiv);
         if (this._labelLayerDiv != null) this._band.removeLayerDiv(this._labelLayerDiv);
 
         this._layerDiv = this._band.createLayerDiv(this._zIndex, "timeline-narrative-decorator-layer timeline-narrative-visual-layer");
         this._layerDiv.setAttribute("name", "narrative-decorator");
         this._layerDiv.style.visibility = "hidden";
         this._layerDiv.style.pointerEvents = "none";
+
+        const hasDividerLayer = this._dividers && this._instants.length > 0;
+        this._dividerLayerDiv = hasDividerLayer
+            ? this._band.createLayerDiv(this._dividerZIndex, "timeline-narrative-decorator-layer timeline-narrative-divider-layer")
+            : null;
+        if (this._dividerLayerDiv) {
+            this._dividerLayerDiv.setAttribute("name", "narrative-dividers");
+            this._dividerLayerDiv.style.visibility = "hidden";
+            this._dividerLayerDiv.style.pointerEvents = "none";
+        }
 
         const hasItemLabelOverride = this._ranges.some(item => this._itemLabels(item)) ||
             this._instants.some(item => this._itemLabels(item));
@@ -835,7 +868,7 @@ import {
             const lineColor = this._recordInstantLineColor(record);
             record.graphicColor = lineColor;
 
-            if (this._dividers) {
+            if (this._dividers && this._dividerLayerDiv) {
                 const line = doc.createElement("div");
                 line.className = [
                     "timeline-narrative-instant-line",
@@ -845,7 +878,7 @@ import {
                 ].filter(Boolean).join(" ");
                 line.style.position = "absolute";
                 line.style.backgroundColor = lineColor;
-                this._layerDiv.appendChild(line);
+                this._dividerLayerDiv.appendChild(line);
                 record.lineElmt = line;
             }
 
@@ -862,6 +895,7 @@ import {
 
         this.softPaint();
         this._layerDiv.style.visibility = "";
+        if (this._dividerLayerDiv) this._dividerLayerDiv.style.visibility = "";
         if (this._labelLayerDiv) this._labelLayerDiv.style.visibility = "";
     };
 

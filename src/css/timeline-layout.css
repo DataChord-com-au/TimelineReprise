@@ -49,6 +49,11 @@
   text-align: right;
 }
 
+.timeline-vertical
+  .timeline-date-label.timeline-reprise-date-label-ticked {
+  padding-top: 4px;
+}
+
 .timeline-date-label.timeline-reprise-date-label-ticked {
   border-width: 0;
   height: auto;

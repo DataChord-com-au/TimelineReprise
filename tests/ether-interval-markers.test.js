@@ -69,9 +69,17 @@ function makeTheme() {
 }
 
 function loadTimeline() {
+    const MILLISECOND = 0;
+    const SECOND = 1;
+    const MINUTE = 2;
+    const HOUR = 3;
     const DAY = 4;
-    const WEEK = 3;
-    const YEAR = 6;
+    const WEEK = 5;
+    const MONTH = 6;
+    const YEAR = 7;
+    const DECADE = 8;
+    const CENTURY = 9;
+    const MILLENNIUM = 10;
     const dayLength = 24 * 60 * 60 * 1000;
     const Timeline = {
         ClassicTheme: {
@@ -80,16 +88,59 @@ function loadTimeline() {
     };
     const SimileAjax = {
         DateTime: {
+            MILLISECOND,
+            SECOND,
+            MINUTE,
+            HOUR,
             DAY,
             WEEK,
+            MONTH,
             YEAR,
+            DECADE,
+            CENTURY,
+            MILLENNIUM,
             gregorianUnitLengths: {
+                [MILLISECOND]: 1,
+                [SECOND]: 1000,
+                [MINUTE]: 60 * 1000,
+                [HOUR]: 60 * 60 * 1000,
                 [DAY]: dayLength
             },
             incrementByInterval(date, unit) {
-                date.setTime(
-                    date.getTime() + (unit === WEEK ? 7 : 1) * dayLength
-                );
+                switch (unit) {
+                case MILLISECOND:
+                    date.setTime(date.getTime() + 1);
+                    break;
+                case SECOND:
+                    date.setTime(date.getTime() + 1000);
+                    break;
+                case MINUTE:
+                    date.setTime(date.getTime() + 60 * 1000);
+                    break;
+                case HOUR:
+                    date.setTime(date.getTime() + 60 * 60 * 1000);
+                    break;
+                case WEEK:
+                    date.setUTCDate(date.getUTCDate() + 7);
+                    break;
+                case MONTH:
+                    date.setUTCMonth(date.getUTCMonth() + 1);
+                    break;
+                case YEAR:
+                    date.setUTCFullYear(date.getUTCFullYear() + 1);
+                    break;
+                case DECADE:
+                    date.setUTCFullYear(date.getUTCFullYear() + 10);
+                    break;
+                case CENTURY:
+                    date.setUTCFullYear(date.getUTCFullYear() + 100);
+                    break;
+                case MILLENNIUM:
+                    date.setUTCFullYear(date.getUTCFullYear() + 1000);
+                    break;
+                default:
+                    date.setUTCDate(date.getUTCDate() + 1);
+                }
             },
             parseGregorianDateTime(value) {
                 return new Date(value);
@@ -165,7 +216,7 @@ function loadTimeline() {
         }
     );
 
-    return { DAY, WEEK, Timeline };
+    return { DAY, WEEK, MONTH, YEAR, Timeline };
 }
 
 function makePainterFixture(
@@ -241,6 +292,16 @@ function dateLabels(layer) {
 function markerTick(label) {
     return label.children.find(child =>
         child.className === "timeline-reprise-date-label-tick"
+    );
+}
+
+function labelTexts(layer) {
+    return dateLabels(layer).map(label => label.innerHTML);
+}
+
+function labelOffsets(layer) {
+    return dateLabels(layer).map(label =>
+        Number.parseInt(label.style.left ?? label.style.top, 10)
     );
 }
 
@@ -661,8 +722,589 @@ test("cardinal axes advance scalar values through the injected unit", () => {
     assert.deepEqual(changes, [
         { value: 0, delta: 10 },
         { value: 10, delta: 10 },
-        { value: 20, delta: 10 },
-        { value: 30, delta: 10 }
+        { value: 20, delta: 10 }
+    ]);
+});
+
+test("cardinal axes render aligned bounded ranges from either anchor", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+
+    for (const fixtureSpec of [
+        { anchor: "start", expected: ["0", "1", "2", "3"] },
+        { anchor: "end", expected: ["3", "2", "1", "0"] }
+    ]) {
+        const fixture = makePainterFixture(
+            true,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 0,
+                end: 30,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 0,
+            endDate: 30,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            anchor: fixtureSpec.anchor
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        assert.deepEqual(
+            labelTexts(fixture.layer("ether-markers")),
+            fixtureSpec.expected
+        );
+        assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+            0,
+            10,
+            20,
+            30
+        ]);
+    }
+});
+
+test("cardinal labelForIndex receives anchor-relative indexes", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const seen = [];
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 30,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 30,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        anchor: "end",
+        labelForIndex(index) {
+            seen.push(index);
+            return `i${index}`;
+        }
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "i3",
+        "i2",
+        "i1",
+        "i0"
+    ]);
+    assert.deepEqual(seen, [3, 2, 1, 0]);
+});
+
+test("cardinal boundary labels refer to physical range boundaries", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+
+    for (const anchor of ["start", "end"]) {
+        const fixture = makePainterFixture(
+            true,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 0,
+                end: 20,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 0,
+            endDate: 20,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            anchor,
+            startLabel: "Start",
+            endLabel: "End"
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+            "Start",
+            "1",
+            "End"
+        ]);
+    }
+});
+
+test("start-anchored cardinal finishing handles unaligned end boundaries", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+
+    for (const fixtureSpec of [
+        {
+            finishing: "drop",
+            expectedLabels: ["0", "1", "2"],
+            expectedOffsets: [0, 10, 20]
+        },
+        {
+            finishing: "truncate",
+            expectedLabels: ["0", "1", "2", "2.5"],
+            expectedOffsets: [0, 10, 20, 25]
+        },
+        {
+            finishing: "extend",
+            expectedLabels: ["0", "1", "2", "3"],
+            expectedOffsets: [0, 10, 20, 30]
+        }
+    ]) {
+        const fixture = makePainterFixture(
+            true,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 0,
+                end: 30,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 0,
+            endDate: 25,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            finishing: fixtureSpec.finishing
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        assert.deepEqual(
+            labelTexts(fixture.layer("ether-markers")),
+            fixtureSpec.expectedLabels
+        );
+        assert.deepEqual(
+            labelOffsets(fixture.layer("ether-markers")),
+            fixtureSpec.expectedOffsets
+        );
+    }
+});
+
+test("cardinal extend uses injected marker projections instead of unit stepping", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change() {
+            throw new Error("generic unit stepping should not be used");
+        }
+    };
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 50,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 23,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        finishing: "extend",
+        markerAtIndex: index => [0, 10, 21, 34][index] ?? null
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "0",
+        "1",
+        "2",
+        "3"
+    ]);
+    assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+        0,
+        10,
+        21,
+        34
+    ]);
+});
+
+test("end-anchored cardinal finishing handles unaligned start boundaries", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+
+    for (const fixtureSpec of [
+        {
+            finishing: "drop",
+            expectedLabels: ["2", "1", "0"],
+            expectedOffsets: [10, 20, 30]
+        },
+        {
+            finishing: "truncate",
+            expectedLabels: ["2.5", "2", "1", "0"],
+            expectedOffsets: [5, 10, 20, 30]
+        },
+        {
+            finishing: "extend",
+            expectedLabels: ["3", "2", "1", "0"],
+            expectedOffsets: [0, 10, 20, 30]
+        }
+    ]) {
+        const fixture = makePainterFixture(
+            true,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 0,
+                end: 30,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 5,
+            endDate: 30,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            anchor: "end",
+            finishing: fixtureSpec.finishing
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        assert.deepEqual(
+            labelTexts(fixture.layer("ether-markers")),
+            fixtureSpec.expectedLabels
+        );
+        assert.deepEqual(
+            labelOffsets(fixture.layer("ether-markers")),
+            fixtureSpec.expectedOffsets
+        );
+    }
+});
+
+test("cardinal truncate uses injected partial indexes when supplied", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change() {
+            throw new Error("generic unit stepping should not be used");
+        }
+    };
+    const contexts = [];
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 30,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 25,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        finishing: "truncate",
+        markerAtIndex: index => [0, 10, 20, 30][index] ?? null,
+        indexAtValue(value, context) {
+            contexts.push({ value, context });
+            return 2.25;
+        }
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "0",
+        "1",
+        "2.3"
+    ]);
+    assert.equal(contexts.length, 1);
+    assert.equal(contexts[0].value, 25);
+    assert.deepEqual({ ...contexts[0].context }, {
+        previousMarker: 20,
+        nextMarker: 30,
+        previousIndex: 2,
+        nextIndex: 3,
+        anchor: "start",
+        finishing: "truncate"
+    });
+});
+
+test("cardinal truncate drops the previous marker below the threshold", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+
+    for (const fixtureSpec of [
+        {
+            endDate: 22.5,
+            expectedLabels: ["0", "1", "2.3"],
+            expectedOffsets: [0, 10, 23]
+        },
+        {
+            endDate: 29,
+            expectedLabels: ["0", "1", "2", "2.9"],
+            expectedOffsets: [0, 10, 20, 29]
+        },
+        {
+            endDate: 22.5,
+            threshold: 0,
+            expectedLabels: ["0", "1", "2", "2.3"],
+            expectedOffsets: [0, 10, 20, 23]
+        }
+    ]) {
+        const fixture = makePainterFixture(
+            true,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 0,
+                end: 30,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 0,
+            endDate: fixtureSpec.endDate,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            finishing: "truncate",
+            truncatePreviousMarkerThreshold: fixtureSpec.threshold
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        assert.deepEqual(
+            labelTexts(fixture.layer("ether-markers")),
+            fixtureSpec.expectedLabels
+        );
+        assert.deepEqual(
+            labelOffsets(fixture.layer("ether-markers")),
+            fixtureSpec.expectedOffsets
+        );
+    }
+});
+
+test("truncated cardinal finishing does not duplicate an aligned boundary", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 30,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 30,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        finishing: "truncate"
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "0",
+        "1",
+        "2",
+        "3"
+    ]);
+    assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+        0,
+        10,
+        20,
+        30
+    ]);
+});
+
+test("cardinal axes keep painting in screen order when the anchor is outside the viewport", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+
+    for (const fixtureSpec of [
+        { anchor: "start", expected: ["4", "5", "6"] },
+        { anchor: "end", expected: ["6", "5", "4"] }
+    ]) {
+        const fixture = makePainterFixture(
+            true,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 40,
+                end: 60,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 0,
+            endDate: 100,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            anchor: fixtureSpec.anchor
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        assert.deepEqual(
+            labelTexts(fixture.layer("ether-markers")),
+            fixtureSpec.expected
+        );
+        assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+            40,
+            50,
+            60
+        ]);
+    }
+});
+
+test("cardinal date axes use native calendar stepping across variable lengths", () => {
+    const { MONTH, YEAR, Timeline } = loadTimeline();
+    const captured = [];
+    const monthFixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: new Date("2024-01-31T00:00:00Z"),
+            end: new Date("2024-05-31T00:00:00Z"),
+            dateToPixelOffset(value) {
+                captured.push(value.toISOString().slice(0, 10));
+                return captured.length;
+            }
+        }
+    );
+    const monthAxis = new Timeline.CardinalAxis({
+        startDate: new Date("2024-01-31T00:00:00Z"),
+        endDate: new Date("2024-05-31T00:00:00Z"),
+        theme: Timeline.ClassicTheme.create(),
+        unit: MONTH
+    });
+
+    monthAxis.initialize(monthFixture.band, monthFixture.timeline);
+    monthAxis.paint();
+
+    assert.deepEqual(captured, [
+        "2024-01-31",
+        "2024-03-02",
+        "2024-04-02",
+        "2024-05-02"
+    ]);
+
+    const capturedYears = [];
+    const yearFixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: new Date("2024-02-29T00:00:00Z"),
+            end: new Date("2027-03-01T00:00:00Z"),
+            dateToPixelOffset(value) {
+                capturedYears.push(value.toISOString().slice(0, 10));
+                return capturedYears.length;
+            }
+        }
+    );
+    const yearAxis = new Timeline.CardinalAxis({
+        startDate: new Date("2024-02-29T00:00:00Z"),
+        endDate: new Date("2027-03-01T00:00:00Z"),
+        theme: Timeline.ClassicTheme.create(),
+        unit: YEAR
+    });
+
+    yearAxis.initialize(yearFixture.band, yearFixture.timeline);
+    yearAxis.paint();
+
+    assert.deepEqual(capturedYears, [
+        "2024-02-29",
+        "2025-03-01",
+        "2026-03-01",
+        "2027-03-01"
     ]);
 });
 
@@ -772,5 +1414,9 @@ test("Reprise CSS separates tick geometry and aligns vertical labels", () => {
     assert.match(
         css,
         /\.timeline-reprise-date-label-right\s*\{[^}]*\bpadding-right\s*:\s*4px\b[^}]*\btext-align\s*:\s*right\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-vertical\s+\.timeline-date-label\.timeline-reprise-date-label-ticked\s*\{[^}]*\bpadding-top\s*:\s*4px\b/s
     );
 });

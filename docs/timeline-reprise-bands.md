@@ -107,6 +107,7 @@ Common fields:
 - `eventTheme`
 - `etherTheme`
 - `intervalMarkers`
+- `markerAlign`
 - `emphasisSpecs`
 - `backgroundColor`
 - `overview` or `layout`
@@ -119,6 +120,31 @@ native theme carrying them.
 `intervalMarkers` is a boolean controlling the band's normal unit-marker
 labels. It defaults to `true`. Set it on `createBandSet()` as a shared default
 or override it on one entry in `bands`.
+
+`markerAlign` controls which band edge receives the band's normal date or unit
+markers. It accepts `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`. This is band
+behavior; marker dimensions such as `hLength` and `vLength` remain in
+`etherTheme.interval.marker`.
+
+Vertical bands default to right-aligned markers. When a vertical band uses
+`markerAlign: "Left"`, Reprise gives event and overview tracks a larger default
+cross-axis offset so normal markers have room. Set
+`eventTheme.track.vertical.offset` when a band needs a different clearance.
+
+In dark mode, Reprise cycles five default band background tones across every
+band. Override the cycle per timeline with CSS custom properties:
+
+```css
+#timeline {
+    --timeline-reprise-band-bg-1: #555555;
+    --timeline-reprise-band-bg-2: #444444;
+    --timeline-reprise-band-bg-3: #303030;
+    --timeline-reprise-band-bg-4: #2a2a2a;
+    --timeline-reprise-band-bg-5: #1e1e1e;
+}
+```
+
+Per-band `backgroundColor` still wins over the cycle.
 
 Emphasized marker labels retain the same dimensions as ordinary labels by
 default. The `timeline-date-label-em` class remains available for application
@@ -189,6 +215,8 @@ years and Ma values.
 Creates the native SIMILE timeline internally, then:
 
 - adds stable `timeline-band-{id}` classes and `data-timeline-band-id`;
+- adds stable `timeline-reprise-band` and
+  `timeline-reprise-band-tone-{1..5}` classes;
 - applies configured band background colors;
 - centers each root band chain on `initialDate`;
 - installs the Reprise clamp controller for `clampRange`;

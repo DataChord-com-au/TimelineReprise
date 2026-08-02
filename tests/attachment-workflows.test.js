@@ -750,6 +750,8 @@ test("attachCardinalAxis uses the band's default native-date runtime", () => {
     assert.equal(axis._countsPerMarker, 2);
     assert.equal(axis._unitsPerMarker, 2);
     assert.equal(axis._anchorValue, 1);
+    assert.equal(axis._anchor, "start");
+    assert.equal(axis._finishing, "drop");
     assert.equal(axis._startLabel, "Start");
     assert.equal(axis._endLabel, "End");
     assert.equal(axis._background, false);
@@ -772,7 +774,9 @@ test("Planning events and cardinal axes share the band's injected runtime", () =
         intervalUnit: "day",
         unitsPerCount: 5,
         countsPerMarker: 2,
-        anchorValue: 0
+        anchorValue: 0,
+        anchor: "end",
+        finishing: "truncate"
     });
 
     assert.equal(records[0].runtime, runtime);
@@ -787,6 +791,8 @@ test("Planning events and cardinal axes share the band's injected runtime", () =
     assert.equal(bandInfo.decorators[0]._countsPerMarker, 2);
     assert.equal(bandInfo.decorators[0]._unitsPerMarker, 10);
     assert.equal(bandInfo.decorators[0]._anchorValue, 0);
+    assert.equal(bandInfo.decorators[0]._anchor, "end");
+    assert.equal(bandInfo.decorators[0]._finishing, "truncate");
 });
 
 test("attachCardinalAxis accepts a runtime override", () => {
@@ -823,6 +829,85 @@ test("attachCardinalAxis accepts a runtime override", () => {
 
     assert.equal(bandInfo.decorators[0]._startDate, projectedStart);
     assert.equal(bandInfo.decorators[0]._endDate, projectedEnd);
+});
+
+test("attachCardinalAxis inherits the band runtime for authored range projection", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const { bandInfo } = makeBand(Timeline, unit);
+    const authoredRange = { domain: "range" };
+    const projectedRange = { start: 11, end: 41 };
+    const projected = [];
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        projectTimeRange(value) {
+            projected.push(value);
+            return projectedRange;
+        }
+    });
+    bandInfo.repriseRuntime = runtime;
+
+    Timeline.attachCardinalAxis(bandInfo, {
+        range: authoredRange,
+        intervalUnit: "day"
+    });
+
+    assert.deepEqual(projected, [authoredRange]);
+    assert.equal(bandInfo.decorators[0]._runtime, runtime);
+    assert.equal(bandInfo.decorators[0]._startDate, projectedRange.start);
+    assert.equal(bandInfo.decorators[0]._endDate, projectedRange.end);
+});
+
+test("attachCardinalAxis uses the runtime cardinal-axis projection hook", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const { bandInfo } = makeBand(Timeline, unit);
+    const authoredRange = { chronicle: "range" };
+    const contexts = [];
+    const markerAtIndex = index => [10, 17, 29, 44][index] ?? null;
+    const indexAtValue = () => 2.5;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        projectTimeRange() {
+            throw new Error("projectTimeRange should not be used");
+        },
+        projectCardinalAxis(context) {
+            contexts.push(context);
+            return {
+                range: { start: 10, end: 29 },
+                markerAtIndex,
+                indexAtValue
+            };
+        }
+    });
+
+    Timeline.attachCardinalAxis(bandInfo, {
+        range: authoredRange,
+        intervalUnit: "day",
+        unitsPerCount: 7,
+        countsPerMarker: 2,
+        anchor: "end",
+        finishing: "extend"
+    }, {
+        runtime
+    });
+
+    assert.equal(contexts.length, 1);
+    assert.equal(contexts[0].range, authoredRange);
+    assert.equal(contexts[0].intervalUnit, "day");
+    assert.equal(contexts[0].resolvedIntervalUnit, Timeline.DateTime.DAY);
+    assert.equal(contexts[0].unitsPerCount, 7);
+    assert.equal(contexts[0].countsPerMarker, 2);
+    assert.equal(contexts[0].anchor, "end");
+    assert.equal(contexts[0].finishing, "extend");
+    assert.equal(contexts[0].truncatePreviousMarkerThreshold, 0.4);
+    assert.equal(bandInfo.decorators[0]._runtime, runtime);
+    assert.equal(bandInfo.decorators[0]._startDate, 10);
+    assert.equal(bandInfo.decorators[0]._endDate, 29);
+    assert.equal(bandInfo.decorators[0]._markerAtIndex, markerAtIndex);
+    assert.equal(bandInfo.decorators[0]._indexAtValue, indexAtValue);
 });
 
 test("legacy theme ids and flat decorator controls are rejected", () => {
@@ -875,5 +960,58 @@ test("legacy theme ids and flat decorator controls are rejected", () => {
             { showLine: null }
         ),
         /options\.showLine must be a boolean/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(bandInfo, {
+            range: { start: 0, end: 10 },
+            intervalUnit: "day",
+            anchor: "middle"
+        }),
+        /spec\.anchor must be 'start' or 'end'/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(bandInfo, {
+            range: { start: 0, end: 10 },
+            intervalUnit: "day",
+            finishing: "snap"
+        }),
+        /spec\.finishing must be 'drop', 'truncate', or 'extend'/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(bandInfo, {
+            range: { start: 0, end: 10 },
+            intervalUnit: "day",
+            truncatePreviousMarkerThreshold: 2
+        }),
+        /spec\.truncatePreviousMarkerThreshold must be a finite number from 0 to 1/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(bandInfo, {
+            range: { start: 0 },
+            intervalUnit: "day",
+            anchor: "end"
+        }),
+        /concrete end when spec\.anchor is 'end'/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            {
+                runtime: new Timeline.RepriseRuntime({
+                    unit,
+                    labeller: unit.createLabeller(),
+                    projectCardinalAxis: () => ({
+                        range: { start: 0, end: 10 },
+                        markerAtIndex: () => 0,
+                        indexAtValue: "2.5"
+                    })
+                })
+            }
+        ),
+        /indexAtValue must be a function or null/
     );
 });
