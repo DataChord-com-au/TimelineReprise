@@ -37,6 +37,12 @@ declare namespace Timeline {
          */
         vLength?: EtherIntervalMarkerLength;
 
+        /** Z-index for the marker tick. Defaults to 100. */
+        tickZIndex?: number;
+
+        /** Z-index for the marker label content. Defaults to 102. */
+        labelZIndex?: number;
+
         [key: string]: unknown;
     }
 

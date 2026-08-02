@@ -106,6 +106,30 @@ test("EventTheme validates tooltips and enables them by default", () => {
     );
 });
 
+test("EventTheme layer z-index controls are independent", () => {
+    const Timeline = loadTimeline();
+    const spanOnly = new Timeline.EventTheme({ layer: { zIndex: 25 } });
+    const theme = new Timeline.EventTheme({
+        layer: {
+            zIndex: 15,
+            dividerZIndex: 35,
+            labelZIndex: 55
+        }
+    });
+
+    assert.equal(spanOnly.layer.zIndex, 25);
+    assert.equal(spanOnly.layer.dividerZIndex, 101);
+    assert.equal(theme.layer.zIndex, 15);
+    assert.equal(theme.layer.dividerZIndex, 35);
+    assert.equal(theme.layer.labelZIndex, 55);
+    assert.throws(
+        () => new Timeline.EventTheme({
+            layer: { dividerZIndex: "35" }
+        }),
+        /dividerZIndex must be a finite number/
+    );
+});
+
 test("resolver supports named and explicit EventTheme selections", () => {
     const Timeline = loadTimeline();
     const themes = Timeline.loadEventThemes([{ id: "named", spans: false }]);
@@ -196,6 +220,7 @@ test("resolver attaches the defined Reprise default to a native band theme", () 
     assert.equal(resolved.range.width, 4);
     assert.equal(resolved.range.size, undefined);
     assert.equal(resolved.layer.zIndex, 5);
+    assert.equal(resolved.layer.dividerZIndex, 101);
     assert.equal(resolved.layer.labelZIndex, 114);
 });
 

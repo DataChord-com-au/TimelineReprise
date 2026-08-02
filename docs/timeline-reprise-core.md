@@ -55,7 +55,9 @@ var bandSet = Timeline.createBandSet({
         interval: {
             marker: {
                 hLength: "2.5em",
-                vLength: "4em"
+                vLength: "4em",
+                tickZIndex: 100,
+                labelZIndex: 102
             }
         }
     },
@@ -78,14 +80,21 @@ var bandSet = Timeline.createBandSet({
   defaults to `null`, retaining SIMILE's existing native marker sizing.
 - `vLength` is the tick's cross-axis length on a vertical timeline. It defaults
   to `"2.5em"`.
+- `tickZIndex` controls only the marker tick. It defaults to `100`.
+- `labelZIndex` controls only the marker label content. It defaults to `102`.
 
 The `h` and `v` length prefixes follow SIMILE's existing horizontal and
 vertical marker convention. Each length accepts a CSS length string, `"label"`,
 or `null`.
 `"label"` makes the tick follow the rendered cross-axis extent of the label,
 including its visual-box padding. A CSS length sizes only the tick; the
-`.timeline-date-label` retains its natural rendered size. `null` leaves the
-native SIMILE stylesheet sizing and border behaviour unchanged.
+`.timeline-date-label` retains its natural rendered size. `null` retains the
+native SIMILE marker box sizing and makes the separated tick follow that box.
+
+The marker layer itself does not establish a stacking context. Its tick and
+label content therefore participate independently in the band stack. The
+default `100`/`102` values leave z-index `101` available for Narrative instant
+divider lines.
 
 Marker text extends inward from its configured band edge: rightward for
 vertical `Left`, leftward for vertical `Right`, downward for horizontal `Top`,

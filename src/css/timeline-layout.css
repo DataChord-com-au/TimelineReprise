@@ -61,6 +61,14 @@
   width: auto;
 }
 
+.timeline-date-label.timeline-reprise-date-label-layered {
+  border-width: 0;
+}
+
+.timeline-reprise-date-label-content {
+  position: relative;
+}
+
 .timeline-reprise-date-label-tick {
   display: block;
   pointer-events: none;

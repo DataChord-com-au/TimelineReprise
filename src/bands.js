@@ -304,6 +304,15 @@ class UnitEtherPainter {
                     label.style[align === "Left" ? "left" : "right"] = "0px";
                 }
 
+                if (typeof Timeline._layerEtherIntervalMarker === "function") {
+                    Timeline._layerEtherIntervalMarker(
+                        label,
+                        this._markerLayer,
+                        this._timeline,
+                        markerTheme,
+                        align
+                    );
+                }
                 this._markerLayer.appendChild(label);
             }
         }

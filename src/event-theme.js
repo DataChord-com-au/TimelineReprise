@@ -171,6 +171,7 @@ const _BUBBLE_FIELDS = new Set([
 ]);
 const _LAYER_FIELDS = new Set([
     'zIndex',
+    'dividerZIndex',
     'labelZIndex'
 ]);
 const _EVENT_THEME_DEFAULTS = Object.freeze({
@@ -257,6 +258,7 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
     },
     layer: {
         zIndex: 5,
+        dividerZIndex: 101,
         labelZIndex: 114
     },
     tagsToIconColor: {},
@@ -433,6 +435,7 @@ class EventTheme {
         this.#assertKnownFields(spec, _LAYER_FIELDS, caller);
 
         this.#assertNumber(spec.zIndex, `${caller}.zIndex`);
+        this.#assertNumber(spec.dividerZIndex, `${caller}.dividerZIndex`);
         this.#assertNumber(spec.labelZIndex, `${caller}.labelZIndex`);
     }
 

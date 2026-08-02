@@ -245,7 +245,11 @@ function makePainterFixture(
     const band = {
         _bandInfo: { intervalMarkers },
         createLayerDiv(zIndex) {
+            const outer = makeElement();
             const layer = makeElement();
+            outer.className = "timeline-band-layer";
+            outer.style.zIndex = String(zIndex);
+            outer.appendChild(layer);
             layer.zIndex = zIndex;
             layers.push(layer);
             return layer;
@@ -295,8 +299,14 @@ function markerTick(label) {
     );
 }
 
+function markerContent(label) {
+    return label.children.find(child =>
+        child.className === "timeline-reprise-date-label-content"
+    );
+}
+
 function labelTexts(layer) {
-    return dateLabels(layer).map(label => label.innerHTML);
+    return dateLabels(layer).map(label => markerContent(label).innerHTML);
 }
 
 function labelOffsets(layer) {
@@ -312,6 +322,8 @@ test("ClassicTheme contains only marker presentation defaults", () => {
     assert.equal(Object.hasOwn(marker, "show"), false);
     assert.equal(marker.hLength, null);
     assert.equal(marker.vLength, "2.5em");
+    assert.equal(marker.tickZIndex, 100);
+    assert.equal(marker.labelZIndex, 102);
 });
 
 test("shared marker defaults do not mutate a supplied native theme", () => {
@@ -362,7 +374,36 @@ test("Gregorian markers render by default with a fixed vertical 2.5em tick", () 
         !label.className.includes("timeline-date-label-em")
     ));
     assert.ok(labels.every(label => !("width" in label.style)));
-    assert.ok(labels.every(label => markerTick(label).style.width === "2.5em"));
+    assert.ok(labels.every(label =>
+        markerTick(label).style.width === "2.5em" &&
+        markerTick(label).style.zIndex === "100" &&
+        markerContent(label).style.zIndex === "102"
+    ));
+    assert.equal(
+        fixture.layer("ether-markers").parentNode.style.zIndex,
+        "auto"
+    );
+});
+
+test("marker tick and label z-index overrides stay independent", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const theme = Timeline.ClassicTheme.create();
+    theme.ether.interval.marker.tickZIndex = 63;
+    theme.ether.interval.marker.labelZIndex = 64;
+    const fixture = makePainterFixture(false, () => ({
+        text: "Independently layered marker",
+        emphasized: false
+    }));
+    const painter = new Timeline.GregorianEtherPainter({ theme, unit: DAY });
+
+    painter.initialize(fixture.band, fixture.timeline);
+    painter.paint();
+
+    const labels = dateLabels(fixture.layer("ether-markers"));
+    assert.ok(labels.every(label =>
+        markerTick(label).style.zIndex === "63" &&
+        markerContent(label).style.zIndex === "64"
+    ));
 });
 
 test("intervalMarkers false retains Gregorian highlights and interval lines", () => {
@@ -598,9 +639,14 @@ test("null marker lengths retain native stylesheet sizing", () => {
 
         assert.ok(labels.length > 0);
         assert.ok(labels.every(label => !(dimension in label.style)));
-        assert.ok(labels.every(label => markerTick(label) === undefined));
+        assert.ok(labels.every(label =>
+            markerTick(label).style[dimension] === "100%"
+        ));
         assert.ok(labels.every(label =>
             !label.className.includes("timeline-reprise-date-label-ticked")
+        ));
+        assert.ok(labels.every(label =>
+            label.className.includes("timeline-reprise-date-label-layered")
         ));
     }
 });
@@ -716,7 +762,7 @@ test("cardinal axes advance scalar values through the injected unit", () => {
     cardinal.paint();
 
     assert.deepEqual(
-        dateLabels(fixture.layer("ether-markers")).map(label => label.innerHTML),
+        labelTexts(fixture.layer("ether-markers")),
         ["1", "3", "5", "7"]
     );
     assert.deepEqual(changes, [
@@ -1398,6 +1444,14 @@ test("Reprise CSS separates tick geometry and aligns vertical labels", () => {
     assert.match(
         css,
         /\.timeline-date-label\.timeline-reprise-date-label-ticked\s*\{[^}]*\bborder-width\s*:\s*0\b[^}]*\bheight\s*:\s*auto\b[^}]*\bwidth\s*:\s*auto\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-date-label\.timeline-reprise-date-label-layered\s*\{[^}]*\bborder-width\s*:\s*0\b/s
+    );
+    assert.match(
+        css,
+        /\.timeline-reprise-date-label-content\s*\{[^}]*\bposition\s*:\s*relative\b/s
     );
     assert.match(
         css,

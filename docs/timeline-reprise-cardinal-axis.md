@@ -275,7 +275,9 @@ Optional marker-theme properties for this cardinal axis.
 ```js
 markerTheme: {
     hLength: "label",
-    vLength: "4em"
+    vLength: "4em",
+    tickZIndex: 100,
+    labelZIndex: 102
 }
 ```
 
@@ -285,6 +287,8 @@ The existing native marker presentation field names are unchanged, including
 supplied `theme` or `markerTheme` object. Lengths control the separate marker
 tick, not the label dimensions; use a CSS length, `"label"` to follow the
 rendered label extent, or `null` for native SIMILE sizing.
+`tickZIndex` and `labelZIndex` independently override the cardinal marker tick
+and label stacking levels.
 
 ### `startDate`
 Projected timeline value where the cardinal axis starts.

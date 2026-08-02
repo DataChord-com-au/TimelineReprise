@@ -89,7 +89,7 @@ function testEventTheme(overrides = {}) {
             vertical: { stickyInset: 2, stickyGap: 4, offset: 0 }
         },
         bubble: { width: 320, maxHeight: null },
-        layer: { zIndex: 5, labelZIndex: 114 },
+        layer: { zIndex: 5, dividerZIndex: 101, labelZIndex: 114 },
         tagsToIconColor: {}
     };
 
@@ -1966,7 +1966,7 @@ function narrativePlacement(records) {
     }));
 }
 
-test("narrative defaults layer spans below markers and instant dividers above markers", () => {
+test("narrative defaults layer dividers between marker ticks and labels", () => {
     const NarrativeDecorator = loadNarrativeDecorator();
     const layers = [];
     const document = {
@@ -2039,6 +2039,23 @@ test("narrative defaults layer spans below markers and instant dividers above ma
     assert.equal(dividerLayer.zIndex, 101);
     assert.equal(spanLayer.children[0].className, "timeline-narrative-span");
     assert.equal(dividerLayer.children[0].className, "timeline-narrative-instant-line");
+});
+
+test("narrative span, divider, and label z-index overrides stay independent", () => {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const decorator = new NarrativeDecorator({
+        eventTheme: {
+            layer: {
+                zIndex: 17,
+                dividerZIndex: 37,
+                labelZIndex: 57
+            }
+        }
+    });
+
+    assert.equal(decorator._zIndex, 17);
+    assert.equal(decorator._dividerZIndex, 37);
+    assert.equal(decorator._labelZIndex, 57);
 });
 
 test("horizontal narrative labels keep their existing themed routing without item track pins", () => {

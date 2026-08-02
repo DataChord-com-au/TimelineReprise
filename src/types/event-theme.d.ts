@@ -82,7 +82,13 @@ declare namespace Timeline {
     }
 
     interface LayerSpec {
+        /** Z-index for Narrative span graphics. */
         zIndex?: number;
+
+        /** Z-index for Narrative instant divider lines. */
+        dividerZIndex?: number;
+
+        /** Z-index for Narrative labels. */
         labelZIndex?: number;
     }
 

@@ -185,6 +185,7 @@ var eventThemes = Timeline.loadEventThemes([{
     },
     layer: {
         zIndex: 5,
+        dividerZIndex: 101,
         labelZIndex: 114
     }
 }]);
@@ -377,16 +378,20 @@ Optional maximum bubble popup height.
 Z-index for span graphics. Defaults to `5`, below date/unit and cardinal-axis
 markers.
 
+### `eventTheme.layer.dividerZIndex`
+Z-index for instant divider lines. Defaults to `101`.
+
 ### `eventTheme.layer.labelZIndex`
-Z-index for narrative labels.
+Z-index for narrative labels. Defaults to `114`.
 
 By default, Narrative instant divider lines render on a separate layer at
-z-index `101`, above the date/unit and cardinal-axis marker layers. Narrative
-spans remain below those marker layers. Narrative labels default to z-index
-`114`, above marker layers but below normal event content. The normal event
-layer passes pointer input through its empty area, so Narrative labels remain
-interactive while tapes, icons, and event labels retain precedence where they
-overlap.
+z-index `101`, above date/unit and cardinal-axis ticks at `100` and below their
+labels at `102`. Narrative spans remain below that marker content. Narrative
+labels default to z-index `114`, above marker labels but below normal event
+content. Each of the span, divider, and Narrative label values is independent;
+changing `zIndex` does not change `dividerZIndex`. The normal event layer passes
+pointer input through its empty area, so Narrative labels remain interactive
+while tapes, icons, and event labels retain precedence where they overlap.
 
 ## Routing
 

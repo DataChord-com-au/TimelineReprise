@@ -1,6 +1,6 @@
 {
   "name": "timeline-reprise",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Extension layer for the SIMILE Timeline 2.3.1 browser widget.",
   "private": true,
   "types": "dist/timeline-reprise.d.ts",

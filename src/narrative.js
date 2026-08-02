@@ -230,11 +230,6 @@ import {
         return value != null && value !== "";
     }
 
-    function hasConfiguredThemePath(theme, path) {
-        return typeof theme?._hasConfigured === "function" &&
-            theme._hasConfigured(path);
-    }
-
     Timeline.NarrativeDecorator = function (params) {
         params = params || {};
         this._eventThemeSelection = params.eventTheme ?? null;
@@ -315,9 +310,12 @@ import {
             "zIndex",
             DEFAULT_NARRATIVE_LAYER_Z_INDEX
         );
-        this._dividerZIndex = hasConfiguredThemePath(eventTheme, "layer.zIndex")
-            ? this._zIndex
-            : DEFAULT_NARRATIVE_DIVIDER_Z_INDEX;
+        this._dividerZIndex = themedFinite(
+            {},
+            layerTheme,
+            "dividerZIndex",
+            DEFAULT_NARRATIVE_DIVIDER_Z_INDEX
+        );
         this._labelZIndex = themedFinite(
             {},
             layerTheme,
