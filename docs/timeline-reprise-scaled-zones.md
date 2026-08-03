@@ -102,7 +102,7 @@ Common band options:
 - `width`
 - `intervalUnit`
 - `intervalPixels`
-- `eventTheme`
+- `visualTheme`
 - `scaledZones`
 
 ## Example

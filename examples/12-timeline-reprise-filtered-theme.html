@@ -26,7 +26,7 @@
 <body>
   <h1>SIMILE Timeline Reprise: Filtered Theme Data</h1>
   <p>
-    This example loads event theme configuration from JSON, filters a larger
+    This example loads visual theme configuration from JSON, filters a larger
     event set by tags, then renders the filtered result.
   </p>
 
@@ -42,7 +42,7 @@
   },
   "bandSet": {
     "initialDate": "2020-03-15",
-    "eventTheme": "delivery",
+    "visualTheme": "delivery",
     "syncTarget": "main",
     "highlight": "overview",
     "bands": [
@@ -78,7 +78,7 @@
       "iconColor": "green"
     }
   ],
-  "eventThemes": [
+  "visualThemes": [
     {
       "id": "delivery",
       "labels": true,
@@ -234,7 +234,7 @@
   <script>
     var config = JSON.parse(document.getElementById("timeline-config").textContent);
     config.bandSet.emphasisSpecs = Timeline.loadEmphasisStyles(config.emphasisStyles);
-    Timeline.loadEventThemes(config.eventThemes);
+    Timeline.loadVisualThemes(config.visualThemes);
     var filteredEvents = Timeline.filterEvents(config.events, config.filter);
     var bandSet = Timeline.createBandSet(config.bandSet);
 
@@ -252,7 +252,7 @@
 
     document.getElementById("summary").textContent =
       "Showing " + filteredEvents.length + " of " + config.events.length +
-      " events using theme `" + config.bandSet.eventTheme + "`.";
+      " events using theme `" + config.bandSet.visualTheme + "`.";
   </script>
 </body>
 </html>

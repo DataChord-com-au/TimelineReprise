@@ -12,28 +12,37 @@
     --timeline-reprise-band-bg-5: #1e1e1e;
   }
 
-  .timeline-reprise-band-tone-1 .timeline-ether-bg {
+  .timeline-reprise-band-tone-1 .timeline-ether-bg,
+  .timeline-band-0 .timeline-ether-bg {
       background-color: var(--timeline-band-background-color, var(--timeline-reprise-band-bg-1));
   }
 
-  .timeline-reprise-band-tone-2 .timeline-ether-bg {
+  .timeline-reprise-band-tone-2 .timeline-ether-bg,
+  .timeline-band-1 .timeline-ether-bg {
       background-color: var(--timeline-band-background-color, var(--timeline-reprise-band-bg-2));
   }
 
-  .timeline-reprise-band-tone-3 .timeline-ether-bg {
+  .timeline-reprise-band-tone-3 .timeline-ether-bg,
+  .timeline-band-2 .timeline-ether-bg {
       background-color: var(--timeline-band-background-color, var(--timeline-reprise-band-bg-3));
   }
 
-  .timeline-reprise-band-tone-4 .timeline-ether-bg {
+  .timeline-reprise-band-tone-4 .timeline-ether-bg,
+  .timeline-band-3 .timeline-ether-bg {
       background-color: var(--timeline-band-background-color, var(--timeline-reprise-band-bg-4));
   }
 
-  .timeline-reprise-band-tone-5 .timeline-ether-bg {
+  .timeline-reprise-band-tone-5 .timeline-ether-bg,
+  .timeline-band-4 .timeline-ether-bg {
       background-color: var(--timeline-band-background-color, var(--timeline-reprise-band-bg-5));
   }
   
   .timeline-ether-highlight {
     background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .timeline-ether-lines {
+    border-color: #ccc;
   }
 
   .timeline-highlight-decorator {

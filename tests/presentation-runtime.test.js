@@ -182,9 +182,9 @@ function makeDocument() {
     return doc;
 }
 
-function makeNativeTheme(eventTheme) {
+function makeNativeTheme(visualTheme) {
     return {
-        eventTheme,
+        visualTheme,
         event: {
             track: {},
             tape: {},
@@ -205,11 +205,11 @@ function makeNativeTheme(eventTheme) {
     };
 }
 
-function paintNarrative(Timeline, runtime, ranges, instants, eventThemeConfig = {}) {
+function paintNarrative(Timeline, runtime, ranges, instants, visualThemeConfig = {}) {
     const doc = makeDocument();
     const layers = [];
-    const eventTheme = new Timeline.EventTheme(eventThemeConfig);
-    const nativeTheme = makeNativeTheme(eventTheme);
+    const visualTheme = new Timeline.VisualTheme(visualThemeConfig);
+    const nativeTheme = makeNativeTheme(visualTheme);
     const unit = runtime.unit;
     const band = {
         _theme: nativeTheme,
@@ -782,7 +782,7 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
             }
         }
     });
-    const eventTheme = new Timeline.EventTheme({ presentation: profile });
+    const visualTheme = new Timeline.VisualTheme({ presentation: profile });
     const event = { start: 0, end: 12, title: "Release" };
     const eventTime = runtime.readEventTime(event);
     const template = profile.resolveTemplate("title", {
@@ -792,7 +792,7 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
     const context = {
         field: "title",
         eventTime,
-        eventTheme,
+        visualTheme,
         displayProfile: profile,
         surface: "label"
     };
@@ -855,7 +855,7 @@ test("TemplateRenderer validates and delegates formatted domain selectors", () =
             field: "title",
             target: "text",
             eventTime,
-            eventTheme: new Timeline.EventTheme({ presentation: profile }),
+            visualTheme: new Timeline.VisualTheme({ presentation: profile }),
             displayProfile: profile,
             surface: "label"
         }),
@@ -908,7 +908,7 @@ test("default Reprise rendering templates work for Ma without a domain adapter",
                 field: "bubbleDuration",
                 target: "html",
                 eventTime,
-                eventTheme: new Timeline.EventTheme({
+                visualTheme: new Timeline.VisualTheme({
                     presentation: profile
                 }),
                 displayProfile: profile,
@@ -929,7 +929,7 @@ test("an injected renderer replaces default rendering and receives the complete 
             title: "custom-title"
         }
     });
-    const eventTheme = new Timeline.EventTheme({
+    const visualTheme = new Timeline.VisualTheme({
         presentation: displayProfile
     });
     const calls = [];
@@ -947,7 +947,7 @@ test("an injected renderer replaces default rendering and receives the complete 
         field: "title",
         target: "html",
         eventTime,
-        eventTheme
+        visualTheme
     });
 
     assert.equal(result, "<strong>Injected</strong>");
@@ -956,7 +956,7 @@ test("an injected renderer replaces default rendering and receives the complete 
     assert.equal(calls[0].context.field, "title");
     assert.equal(calls[0].context.target, "html");
     assert.equal(calls[0].context.eventTime, eventTime);
-    assert.equal(calls[0].context.eventTheme, eventTheme);
+    assert.equal(calls[0].context.visualTheme, visualTheme);
     assert.equal(calls[0].context.displayProfile, undefined);
     assert.equal(calls[0].context.unit, unit);
     assert.equal(calls[0].context.labeller, labeller);
@@ -1141,8 +1141,8 @@ test("DisplayProfile-only structured bubble fields select the table layout", () 
             bubbleElapsed: "Profile elapsed"
         }
     });
-    const eventTheme = new Timeline.EventTheme({ presentation: profile });
-    const nativeTheme = makeNativeTheme(eventTheme);
+    const visualTheme = new Timeline.VisualTheme({ presentation: profile });
+    const nativeTheme = makeNativeTheme(visualTheme);
     const painter = new Timeline.OriginalEventPainter({
         theme: nativeTheme,
         runtime
@@ -1216,8 +1216,8 @@ test("Reprise image bubble stays above the title and retains structured content"
                 );
         }
     });
-    const eventTheme = new Timeline.EventTheme();
-    const nativeTheme = makeNativeTheme(eventTheme);
+    const visualTheme = new Timeline.VisualTheme();
+    const nativeTheme = makeNativeTheme(visualTheme);
     nativeTheme.event.bubble.imageStyler = element => {
         styledImage = element;
         element.className = "timeline-event-bubble-image";
@@ -1415,8 +1415,8 @@ test("bubbles without images do not add an image container or run imageStyler", 
         unit,
         labeller: unit.createLabeller()
     });
-    const eventTheme = new Timeline.EventTheme();
-    const nativeTheme = makeNativeTheme(eventTheme);
+    const visualTheme = new Timeline.VisualTheme();
+    const nativeTheme = makeNativeTheme(visualTheme);
     let imageStylerCalls = 0;
     nativeTheme.event.bubble.imageStyler = () => {
         imageStylerCalls += 1;

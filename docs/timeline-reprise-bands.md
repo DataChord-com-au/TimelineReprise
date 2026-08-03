@@ -11,7 +11,7 @@ var bandSet = Timeline.createBandSet({
         start: "2024-01-01",
         end: "2028-01-01"
     },
-    eventTheme: "events",
+    visualTheme: "events",
     syncTarget: "main",
     highlight: "overview",
     bands: [
@@ -104,22 +104,27 @@ Common fields:
 - `intervalUnit` and `intervalPixels` for native date bands
 - `interval` and `intervalPixels` for scalar or wrapper-unit bands
 - `unit`, `labeller`, or an injected `runtime`
-- `eventTheme`
+- `visualTheme`
 - `etherTheme`
 - `intervalMarkers`
+- `intervalLines`
 - `markerAlign`
 - `emphasisSpecs`
 - `backgroundColor`
 - `overview` or `layout`
 - `scaledZones`
 
-`eventTheme` is a registered EventTheme id or `Timeline.EventTheme` instance.
+`visualTheme` is a registered VisualTheme id or `Timeline.VisualTheme` instance.
 `etherTheme` contains native ether overrides, but Reprise creates and owns the
 native theme carrying them.
 
 `intervalMarkers` is a boolean controlling the band's normal unit-marker
 labels. It defaults to `true`. Set it on `createBandSet()` as a shared default
 or override it on one entry in `bands`.
+
+`intervalLines` controls the ether grid lines spanning the band. It defaults
+to `false`. Like the other interval settings, it can be a band-set default or
+a per-band override. Reprise maps it to the native ether theme internally.
 
 `markerAlign` controls which band edge receives the band's normal date or unit
 markers. It accepts `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`. This is band
@@ -129,7 +134,7 @@ behavior; marker dimensions such as `hLength` and `vLength` remain in
 Vertical bands default to right-aligned markers. When a vertical band uses
 `markerAlign: "Left"`, Reprise gives event and overview tracks a larger default
 cross-axis offset so normal markers have room. Set
-`eventTheme.track.vertical.offset` when a band needs a different clearance.
+`visualTheme.track.vertical.offset` when a band needs a different clearance.
 
 In dark mode, Reprise cycles five default band background tones across every
 band. Override the cycle per timeline with CSS custom properties:

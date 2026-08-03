@@ -80,9 +80,9 @@ function loadTimeline() {
     return Timeline;
 }
 
-test("object literals load as EventTheme instances", () => {
+test("object literals load as VisualTheme instances", () => {
     const Timeline = loadTimeline();
-    const themes = Timeline.loadEventThemes([
+    const themes = Timeline.loadVisualThemes([
         {
             id: "editorial",
             labels: false,
@@ -90,26 +90,35 @@ test("object literals load as EventTheme instances", () => {
         }
     ]);
 
-    assert.ok(themes.editorial instanceof Timeline.EventTheme);
+    assert.ok(themes.editorial instanceof Timeline.VisualTheme);
     assert.equal(themes.editorial.labels, false);
     assert.equal(themes.editorial.instant.iconColor, "orange");
 });
 
-test("EventTheme validates tooltips and enables them by default", () => {
+test("VisualTheme validates tooltips and enables them by default", () => {
     const Timeline = loadTimeline();
 
-    assert.equal(new Timeline.EventTheme().tooltips, true);
-    assert.equal(new Timeline.EventTheme({ tooltips: false }).tooltips, false);
+    assert.equal(new Timeline.VisualTheme().tooltips, true);
+    assert.equal(new Timeline.VisualTheme({ tooltips: false }).tooltips, false);
     assert.throws(
-        () => new Timeline.EventTheme({ tooltips: "false" }),
+        () => new Timeline.VisualTheme({ tooltips: "false" }),
         /tooltips must be a boolean/
     );
 });
 
-test("EventTheme layer z-index controls are independent", () => {
+test("interval line visibility belongs to band construction", () => {
     const Timeline = loadTimeline();
-    const spanOnly = new Timeline.EventTheme({ layer: { zIndex: 25 } });
-    const theme = new Timeline.EventTheme({
+
+    assert.throws(
+        () => new Timeline.VisualTheme({ intervalLines: true }),
+        /intervalLines is not a supported visual theme field/
+    );
+});
+
+test("VisualTheme layer z-index controls are independent", () => {
+    const Timeline = loadTimeline();
+    const spanOnly = new Timeline.VisualTheme({ layer: { zIndex: 25 } });
+    const theme = new Timeline.VisualTheme({
         layer: {
             zIndex: 15,
             dividerZIndex: 35,
@@ -123,55 +132,55 @@ test("EventTheme layer z-index controls are independent", () => {
     assert.equal(theme.layer.dividerZIndex, 35);
     assert.equal(theme.layer.labelZIndex, 55);
     assert.throws(
-        () => new Timeline.EventTheme({
+        () => new Timeline.VisualTheme({
             layer: { dividerZIndex: "35" }
         }),
         /dividerZIndex must be a finite number/
     );
 });
 
-test("resolver supports named and explicit EventTheme selections", () => {
+test("resolver supports named and explicit VisualTheme selections", () => {
     const Timeline = loadTimeline();
-    const themes = Timeline.loadEventThemes([{ id: "named", spans: false }]);
-    const instance = new Timeline.EventTheme({ dividers: false });
+    const themes = Timeline.loadVisualThemes([{ id: "named", spans: false }]);
+    const instance = new Timeline.VisualTheme({ dividers: false });
     const namedNativeTheme = {};
     const instanceNativeTheme = {};
 
     assert.equal(
-        Timeline.resolveEventTheme("named", namedNativeTheme),
+        Timeline.resolveVisualTheme("named", namedNativeTheme),
         themes.named
     );
-    assert.equal(namedNativeTheme.eventTheme, undefined);
+    assert.equal(namedNativeTheme.visualTheme, undefined);
     assert.equal(
-        Timeline.resolveEventTheme(instance, instanceNativeTheme),
+        Timeline.resolveVisualTheme(instance, instanceNativeTheme),
         instance
     );
-    assert.equal(instanceNativeTheme.eventTheme, undefined);
+    assert.equal(instanceNativeTheme.visualTheme, undefined);
     assert.throws(
-        () => Timeline.resolveEventTheme({ labels: false }),
-        /must be an EventTheme or registered theme id/
+        () => Timeline.resolveVisualTheme({ labels: false }),
+        /must be a VisualTheme or registered theme id/
     );
 });
 
-test("band composition attaches an explicit resolved EventTheme", () => {
+test("band composition attaches an explicit resolved VisualTheme", () => {
     const Timeline = loadTimeline();
-    const themes = Timeline.loadEventThemes([{ id: "named", spans: false }]);
+    const themes = Timeline.loadVisualThemes([{ id: "named", spans: false }]);
     const namedNativeTheme = {};
-    const instance = new Timeline.EventTheme({ dividers: false });
+    const instance = new Timeline.VisualTheme({ dividers: false });
     const instanceNativeTheme = {};
 
     assert.equal(
-        Timeline.composeEventTheme(namedNativeTheme, "named"),
+        Timeline.composeVisualTheme(namedNativeTheme, "named"),
         themes.named
     );
-    assert.equal(namedNativeTheme.eventTheme, themes.named);
+    assert.equal(namedNativeTheme.visualTheme, themes.named);
     assert.equal(
-        Timeline.composeEventTheme(instanceNativeTheme, instance),
+        Timeline.composeVisualTheme(instanceNativeTheme, instance),
         instance
     );
-    assert.equal(instanceNativeTheme.eventTheme, instance);
+    assert.equal(instanceNativeTheme.visualTheme, instance);
     assert.throws(
-        () => Timeline.composeEventTheme(null, "named"),
+        () => Timeline.composeVisualTheme(null, "named"),
         /nativeTheme.*must be an object/
     );
 });
@@ -180,13 +189,13 @@ test("superseded duplicate theme paths are rejected", () => {
     const Timeline = loadTimeline();
 
     assert.throws(
-        () => new Timeline.EventTheme({
+        () => new Timeline.VisualTheme({
             bubble: { enabled: true }
         }),
         /bubble\.enabled is not supported/
     );
     assert.throws(
-        () => new Timeline.EventTheme({
+        () => new Timeline.VisualTheme({
             track: { horizontal: { height: 20 } }
         }),
         /track\.horizontal\.height is not supported/
@@ -197,26 +206,26 @@ test("resolver converts and attaches the band native-theme fallback", () => {
     const Timeline = loadTimeline();
     const nativeTheme = {
         event: { track: {}, tape: {}, instant: {}, label: {}, bubble: {} },
-        eventTheme: {
+        visualTheme: {
             id: "band",
             range: { width: 7 }
         }
     };
-    const resolved = Timeline.resolveEventTheme(null, nativeTheme);
+    const resolved = Timeline.resolveVisualTheme(null, nativeTheme);
 
-    assert.ok(resolved instanceof Timeline.EventTheme);
+    assert.ok(resolved instanceof Timeline.VisualTheme);
     assert.equal(resolved.id, "band");
     assert.equal(resolved.range.width, 7);
-    assert.equal(nativeTheme.eventTheme, resolved);
+    assert.equal(nativeTheme.visualTheme, resolved);
 });
 
 test("resolver attaches the defined Reprise default to a native band theme", () => {
     const Timeline = loadTimeline();
     const nativeTheme = {};
-    const resolved = Timeline.resolveEventTheme(null, nativeTheme);
+    const resolved = Timeline.resolveVisualTheme(null, nativeTheme);
 
-    assert.equal(resolved, Timeline.defaultEventTheme);
-    assert.equal(nativeTheme.eventTheme, Timeline.defaultEventTheme);
+    assert.equal(resolved, Timeline.defaultVisualTheme);
+    assert.equal(nativeTheme.visualTheme, Timeline.defaultVisualTheme);
     assert.equal(resolved.range.width, 4);
     assert.equal(resolved.range.size, undefined);
     assert.equal(resolved.layer.zIndex, 5);
@@ -224,11 +233,11 @@ test("resolver attaches the defined Reprise default to a native band theme", () 
     assert.equal(resolved.layer.labelZIndex, 114);
 });
 
-test("event painters and Narrative receive the same resolved EventTheme shape", () => {
+test("event painters and Narrative receive the same resolved VisualTheme shape", () => {
     const Timeline = loadTimeline();
     const nativeTheme = {
         event: { track: {}, tape: {}, instant: {}, label: {}, bubble: {} },
-        eventTheme: {
+        visualTheme: {
             id: "shared",
             labels: false,
             track: {
@@ -257,9 +266,9 @@ test("event painters and Narrative receive the same resolved EventTheme shape", 
     overview.initialize(band, timeline);
     narrative.initialize(band, timeline);
 
-    assert.ok(painter._eventTheme instanceof Timeline.EventTheme);
-    assert.equal(overview._eventTheme, painter._eventTheme);
-    assert.equal(narrative._eventTheme, painter._eventTheme);
+    assert.ok(painter._visualTheme instanceof Timeline.VisualTheme);
+    assert.equal(overview._visualTheme, painter._visualTheme);
+    assert.equal(narrative._visualTheme, painter._visualTheme);
     assert.equal(narrative._labels, false);
     assert.equal(narrative._trackCount, 2);
     assert.equal(narrative._trackOffset, 8);
@@ -278,7 +287,7 @@ test("overview geometry separates instant ticks from tapes with track gap", () =
             },
             duration: { color: "gray" }
         },
-        eventTheme: {
+        visualTheme: {
             track: {
                 horizontal: {
                     offset: 12,
@@ -405,7 +414,7 @@ function captureVerticalOriginalMetrics(Timeline, {
             label: {},
             duration: { color: "gray" }
         },
-        eventTheme: {
+        visualTheme: {
             track,
             instant: {
                 width: 10,
@@ -482,7 +491,7 @@ function captureVerticalOverviewMetrics(Timeline, {
             },
             duration: { color: "gray" }
         },
-        eventTheme: {
+        visualTheme: {
             track,
             instant: {
                 tickWidth: 11,
@@ -586,7 +595,7 @@ test("overview uses standard event colours and eventColorScope", () => {
             },
             duration: { color: "native-range" }
         },
-        eventTheme: {
+        visualTheme: {
             eventColorScope: "graphic",
             instant: {
                 tickWidth: 6,
@@ -665,7 +674,7 @@ test("overview uses standard event colours and eventColorScope", () => {
     );
 });
 
-test("EventTheme selects a registered validated DisplayProfile", () => {
+test("VisualTheme selects a registered validated DisplayProfile", () => {
     const Timeline = loadTimeline();
     const profiles = Timeline.loadDisplayProfiles([
         {
@@ -683,13 +692,13 @@ test("EventTheme selects a registered validated DisplayProfile", () => {
             }
         }
     ]);
-    const themes = Timeline.loadEventThemes([
+    const themes = Timeline.loadVisualThemes([
         {
             id: "editorial",
             presentation: "editorialDisplay"
         }
     ]);
-    const resolved = Timeline.resolveEventTheme("editorial");
+    const resolved = Timeline.resolveVisualTheme("editorial");
 
     assert.equal(resolved, themes.editorial);
     assert.equal(
@@ -717,7 +726,7 @@ test("DisplayProfile registry rejects invalid selections and duplicate ids", () 
         /unknown DisplayProfile: missingDisplay/
     );
     assert.throws(
-        () => Timeline.loadEventThemes([
+        () => Timeline.loadVisualThemes([
             { id: "missingProfileTheme", presentation: "missingDisplay" }
         ]),
         /unknown DisplayProfile: missingDisplay/
@@ -759,14 +768,14 @@ test("DisplayProfile validates surfaces, fields, shapes, and templates", () => {
     );
 });
 
-test("EventTheme presentation accepts only DisplayProfile selections", () => {
+test("VisualTheme presentation accepts only DisplayProfile selections", () => {
     const Timeline = loadTimeline();
     const profile = new Timeline.DisplayProfile({
         id: "directDisplay",
         label: { title: "{title}" }
     });
-    const theme = new Timeline.EventTheme({ presentation: profile });
-    const derived = Timeline.deriveEventTheme(theme, {
+    const theme = new Timeline.VisualTheme({ presentation: profile });
+    const derived = Timeline.deriveVisualTheme(theme, {
         id: "derivedDisplayTheme",
         labels: false
     });
@@ -774,7 +783,7 @@ test("EventTheme presentation accepts only DisplayProfile selections", () => {
     assert.equal(theme.presentation, profile);
     assert.equal(derived.presentation, profile);
     assert.throws(
-        () => new Timeline.EventTheme({
+        () => new Timeline.VisualTheme({
             presentation: {
                 title: { template: "{title}" }
             }
@@ -782,23 +791,23 @@ test("EventTheme presentation accepts only DisplayProfile selections", () => {
         /presentation must be a DisplayProfile or registered profile id/
     );
     assert.throws(
-        () => new Timeline.EventTheme({
+        () => new Timeline.VisualTheme({
             range: { template: "{duration}" }
         }),
         /range\.template is not supported/
     );
 });
 
-test("EventTheme derivation deep-merges and returns a validated EventTheme", () => {
+test("VisualTheme derivation deep-merges and returns a validated VisualTheme", () => {
     const Timeline = loadTimeline();
-    const base = new Timeline.EventTheme({
+    const base = new Timeline.VisualTheme({
         track: { horizontal: { count: 3, offset: 10 } }
     });
-    const derived = Timeline.deriveEventTheme(base, {
+    const derived = Timeline.deriveVisualTheme(base, {
         track: { horizontal: { offset: 20 } }
     });
 
-    assert.ok(derived instanceof Timeline.EventTheme);
+    assert.ok(derived instanceof Timeline.VisualTheme);
     assert.notEqual(derived, base);
     assert.equal(derived.track.horizontal.count, 3);
     assert.equal(derived.track.horizontal.offset, 20);

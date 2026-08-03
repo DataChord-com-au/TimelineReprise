@@ -69,7 +69,7 @@ declare namespace Timeline {
         readonly field: string;
         readonly target: RenderTarget;
         readonly eventTime: CanonicalEventTime<T> | null;
-        readonly eventTheme: EventTheme;
+        readonly visualTheme: VisualTheme;
         readonly displayProfile?: DisplayProfile | null;
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
@@ -84,7 +84,7 @@ declare namespace Timeline {
         field: string;
         target?: RenderTarget;
         eventTime?: CanonicalEventTime<T> | null;
-        eventTheme?: EventTheme;
+        visualTheme?: VisualTheme;
         displayProfile?: DisplayProfile | null;
         intervalUnit?: number;
         surface?: string;

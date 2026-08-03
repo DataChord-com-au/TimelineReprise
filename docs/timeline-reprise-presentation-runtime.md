@@ -216,7 +216,7 @@ The complete render context is:
     field: "title",
     target: "text", // or "html"
     eventTime: runtime.readEventTime(event),
-    eventTheme: resolvedEventTheme,
+    visualTheme: resolvedVisualTheme,
     displayProfile: resolvedDisplayProfile,
     unit: runtime.unit,
     labeller: runtime.labeller,

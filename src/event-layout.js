@@ -143,8 +143,8 @@ import {
         return null;
     }
 
-    function getEventEmphasisSpec(evt, theme, eventTheme) {
-        if (eventTheme.disableEmphasis) return null;
+    function getEventEmphasisSpec(evt, theme, visualTheme) {
+        if (visualTheme.disableEmphasis) return null;
 
         const key = stringValue(getEventProperty(evt, "emphasis"));
         if (key == null) return null;
@@ -155,15 +155,15 @@ import {
         return isObject(spec) ? spec : null;
     }
 
-    function getEmphasisValue(evt, theme, eventTheme, names) {
-        return objectValue(getEventEmphasisSpec(evt, theme, eventTheme), names);
+    function getEmphasisValue(evt, theme, visualTheme, names) {
+        return objectValue(getEventEmphasisSpec(evt, theme, visualTheme), names);
     }
 
-    function getEmphasisColor(evt, theme, eventTheme, names) {
+    function getEmphasisColor(evt, theme, visualTheme, names) {
         const value = getEmphasisValue(
             evt,
             theme,
-            eventTheme,
+            visualTheme,
             [...(Array.isArray(names) ? names : [names]), "color"]
         );
         if (!value.found) return null;
@@ -172,24 +172,24 @@ import {
         return color != null ? resolveCssColor(color) || color : null;
     }
 
-    function labelsEnabled(evt, theme, eventTheme) {
-        const emphasisValue = getEmphasisValue(evt, theme, eventTheme, "labels");
+    function labelsEnabled(evt, theme, visualTheme) {
+        const emphasisValue = getEmphasisValue(evt, theme, visualTheme, "labels");
         if (emphasisValue.found) return enabledValue(emphasisValue.value, true);
 
         const eventValue = getEventProperty(evt, "labels");
         if (eventValue != null) return enabledValue(eventValue, true);
 
-        return eventTheme.labels;
+        return visualTheme.labels;
     }
 
-    function bubblesEnabled(evt, theme, eventTheme) {
-        const emphasisValue = getEmphasisValue(evt, theme, eventTheme, "bubbles");
+    function bubblesEnabled(evt, theme, visualTheme) {
+        const emphasisValue = getEmphasisValue(evt, theme, visualTheme, "bubbles");
         if (emphasisValue.found) return enabledValue(emphasisValue.value, true);
 
         const eventValue = getEventProperty(evt, "bubbles");
         if (eventValue != null) return enabledValue(eventValue, true);
 
-        return eventTheme.bubbles;
+        return visualTheme.bubbles;
     }
 
     function normalizeEventColorScope(value, fallback) {
@@ -205,11 +205,11 @@ import {
             : fallback;
     }
 
-    function getEventColorScope(evt, eventTheme) {
+    function getEventColorScope(evt, visualTheme) {
         return normalizeEventColorScope(
             getEventProperty(evt, "eventColorScope") ??
-                eventTheme.eventColorScope,
-            eventTheme.eventColorScope
+                visualTheme.eventColorScope,
+            visualTheme.eventColorScope
         );
     }
 
@@ -223,16 +223,16 @@ import {
             stringValue(getEventProperty(evt, "textColor"));
     }
 
-    function getEventLabelColor(evt, theme, eventTheme) {
+    function getEventLabelColor(evt, theme, visualTheme) {
         const emphasisColor = getEmphasisColor(
             evt,
             theme,
-            eventTheme,
+            visualTheme,
             "labelColor"
         );
         if (emphasisColor != null) return emphasisColor;
 
-        const scope = getEventColorScope(evt, eventTheme);
+        const scope = getEventColorScope(evt, visualTheme);
         if (scope !== "label" && scope !== "both") return null;
 
         const explicit = getExplicitLabelColor(evt);
@@ -244,11 +244,11 @@ import {
             : null;
     }
 
-    function getEventInstantIconColor(evt, theme, eventTheme) {
-        const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "iconColor");
+    function getEventInstantIconColor(evt, theme, visualTheme) {
+        const emphasisColor = getEmphasisColor(evt, theme, visualTheme, "iconColor");
         if (emphasisColor != null) return emphasisColor;
 
-        const scope = getEventColorScope(evt, eventTheme);
+        const scope = getEventColorScope(evt, visualTheme);
         if (scope === "graphic" || scope === "both") {
             const iconColor = stringValue(getEventProperty(evt, "iconColor"));
             if (iconColor != null) return resolveCssColor(iconColor) || iconColor;
@@ -264,13 +264,13 @@ import {
         // still replace it deliberately.
         if (stringValue(evt?.getIcon?.()) != null) return null;
 
-        return stringValue(eventTheme.instant.iconColor) ||
+        return stringValue(visualTheme.instant.iconColor) ||
             resolveCssColor(DEFAULT_INSTANT_ICON_COLOR) ||
             DEFAULT_INSTANT_ICON_COLOR;
     }
 
-    function getEventWithThemeIcon(evt, theme, eventTheme, metrics) {
-        const color = getEventInstantIconColor(evt, theme, eventTheme);
+    function getEventWithThemeIcon(evt, theme, visualTheme, metrics) {
+        const color = getEventInstantIconColor(evt, theme, visualTheme);
         if (color == null || typeof Timeline.ThemeIcons?.get !== "function") return evt;
 
         const width = positiveOr(metrics?.iconWidth, DEFAULT_INSTANT_ICON_SIZE);
@@ -316,16 +316,16 @@ import {
             : value;
     }
 
-    function resolvePainterEventTheme(painter, band) {
+    function resolvePainterVisualTheme(painter, band) {
         const nativeTheme = band?._theme || painter._params?.theme || null;
-        const eventTheme = Timeline.resolveEventTheme(
-            painter._params?.eventTheme ?? null,
+        const visualTheme = Timeline.resolveVisualTheme(
+            painter._params?.visualTheme ?? null,
             nativeTheme
         );
 
         painter._nativeTheme = nativeTheme;
-        painter._eventTheme = eventTheme;
-        return eventTheme;
+        painter._visualTheme = visualTheme;
+        return visualTheme;
     }
 
     function resolvePainterRuntime(painter, band, timeline) {
@@ -342,8 +342,8 @@ import {
         return runtime;
     }
 
-    function getPainterEventTheme(painter, evt) {
-        return getAttachedEventContext(evt)?.eventTheme ?? painter._eventTheme;
+    function getPainterVisualTheme(painter, evt) {
+        return getAttachedEventContext(evt)?.visualTheme ?? painter._visualTheme;
     }
 
     function ensureTapeSparklineStyles(doc) {
@@ -375,14 +375,14 @@ import {
     }
 
     function isConfiguredTrackOffset(painter) {
-        const eventTheme = painter._eventTheme;
+        const visualTheme = painter._visualTheme;
         const orientation = getOrientation(painter._timeline);
 
-        return typeof eventTheme?._hasConfigured === "function" &&
+        return typeof visualTheme?._hasConfigured === "function" &&
             (
-                eventTheme._hasConfigured("track.offset") ||
+                visualTheme._hasConfigured("track.offset") ||
                 (orientation != null &&
-                    eventTheme._hasConfigured(`track.${orientation}.offset`))
+                    visualTheme._hasConfigured(`track.${orientation}.offset`))
             );
     }
 
@@ -429,24 +429,24 @@ import {
 
     function getTapeSpec(painter) {
         return getOrientationSpec(
-            painter._eventTheme?.range,
+            painter._visualTheme?.range,
             painter._timeline
         ) || {};
     }
 
     function getInstantSpec(painter) {
         return getOrientationSpec(
-            painter._eventTheme?.instant,
+            painter._visualTheme?.instant,
             painter._timeline
         ) || {};
     }
 
     function getShortTapeSpec(painter) {
-        return painter._eventTheme?.range?.short || {};
+        return painter._visualTheme?.range?.short || {};
     }
 
     function getRangeWidth(painter) {
-        return positiveOr(painter._eventTheme?.range?.width, 4);
+        return positiveOr(painter._visualTheme?.range?.width, 4);
     }
 
     function getTapeLaneGap(painter, metrics) {
@@ -516,14 +516,14 @@ import {
     }
 
     function getOriginalPainterMetrics(painter) {
-        const nativeEventTheme = painter._params?.theme?.event || {};
-        const nativeTrack = nativeEventTheme.track || {};
-        const nativeInstant = nativeEventTheme.instant || {};
+        const nativeEventSpec = painter._params?.theme?.event || {};
+        const nativeTrack = nativeEventSpec.track || {};
+        const nativeInstant = nativeEventSpec.instant || {};
         const track = getOrientationSpec(
-            painter._eventTheme?.track,
+            painter._visualTheme?.track,
             painter._timeline
         ) || {};
-        const instant = painter._eventTheme?.instant || {};
+        const instant = painter._visualTheme?.instant || {};
         const lineHeight = positiveOr(painter._frc?.getLineHeight?.(), 12);
         const trackHeight = Math.max(
             positiveOr(track.size, positiveOr(nativeTrack.height, 10)),
@@ -546,8 +546,8 @@ import {
                 instant.height,
                 positiveOr(instant.width, positiveOr(nativeInstant.iconHeight, DEFAULT_INSTANT_ICON_SIZE))
             ),
-            labelWidth: nativeEventTheme.label?.width,
-            maxLabelChar: nativeEventTheme.label?.maxLabelChar,
+            labelWidth: nativeEventSpec.label?.width,
+            maxLabelChar: nativeEventSpec.label?.maxLabelChar,
             impreciseIconMargin: nativeInstant.impreciseIconMargin
         };
     }
@@ -888,11 +888,11 @@ import {
         }
     }
 
-    function getEventTapeColor(evt, fallback, theme, eventTheme) {
-        const emphasisColor = getEmphasisColor(evt, theme, eventTheme, "iconColor");
+    function getEventTapeColor(evt, fallback, theme, visualTheme) {
+        const emphasisColor = getEmphasisColor(evt, theme, visualTheme, "iconColor");
         if (emphasisColor != null) return emphasisColor;
 
-        const scope = getEventColorScope(evt, eventTheme);
+        const scope = getEventColorScope(evt, visualTheme);
         if (scope === "graphic" || scope === "both") {
             const tapeColor = stringValue(getEventProperty(evt, "tapeColor"));
             if (tapeColor != null) return resolveCssColor(tapeColor) || tapeColor;
@@ -903,7 +903,7 @@ import {
             }
         }
 
-        return resolveCssColor(eventTheme.range.iconColor) ||
+        return resolveCssColor(visualTheme.range.iconColor) ||
             getDefaultGraphicColor(evt, theme, fallback);
     }
 
@@ -1737,7 +1737,7 @@ import {
 
     proto.initialize = function (band, timeline) {
         const result = originalInitialize.apply(this, arguments);
-        resolvePainterEventTheme(this, band);
+        resolvePainterVisualTheme(this, band);
         resolvePainterRuntime(this, band, timeline);
         return result;
     };
@@ -1864,9 +1864,9 @@ import {
     proto._paintEventIcon = function (evt, iconTrack, left, metrics, theme, tapeHeight) {
         this._repriseMetrics = metrics;
         const paintArguments = Array.from(arguments);
-        const eventTheme = getPainterEventTheme(this, evt);
+        const visualTheme = getPainterVisualTheme(this, evt);
         paintArguments[0] = evt?.isInstant?.()
-            ? getEventWithThemeIcon(evt, theme, eventTheme, metrics)
+            ? getEventWithThemeIcon(evt, theme, visualTheme, metrics)
             : evt;
         const data = originalPaintIcon.apply(this, paintArguments);
         makeEventContentInteractive(data, EVENT_GRAPHIC_Z_INDEX);
@@ -1903,8 +1903,8 @@ import {
         evt, iconTrack, startPixel, endPixel, color, opacity, metrics, theme, tapeIndex
     ) {
         this._repriseMetrics = metrics;
-        const eventTheme = getPainterEventTheme(this, evt);
-        const tapeColor = getEventTapeColor(evt, color, theme, eventTheme);
+        const visualTheme = getPainterVisualTheme(this, evt);
+        const tapeColor = getEventTapeColor(evt, color, theme, visualTheme);
         const data = originalPaintTape.call(
             this,
             evt,
@@ -1987,11 +1987,11 @@ import {
         makeEventContentInteractive(data, EVENT_LABEL_Z_INDEX);
 
         if (data?.elmt) {
-            const eventTheme = getPainterEventTheme(this, evt);
-            const labelColor = getEventLabelColor(evt, theme, eventTheme);
+            const visualTheme = getPainterVisualTheme(this, evt);
+            const labelColor = getEventLabelColor(evt, theme, visualTheme);
             data.elmt.style.color = labelColor || "";
 
-            if (!labelsEnabled(evt, theme, eventTheme)) {
+            if (!labelsEnabled(evt, theme, visualTheme)) {
                 hidePaintedLabel(data);
                 return data;
             }
@@ -2018,7 +2018,7 @@ import {
                         evt,
                         theme.event.duration.color,
                         theme,
-                        getPainterEventTheme(this, evt)
+                        getPainterVisualTheme(this, evt)
                     ),
                     spark
                 });
@@ -2065,7 +2065,7 @@ import {
                     evt,
                     theme.event.duration.color,
                     theme,
-                    getPainterEventTheme(this, evt)
+                    getPainterVisualTheme(this, evt)
                 ),
                 spark
             });
@@ -2094,9 +2094,9 @@ import {
     proto._showBubble = function (x, y, evt) {
         const nativeTheme = this._nativeTheme || this._params?.theme;
         const attachment = getAttachedEventContext(evt);
-        const eventTheme = attachment?.eventTheme ?? this._eventTheme;
+        const visualTheme = attachment?.visualTheme ?? this._visualTheme;
         const runtime = attachment?.runtime ?? this._runtime;
-        if (!bubblesEnabled(evt, nativeTheme, eventTheme)) return;
+        if (!bubblesEnabled(evt, nativeTheme, visualTheme)) return;
 
         const graphics = window.SimileAjax?.Graphics;
         const windowManager = window.SimileAjax?.WindowManager;
@@ -2105,7 +2105,7 @@ import {
         const content = this._timeline.getDocument().createElement("div");
         fillRepriseBubble(content, attachment?.presentationEvent ?? evt, {
             runtime,
-            eventTheme,
+            visualTheme,
             nativeTheme,
             eventTime: attachment?.eventTime,
             renderField: attachment == null
@@ -2122,9 +2122,9 @@ import {
             content,
             x,
             y,
-            eventTheme.bubble.width,
+            visualTheme.bubble.width,
             null,
-            eventTheme.bubble.maxHeight
+            visualTheme.bubble.maxHeight
         );
     };
 

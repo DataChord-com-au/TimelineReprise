@@ -4,13 +4,13 @@ Event layout routing for Timeline Reprise. Unless stated otherwise, dimensions
 are CSS pixels.
 
 The properties belong to
-[`Timeline.EventTheme`](timeline-reprise-event-theme.md). Load authored
-literals with `Timeline.loadEventThemes()` and select a registered id in the
+[`Timeline.VisualTheme`](timeline-reprise-visual-theme.md). Load authored
+literals with `Timeline.loadVisualThemes()` and select a registered id in the
 Reprise band spec. Event layout and Narrative consume the same resolved
 instance. Properties used only by Narrative remain in that model and are
 ignored by event layout; see the
 [Narrative theme reference](timeline-reprise-narrative.md#theme).
-The reference below lists the `eventTheme` properties consumed by event
+The reference below lists the `visualTheme` properties consumed by event
 layout; unlisted fields do not configure this painter.
 
 ```js
@@ -22,7 +22,7 @@ var emphasisSpecs = Timeline.loadEmphasisStyles([
     }
 ]);
 
-var eventThemes = Timeline.loadEventThemes([{
+var visualThemes = Timeline.loadVisualThemes([{
     id: "events",
     labels: true,
     bubbles: true,
@@ -84,7 +84,7 @@ Then select the theme and emphasis registry in the Reprise band set:
 
 ```js
 var bandSet = Timeline.createBandSet({
-    eventTheme: "events",
+    visualTheme: "events",
     emphasisSpecs: emphasisSpecs,
     initialDate: "2020-03-01",
     bands: [{
@@ -119,21 +119,21 @@ precedence only where it is actually painted.
 
 ## Event Display Controls
 
-### `eventTheme.labels`
+### `visualTheme.labels`
 Set to `false` to hide event labels on the band. Defaults to `true`.
 
-### `eventTheme.bubbles`
+### `visualTheme.bubbles`
 Set to `false` to stop event bubble popups. Defaults to `true`.
 
-### `eventTheme.bubble.width`
+### `visualTheme.bubble.width`
 Sets the event bubble width. The Reprise default is `320`. Narrative consumes
 the same property.
 
-### `eventTheme.bubble.maxHeight`
+### `visualTheme.bubble.maxHeight`
 Sets the optional maximum event bubble height. `null` means no maximum.
 Narrative consumes the same property.
 
-### `eventTheme.eventColorScope`
+### `visualTheme.eventColorScope`
 Controls which event-supplied colours may affect rendering. Event layout,
 overview, and Narrative use the same values and meaning.
 
@@ -148,7 +148,7 @@ Reprise default: `graphic`.
 
 Named emphasis colours remain above this gate unless emphasis is disabled.
 
-### `eventTheme.disableEmphasis`
+### `visualTheme.disableEmphasis`
 Set to `true` to ignore named emphasis styles on this band.
 
 Default: `false`.
@@ -156,12 +156,12 @@ Default: `false`.
 ### `emphasisSpecs`
 Registry of `Timeline.EmphasisStyle` objects, normally produced by
 `Timeline.loadEmphasisStyles()` and supplied as a Reprise band option. It is
-separate from the EventTheme; the EventTheme only controls whether the
+separate from the VisualTheme; the VisualTheme only controls whether the
 registry is disabled for the band.
 
 An emphasis spec is applied only when all three are true:
 
-- `eventTheme.disableEmphasis` is not `true`
+- `visualTheme.disableEmphasis` is not `true`
 - the event has `emphasis: "key"`
 - `emphasisSpecs.key` exists
 
@@ -181,47 +181,47 @@ Supported emphasis properties:
 `iconColor` is the emphasis graphic-colour override for both instant dots and
 range tapes/sparklines. The older emphasis-only `tapeColor` name is not used.
 
-## `eventTheme.track`
+## `visualTheme.track`
 
 Sets native SIMILE event track placement.
 
 `track.horizontal` is used on horizontal timelines.
 `track.vertical` is used on vertical timelines.
 
-### `eventTheme.track.*.offset`
+### `visualTheme.track.*.offset`
 Sets the cross-axis offset before event content. Defaults to `2`, except on a
 vertical band with `markerAlign: "Left"`, where the omitted offset defaults to
 `48` so event content clears the marker edge. An authored
-`eventTheme.track.vertical.offset` overrides that band-level fallback.
+`visualTheme.track.vertical.offset` overrides that band-level fallback.
 
-### `eventTheme.track.horizontal.gap`
+### `visualTheme.track.horizontal.gap`
 Currently has no meaningful visual effect in the Reprise horizontal event
 layout and should normally be omitted. Use the targeted `range.horizontal`
 spacing properties instead.
 
-### `eventTheme.track.vertical.gap`
+### `visualTheme.track.vertical.gap`
 Currently has no meaningful visual effect in the Reprise vertical event
 layout and should normally be omitted. Use `range.vertical.labelTrackGap` for
 side-column spacing and `range.vertical.tapeGap` for tape-lane spacing.
 
-### `eventTheme.track.*.size`
+### `visualTheme.track.*.size`
 Sets the requested Reprise track size. In a horizontal layout, the effective row
 height is the largest of this value, the instant icon height, the range
 thickness plus the rendered label line height, and the actual routed content.
 In a vertical Reprise layout, routed column width and spacing come from the
 rendered content and targeted `range.vertical` properties.
 
-## `eventTheme.instant`
+## `visualTheme.instant`
 
-### `eventTheme.instant.width`
+### `visualTheme.instant.width`
 Sets the width of instant graphics. Event layout uses it for instant icons and
 Narrative uses the same value for instant divider lines. Event layout defaults
-to `9` when a Reprise `eventTheme` is applied.
+to `9` when a Reprise `visualTheme` is applied.
 
-### `eventTheme.instant.height`
+### `visualTheme.instant.height`
 Instant icon height. Defaults to `width`, or `9` when neither dimension is set.
 
-### `eventTheme.instant.iconColor`
+### `visualTheme.instant.iconColor`
 Sets the default instant-dot colour. If omitted, event layout uses the timeline
 default blue, matching the default range tape colour. Named colours are
 resolved through `Timeline.ThemeIcons`.
@@ -229,7 +229,7 @@ resolved through `Timeline.ThemeIcons`.
 Instant-dot colour precedence, from lowest to highest, is:
 
 1. timeline default blue
-2. `eventTheme.instant.iconColor`
+2. `visualTheme.instant.iconColor`
 3. the event's `color` when the scope includes `graphic`
 4. the event's `iconColor` when the scope includes `graphic`
 5. an applied emphasis `iconColor`
@@ -239,48 +239,48 @@ event field and therefore wins over `color`.
 An authored event `icon` URL is preserved instead of applying the theme/default
 dot colour, but an event or emphasis `iconColor` deliberately replaces it.
 
-### `eventTheme.instant.horizontal.toLabelGap`
+### `visualTheme.instant.horizontal.toLabelGap`
 Sets the visible horizontal gap between an instant dot and its label. Defaults
 to `4` pixels.
 
-### `eventTheme.instant.vertical.toLabelGap`
+### `visualTheme.instant.vertical.toLabelGap`
 Sets the visible vertical gap between an instant dot and its label. Defaults to
 `4` pixels.
 
-## `eventTheme.range`
+## `visualTheme.range`
 
-### `eventTheme.range.width`
+### `visualTheme.range.width`
 Sets range tape thickness. Defaults to `4`.
 
-### `eventTheme.range.iconColor`
+### `visualTheme.range.iconColor`
 Sets the default range tape and sparkline colour. Named colours are resolved
 through `Timeline.ThemeIcons` when available. If omitted, tapes and sparklines
 use the timeline's native blue.
 
-## `eventTheme.range.short`
+## `visualTheme.range.short`
 
 Short ranges are duration events whose rendered time-axis length is less than
 the active orientation's `eventRoutingThreshold`. They use point-event routing
 rather than long-range tape-label routing.
 
-### `eventTheme.range.short.minDisplayLength`
+### `visualTheme.range.short.minDisplayLength`
 Minimum visible time-axis length for short-duration tapes. Defaults to
 `range.width`, or `4` if no range width is available.
 
 Short ranges use the active orientation's `range.*.toLabelGap`; there is no
 separate `range.short.toLabelGap` setting.
 
-## `eventTheme.range.horizontal`
+## `visualTheme.range.horizontal`
 
-### `eventTheme.range.horizontal.eventRoutingThreshold`
+### `visualTheme.range.horizontal.eventRoutingThreshold`
 Rendered duration length at which a range is treated as a long tape event.
 Defaults to `28`. A duration exactly equal to the threshold is long.
 
-### `eventTheme.range.horizontal.tapeGap`
+### `visualTheme.range.horizontal.tapeGap`
 Vertical-axis gap between long-duration tape lanes. Defaults to `6` pixels. It
 does not affect time-axis lane assignment.
 
-### `eventTheme.range.horizontal.toLabelGap`
+### `visualTheme.range.horizontal.toLabelGap`
 Visible vertical gap between a long-range sparkline endpoint and its label. For
 long ranges it does not move tape lanes or routed label rows. Short-duration
 labels use the same value by moving the label below its tape; that offset is
@@ -288,38 +288,38 @@ included when the short event's routed-row height is measured. Defaults to `4`.
 If a long-range value exceeds the available connector distance, the sparkline
 length clamps to zero.
 
-### `eventTheme.range.horizontal.minLabelGap`
+### `visualTheme.range.horizontal.minLabelGap`
 Minimum vertical-axis gap between the complete tape block and the first routed
 label row. Defaults to `15`.
 
-### `eventTheme.range.horizontal.labelRoutingGap`
+### `visualTheme.range.horizontal.labelRoutingGap`
 Minimum time-axis clearance used when assigning long-range labels and
 point/short-duration event groups to routed rows. Increasing it can move a
 group to another row. Defaults to `8`.
 
-### `eventTheme.range.horizontal.labelTrackGap`
+### `visualTheme.range.horizontal.labelTrackGap`
 Vertical-axis gap between routed event rows. It does not control tape-lane
 spacing or tape-block-to-label-row separation. Defaults to `2`.
 
-### `eventTheme.range.horizontal.sparklineStagger`
+### `visualTheme.range.horizontal.sparklineStagger`
 Time-axis stagger applied to long-range sparkline attachment points on
 successive routed rows. Defaults to `8`.
 
-### `eventTheme.range.horizontal.stickyLeftInset`
+### `visualTheme.range.horizontal.stickyLeftInset`
 Viewport inset used when long-range labels stick at the left or right edge.
 Defaults to `2`.
 
-## `eventTheme.range.vertical`
+## `visualTheme.range.vertical`
 
-### `eventTheme.range.vertical.eventRoutingThreshold`
+### `visualTheme.range.vertical.eventRoutingThreshold`
 Rendered duration length at which a range is treated as a long tape event.
 Defaults to `28`. A duration exactly equal to the threshold is long.
 
-### `eventTheme.range.vertical.tapeGap`
+### `visualTheme.range.vertical.tapeGap`
 Horizontal-axis gap between long-duration tape lanes. Defaults to `6` pixels.
 It does not affect time-axis lane assignment.
 
-### `eventTheme.range.vertical.toLabelGap`
+### `visualTheme.range.vertical.toLabelGap`
 Visible horizontal gap between a long-range sparkline endpoint and its label.
 For long ranges it does not move tape lanes or routed label columns.
 Short-duration labels use the same value by moving the label to the right of
@@ -327,17 +327,17 @@ its tape, and that offset is included in the computed event-column pitch.
 Defaults to `4`. If a long-range value exceeds the available connector
 distance, the sparkline length clamps to zero.
 
-### `eventTheme.range.vertical.minLabelGap`
+### `visualTheme.range.vertical.minLabelGap`
 Minimum horizontal-axis gap between the complete tape block and the first routed
 label column. Defaults to `15`.
 
-### `eventTheme.range.vertical.labelWidth`
+### `visualTheme.range.vertical.labelWidth`
 Width applied to all vertical event labels. If omitted, event layout uses 36%
 of the band width, clamped to the range `80`–`140`. If no band width is
 available, it derives the value from the native track increment and applies
 the same clamp.
 
-### `eventTheme.range.vertical.labelRoutingGap`
+### `visualTheme.range.vertical.labelRoutingGap`
 Minimum time-axis clearance used when routing long-range labels and
 point/short-duration event groups. It separates vertically adjacent labels
 within a column and can force a group into another column. Defaults to `4`.
@@ -345,16 +345,16 @@ The primary long-range label column is also available to automatic point and
 short-duration events when their rendered groups do not collide with a label
 or short-duration tape already occupying that part of the column.
 
-### `eventTheme.range.vertical.labelTrackGap`
+### `visualTheme.range.vertical.labelTrackGap`
 Horizontal-axis gap between routed side columns. The transition from the
 primary long-range label column to the first side column uses `toEventGap`.
 Defaults to `2`.
 
-### `eventTheme.range.vertical.stickyTopInset`
+### `visualTheme.range.vertical.stickyTopInset`
 Viewport inset used when long-range labels stick at the top edge. Defaults to
 `2`.
 
-### `eventTheme.range.vertical.toEventGap`
+### `visualTheme.range.vertical.toEventGap`
 Horizontal gap from the right edge of the primary shared track's widest
 possible content to the first side column used by point/short events and any
 additional routed long-range labels. It applies only when the layout contains
@@ -369,7 +369,7 @@ Set to `false` on one event to hide only that event label.
 Set to `false` on one event to stop only that event bubble popup.
 
 ### `eventColorScope`
-Overrides `eventTheme.eventColorScope` for one event.
+Overrides `visualTheme.eventColorScope` for one event.
 
 ### `color`
 Provides the event colour used according to `eventColorScope`.
@@ -381,7 +381,7 @@ events, use `tapeColor`.
 
 ### `emphasis`
 References a named spec from the band's `emphasisSpecs`. It applies unless
-`eventTheme.disableEmphasis` is `true`.
+`visualTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
 Preferred Reprise field for one event label colour. It applies only when

@@ -74,9 +74,9 @@ function makeWrappedUnit() {
     };
 }
 
-function makeNativeTheme(eventTheme) {
+function makeNativeTheme(visualTheme) {
     return {
-        eventTheme,
+        visualTheme,
         event: {
             track: { height: 10, gap: 2, offset: 2 },
             overviewTrack: { offset: 20, tickHeight: 6, height: 2, gap: 1 },
@@ -179,9 +179,9 @@ function loadTimeline(defaultUnit = makeNumericUnit()) {
     return Timeline;
 }
 
-function makeBand(Timeline, unit, eventTheme = null) {
+function makeBand(Timeline, unit, visualTheme = null) {
     const records = [];
-    const theme = makeNativeTheme(eventTheme);
+    const theme = makeNativeTheme(visualTheme);
     const eventSource = {
         _events: {
             getUnit: () => unit
@@ -206,17 +206,17 @@ function makeBand(Timeline, unit, eventTheme = null) {
     };
 }
 
-test("both attachment methods resolve the band EventTheme by default", () => {
+test("both attachment methods resolve the band VisualTheme by default", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
-    const bandEventTheme = new Timeline.EventTheme({
+    const bandVisualTheme = new Timeline.VisualTheme({
         id: "band",
         range: { iconColor: "band-range" }
     });
     const { bandInfo, eventPainter, records } = makeBand(
         Timeline,
         unit,
-        bandEventTheme
+        bandVisualTheme
     );
 
     Timeline.attachEvents(bandInfo, [{ date: 1, title: "Event" }]);
@@ -225,26 +225,26 @@ test("both attachment methods resolve the band EventTheme by default", () => {
         [{ startDate: 2, endDate: 3, title: "Narrative" }]
     );
 
-    assert.equal(records[0].eventTheme, bandEventTheme);
-    assert.equal(eventPainter._params.eventTheme, bandEventTheme);
-    assert.equal(bandInfo.decorators[0]._eventTheme, bandEventTheme);
-    assert.equal(bandInfo.decorators[0]._ranges[0].eventTheme, bandEventTheme);
+    assert.equal(records[0].visualTheme, bandVisualTheme);
+    assert.equal(eventPainter._params.visualTheme, bandVisualTheme);
+    assert.equal(bandInfo.decorators[0]._visualTheme, bandVisualTheme);
+    assert.equal(bandInfo.decorators[0]._ranges[0].visualTheme, bandVisualTheme);
 });
 
 test("events and Narrative on one band can use different named and instance themes", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
-    const themes = Timeline.loadEventThemes([
+    const themes = Timeline.loadVisualThemes([
         {
             id: "events",
             range: { iconColor: "event-range" }
         }
     ]);
-    const narrativeTheme = new Timeline.EventTheme({
+    const narrativeTheme = new Timeline.VisualTheme({
         id: "narrative",
         instant: { iconColor: "narrative-instant" }
     });
-    const bandTheme = new Timeline.EventTheme({
+    const bandTheme = new Timeline.VisualTheme({
         id: "band",
         instant: { iconColor: "band-instant" }
     });
@@ -257,29 +257,29 @@ test("events and Narrative on one band can use different named and instance them
     Timeline.attachEvents(
         bandInfo,
         [{ start: 1, end: 2, title: "Event" }],
-        { eventTheme: "events" }
+        { visualTheme: "events" }
     );
     Timeline.attachNarrativeDecorators(
         bandInfo,
         [{ date: 3, title: "Narrative" }],
-        { eventTheme: narrativeTheme }
+        { visualTheme: narrativeTheme }
     );
 
-    assert.equal(records[0].eventTheme, themes.events);
-    assert.equal(eventPainter._params.eventTheme, themes.events);
-    assert.equal(bandInfo.decorators[0]._eventTheme, narrativeTheme);
-    assert.equal(bandInfo.decorators[0]._instants[0].eventTheme, narrativeTheme);
-    assert.equal(bandInfo.theme.eventTheme, bandTheme);
+    assert.equal(records[0].visualTheme, themes.events);
+    assert.equal(eventPainter._params.visualTheme, themes.events);
+    assert.equal(bandInfo.decorators[0]._visualTheme, narrativeTheme);
+    assert.equal(bandInfo.decorators[0]._instants[0].visualTheme, narrativeTheme);
+    assert.equal(bandInfo.theme.visualTheme, bandTheme);
 });
 
 test("attachEvents accepts one band or an array of bands", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
-    const firstTheme = new Timeline.EventTheme({
+    const firstTheme = new Timeline.VisualTheme({
         id: "first",
         instant: { iconColor: "orange" }
     });
-    const secondTheme = new Timeline.EventTheme({
+    const secondTheme = new Timeline.VisualTheme({
         id: "second",
         instant: { iconColor: "purple" }
     });
@@ -295,10 +295,10 @@ test("attachEvents accepts one band or an array of bands", () => {
     assert.equal(first.records.length, 1);
     assert.equal(second.records.length, 1);
     assert.notEqual(first.records[0], second.records[0]);
-    assert.equal(first.records[0].eventTheme, firstTheme);
-    assert.equal(second.records[0].eventTheme, secondTheme);
-    assert.equal(first.eventPainter._params.eventTheme, firstTheme);
-    assert.equal(second.eventPainter._params.eventTheme, secondTheme);
+    assert.equal(first.records[0].visualTheme, firstTheme);
+    assert.equal(second.records[0].visualTheme, secondTheme);
+    assert.equal(first.eventPainter._params.visualTheme, firstTheme);
+    assert.equal(second.eventPainter._params.visualTheme, secondTheme);
 });
 
 test("both methods use the same default and injected runtime path", () => {
@@ -329,7 +329,7 @@ test("both methods use the same default and injected runtime path", () => {
             title: "custom-title"
         }
     });
-    const eventTheme = new Timeline.EventTheme({
+    const visualTheme = new Timeline.VisualTheme({
         presentation: displayProfile
     });
     const runtime = new Timeline.RepriseRuntime({
@@ -340,7 +340,7 @@ test("both methods use the same default and injected runtime path", () => {
             return `${template}:${event.title}:${context.surface}`;
         }
     });
-    const secondBand = makeBand(Timeline, unit, eventTheme);
+    const secondBand = makeBand(Timeline, unit, visualTheme);
 
     Timeline.attachEvents(
         secondBand.bandInfo,
@@ -363,7 +363,7 @@ test("both methods use the same default and injected runtime path", () => {
         secondBand.bandInfo.decorators[0]._instants[0].getText(),
         "custom-title:Injected narrative:label"
     );
-    assert.equal(calls[0].context.eventTheme, eventTheme);
+    assert.equal(calls[0].context.visualTheme, visualTheme);
     assert.equal(calls[0].context.displayProfile, displayProfile);
     assert.equal(calls[0].context.unit, unit);
 });
@@ -380,7 +380,7 @@ test("events and Narrative use the selected DisplayProfile through the default r
             }
         }
     ]);
-    Timeline.loadEventThemes([
+    Timeline.loadVisualThemes([
         {
             id: "presented",
             presentation: "sharedDisplay"
@@ -391,12 +391,12 @@ test("events and Narrative use the selected DisplayProfile through the default r
     Timeline.attachEvents(
         bandInfo,
         [{ date: 1, title: "Event" }],
-        { eventTheme: "presented" }
+        { visualTheme: "presented" }
     );
     Timeline.attachNarrativeDecorators(
         bandInfo,
         [{ date: 2, title: "Narrative", caption: "Chapter" }],
-        { eventTheme: "presented" }
+        { visualTheme: "presented" }
     );
 
     assert.equal(records[0].getText(), "Presented: Event");
@@ -634,10 +634,10 @@ test("both workflows preserve native, numeric, and wrapped unit values", () => {
 test("an attached event keeps its selected theme through painter initialization and painting", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
-    const bandTheme = new Timeline.EventTheme({
+    const bandTheme = new Timeline.VisualTheme({
         range: { iconColor: "band-range" }
     });
-    const attachmentTheme = new Timeline.EventTheme({
+    const attachmentTheme = new Timeline.VisualTheme({
         range: { iconColor: "attachment-range" }
     });
     const { bandInfo, eventPainter, records, theme } = makeBand(
@@ -649,7 +649,7 @@ test("an attached event keeps its selected theme through painter initialization 
     Timeline.attachEvents(
         bandInfo,
         [{ start: 1, end: 2, title: "Range" }],
-        { eventTheme: attachmentTheme }
+        { visualTheme: attachmentTheme }
     );
 
     const band = {
@@ -675,15 +675,15 @@ test("an attached event keeps its selected theme through painter initialization 
         0
     );
 
-    assert.equal(eventPainter._eventTheme, attachmentTheme);
-    assert.equal(records[0].eventTheme, attachmentTheme);
+    assert.equal(eventPainter._visualTheme, attachmentTheme);
+    assert.equal(records[0].visualTheme, attachmentTheme);
     assert.equal(painted.color, "attachment-range");
 });
 
 test("theme-icon painter wrappers retain the attached record context", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
-    const attachmentTheme = new Timeline.EventTheme({
+    const attachmentTheme = new Timeline.VisualTheme({
         instant: { iconColor: "attachment-instant" }
     });
     const { bandInfo, eventPainter, records, theme } = makeBand(
@@ -694,7 +694,7 @@ test("theme-icon painter wrappers retain the attached record context", () => {
     Timeline.attachEvents(
         bandInfo,
         [{ date: 1, title: "Instant", classname: "milestone" }],
-        { eventTheme: attachmentTheme }
+        { visualTheme: attachmentTheme }
     );
     eventPainter.initialize(
         {
@@ -919,9 +919,9 @@ test("legacy theme ids and flat decorator controls are rejected", () => {
         () => Timeline.attachEvents(
             bandInfo,
             [],
-            { eventThemeId: "old" }
+            { visualThemeId: "old" }
         ),
-        /options\.eventThemeId.*not supported/
+        /options\.visualThemeId.*not supported/
     );
     assert.throws(
         () => Timeline.attachNarrativeDecorators(

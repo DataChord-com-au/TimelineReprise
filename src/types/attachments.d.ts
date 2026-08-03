@@ -43,7 +43,7 @@ declare namespace Timeline {
     }
 
     interface AttachmentOptions<T = unknown> {
-        eventTheme?: EventThemeSelection | null;
+        visualTheme?: VisualThemeSelection | null;
         runtime?: RepriseRuntimeContract<T> | null;
     }
 

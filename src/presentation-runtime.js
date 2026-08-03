@@ -1,4 +1,4 @@
-import { defaultEventTheme } from "./event-theme.js";
+import { defaultVisualTheme } from "./visual-theme.js";
 import { TemplateRenderer } from "./template-renderer.js";
 import { resolveDisplayProfile } from "./theme-registry.js";
 
@@ -696,7 +696,7 @@ class RepriseRuntime {
             field,
             target,
             eventTime,
-            eventTheme: context.eventTheme ?? defaultEventTheme,
+            visualTheme: context.visualTheme ?? defaultVisualTheme,
             unit: this.unit,
             labeller: this.labeller,
             ...durations
@@ -712,25 +712,25 @@ function resolveRepriseRuntime(runtime, { unit, labeller } = {}) {
         : assertRepriseRuntime(runtime, "TimelineReprise runtime");
 }
 
-function resolvePresentationTemplate(eventTheme, field, context = {}) {
+function resolvePresentationTemplate(visualTheme, field, context = {}) {
     return (context.displayProfile ??
-        resolveDisplayProfile(eventTheme?.presentation))
+        resolveDisplayProfile(visualTheme?.presentation))
         ?.resolveTemplate(field, context) ?? null;
 }
 
-function renderEventField(runtime, eventTheme, eventTime, event, field, target, extra = {}) {
-    const displayProfile = resolveDisplayProfile(eventTheme?.presentation);
+function renderEventField(runtime, visualTheme, eventTime, event, field, target, extra = {}) {
+    const displayProfile = resolveDisplayProfile(visualTheme?.presentation);
     const context = {
         ...extra,
         field,
         target,
         eventTime,
-        eventTheme,
+        visualTheme,
         displayProfile
     };
 
     return runtime.render(
-        resolvePresentationTemplate(eventTheme, field, context),
+        resolvePresentationTemplate(visualTheme, field, context),
         event,
         context
     );
@@ -784,14 +784,14 @@ function _styleBubbleElement(nativeTheme, name, element) {
 
 function _hasEventOrPresentationField(
     event,
-    eventTheme,
+    visualTheme,
     field,
     fallbackField = null,
     context = {}
 ) {
     return _readEventField(event, field).found ||
         (fallbackField != null && _readEventField(event, fallbackField).found) ||
-        resolveDisplayProfile(eventTheme?.presentation)
+        resolveDisplayProfile(visualTheme?.presentation)
             ?.hasTemplate(field, context) === true;
 }
 
@@ -800,7 +800,7 @@ function fillRepriseBubble(
     event,
     {
         runtime,
-        eventTheme = defaultEventTheme,
+        visualTheme = defaultVisualTheme,
         nativeTheme = null,
         eventTime,
         renderField = null
@@ -817,7 +817,7 @@ function fillRepriseBubble(
         : (field, target = "html") =>
             renderEventField(
                 runtime,
-                eventTheme,
+                visualTheme,
                 canonicalTime,
                 event,
                 field,
@@ -880,7 +880,7 @@ function fillRepriseBubble(
         derivedDurations.minimumDuration != null ||
         _hasEventOrPresentationField(
             event,
-            eventTheme,
+            visualTheme,
             "bubbleMinimumDuration",
             "minimumDuration",
             { surface: "bubble", eventTime: canonicalTime }
@@ -889,7 +889,7 @@ function fillRepriseBubble(
         structuredFields.some(([field, fallback]) =>
             _hasEventOrPresentationField(
                 event,
-                eventTheme,
+                visualTheme,
                 field,
                 fallback,
                 { surface: "bubble", eventTime: canonicalTime }
@@ -897,7 +897,7 @@ function fillRepriseBubble(
         );
     const hasExplicitByline = _hasEventOrPresentationField(
         event,
-        eventTheme,
+        visualTheme,
         "bubbleByline",
         null,
         { surface: "bubble", eventTime: canonicalTime }

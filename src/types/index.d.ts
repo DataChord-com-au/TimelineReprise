@@ -6,7 +6,7 @@ declare namespace Timeline {
     type BandMarkerAlign = "Top" | "Bottom" | "Left" | "Right";
 
     interface NativeTheme {
-        eventTheme?: EventTheme | EventThemeConfig;
+        visualTheme?: VisualTheme | VisualThemeConfig;
         emphasisSpecs?: Readonly<Record<string, EmphasisStyle>>;
         [key: string]: unknown;
     }
@@ -60,6 +60,7 @@ declare namespace Timeline {
         theme: NativeTheme;
         decorators?: object[];
         intervalMarkers?: boolean;
+        intervalLines?: boolean;
         markerAlign?: BandMarkerAlign | null;
         syncWith?: number;
         highlight?: boolean;

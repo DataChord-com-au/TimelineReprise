@@ -2,8 +2,8 @@ import { getAttachedEventContext } from "./attachments.js";
 
 (function () {
     if (!window.Timeline || !Timeline.OverviewEventPainter) return;
-    if (Timeline._overviewEventThemePatchApplied) return;
-    Timeline._overviewEventThemePatchApplied = true;
+    if (Timeline._overviewVisualThemePatchApplied) return;
+    Timeline._overviewVisualThemePatchApplied = true;
 
     const LEFT_ALIGNED_VERTICAL_MARKER_TRACK_OFFSET = 48;
 
@@ -30,11 +30,11 @@ import { getAttachedEventContext } from "./attachments.js";
             : value;
     }
 
-    function resolvePainterEventTheme(painter, band) {
+    function resolvePainterVisualTheme(painter, band) {
         const nativeTheme = band?._theme || painter._params?.theme || null;
         painter._nativeTheme = nativeTheme;
-        painter._eventTheme = Timeline.resolveEventTheme(
-            painter._params?.eventTheme ?? null,
+        painter._visualTheme = Timeline.resolveVisualTheme(
+            painter._params?.visualTheme ?? null,
             nativeTheme
         );
     }
@@ -44,7 +44,7 @@ import { getAttachedEventContext } from "./attachments.js";
     const originalPaintEventTick = proto._paintEventTick;
     const originalPaintEventTape = proto._paintEventTape;
 
-    function getOverviewGraphicColor(evt, theme, eventTheme, {
+    function getOverviewGraphicColor(evt, theme, visualTheme, {
         eventField,
         themeField
     }) {
@@ -55,7 +55,7 @@ import { getAttachedEventContext } from "./attachments.js";
         const getProperty = name => typeof evt?.getProperty === "function"
             ? evt.getProperty(name)
             : evt?.[name];
-        const emphasisKey = eventTheme.disableEmphasis
+        const emphasisKey = visualTheme.disableEmphasis
             ? null
             : getProperty("emphasis");
         const emphasis = emphasisKey == null
@@ -70,13 +70,13 @@ import { getAttachedEventContext } from "./attachments.js";
         }
 
         const configuredScope = String(
-            getProperty("eventColorScope") ?? eventTheme.eventColorScope
+            getProperty("eventColorScope") ?? visualTheme.eventColorScope
         ).trim().toLowerCase();
         const scope = configuredScope === "graphic" || configuredScope === "both"
             ? configuredScope
             : configuredScope === "none" || configuredScope === "label"
                 ? configuredScope
-                : eventTheme.eventColorScope;
+                : visualTheme.eventColorScope;
         if (scope === "graphic" || scope === "both") {
             const explicitColor = resolveColor(getProperty(eventField));
             if (explicitColor != null) {
@@ -92,7 +92,7 @@ import { getAttachedEventContext } from "./attachments.js";
         }
 
         return {
-            color: resolveColor(eventTheme[themeField].iconColor),
+            color: resolveColor(visualTheme[themeField].iconColor),
             eventOverride: false
         };
     }
@@ -141,14 +141,14 @@ import { getAttachedEventContext } from "./attachments.js";
     }
 
     function isConfiguredTrackOffset(painter) {
-        const eventTheme = painter._eventTheme;
+        const visualTheme = painter._visualTheme;
         const orientation = getOrientation(painter._timeline);
 
-        return typeof eventTheme?._hasConfigured === "function" &&
+        return typeof visualTheme?._hasConfigured === "function" &&
             (
-                eventTheme._hasConfigured("track.offset") ||
+                visualTheme._hasConfigured("track.offset") ||
                 (orientation != null &&
-                    eventTheme._hasConfigured(`track.${orientation}.offset`))
+                    visualTheme._hasConfigured(`track.${orientation}.offset`))
             );
     }
 
@@ -166,14 +166,14 @@ import { getAttachedEventContext } from "./attachments.js";
 
     function getOverviewTickHeight(painter, theme) {
         return positiveOr(
-            painter._eventTheme?.instant?.tickWidth,
+            painter._visualTheme?.instant?.tickWidth,
             positiveOr(getNativeOverviewTrack(painter, theme).tickHeight, 6)
         );
     }
 
     proto.initialize = function (band, timeline) {
         const result = originalInitialize.apply(this, arguments);
-        resolvePainterEventTheme(this, band);
+        resolvePainterVisualTheme(this, band);
         return result;
     };
 
@@ -183,13 +183,13 @@ import { getAttachedEventContext } from "./attachments.js";
 
         this._prepareForPainting();
 
-        const track = getOrientationSpec(this._eventTheme.track, this._timeline);
+        const track = getOrientationSpec(this._visualTheme.track, this._timeline);
         const defaultTrackOffset = getDefaultTrackOffset(this, track);
         const trackOffset = isConfiguredTrackOffset(this)
             ? nonNegativeOr(track.offset, defaultTrackOffset)
             : defaultTrackOffset;
         const trackGap = nonNegativeOr(track.gap, 0);
-        const rangeWidth = this._eventTheme.range.width;
+        const rangeWidth = this._visualTheme.range.width;
         const metrics = {
             tickOffset: trackOffset,
             trackOffset: trackOffset + trackGap,
@@ -217,15 +217,15 @@ import { getAttachedEventContext } from "./attachments.js";
 
     proto._paintEventTick = function (evt, left, color, opacity, metrics, theme) {
         const data = originalPaintEventTick.apply(this, arguments);
-        const eventTheme = getAttachedEventContext(evt)?.eventTheme ??
-            this._eventTheme;
+        const visualTheme = getAttachedEventContext(evt)?.visualTheme ??
+            this._visualTheme;
         const klassName = evt && typeof evt.getClassName === "function"
             ? evt.getClassName()
             : null;
         const resolvedColor = getOverviewGraphicColor(
             evt,
             theme,
-            eventTheme,
+            visualTheme,
             {
                 eventField: "iconColor",
                 themeField: "instant"
@@ -258,12 +258,12 @@ import { getAttachedEventContext } from "./attachments.js";
     proto._paintEventTape = function (
         evt, track, left, right, color, opacity, metrics, theme, klassName
     ) {
-        const eventTheme = getAttachedEventContext(evt)?.eventTheme ??
-            this._eventTheme;
+        const visualTheme = getAttachedEventContext(evt)?.visualTheme ??
+            this._visualTheme;
         const resolvedColor = getOverviewGraphicColor(
             evt,
             theme,
-            eventTheme,
+            visualTheme,
             {
                 eventField: "tapeColor",
                 themeField: "range"

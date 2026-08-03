@@ -232,8 +232,8 @@ import {
 
     Timeline.NarrativeDecorator = function (params) {
         params = params || {};
-        this._eventThemeSelection = params.eventTheme ?? null;
-        this._eventTheme = Timeline.resolveEventTheme(this._eventThemeSelection, null);
+        this._visualThemeSelection = params.visualTheme ?? null;
+        this._visualTheme = Timeline.resolveVisualTheme(this._visualThemeSelection, null);
         this._nativeTheme = null;
 
         this._runtimeSelection = params.runtime ?? null;
@@ -266,8 +266,8 @@ import {
                 labeller: band?.getLabeller?.() ?? null
             }
         );
-        this._eventTheme = Timeline.resolveEventTheme(
-            this._eventThemeSelection,
+        this._visualTheme = Timeline.resolveVisualTheme(
+            this._visualThemeSelection,
             this._nativeTheme
         );
         this._configureTheme();
@@ -275,13 +275,13 @@ import {
 
     Timeline.NarrativeDecorator.prototype._configureTheme = function () {
         const timelineTheme = this._nativeTheme;
-        const eventTheme = this._eventTheme;
-        const trackTheme = getOrientedObject(eventTheme.track, this._timeline);
-        const rangeTheme = [getOrientedObject(eventTheme.range, this._timeline), eventTheme.range];
-        const instantTheme = [getOrientedObject(eventTheme.instant, this._timeline), eventTheme.instant];
-        const labelTheme = [getOrientedObject(eventTheme.label, this._timeline), eventTheme.label];
-        const bubbleTheme = eventTheme.bubble;
-        const layerTheme = eventTheme.layer;
+        const visualTheme = this._visualTheme;
+        const trackTheme = getOrientedObject(visualTheme.track, this._timeline);
+        const rangeTheme = [getOrientedObject(visualTheme.range, this._timeline), visualTheme.range];
+        const instantTheme = [getOrientedObject(visualTheme.instant, this._timeline), visualTheme.instant];
+        const labelTheme = [getOrientedObject(visualTheme.label, this._timeline), visualTheme.label];
+        const bubbleTheme = visualTheme.bubble;
+        const layerTheme = visualTheme.layer;
 
         this._trackCount = Math.max(1, themedFinite({}, trackTheme, "count", 1));
         this._trackOffset = themedFinite({}, trackTheme, "offset", 0);
@@ -330,23 +330,23 @@ import {
         this._spanLabelCssClass = themedValue({}, rangeTheme, "labelCssClass", "");
         this._dividerCssClass = themedValue({}, instantTheme, "cssClass", "");
         this._dividerLabelCssClass = themedValue({}, instantTheme, "labelCssClass", "");
-        this._themeId = eventTheme.id ?? null;
+        this._themeId = visualTheme.id ?? null;
         this._themeCssPrefix = typeof this._themeId === "string" && this._themeId.trim() !== ""
             ? "timeline-narrative-" + this._themeId.trim()
             : null;
 
-        this._spans = eventTheme.spans;
-        this._dividers = eventTheme.dividers;
-        this._labels = eventTheme.labels;
-        this._bubbles = eventTheme.bubbles;
-        this._tooltips = eventTheme.tooltips;
-        this._eventColorScope = eventTheme.eventColorScope;
-        this._disableEmphasis = eventTheme.disableEmphasis;
+        this._spans = visualTheme.spans;
+        this._dividers = visualTheme.dividers;
+        this._labels = visualTheme.labels;
+        this._bubbles = visualTheme.bubbles;
+        this._tooltips = visualTheme.tooltips;
+        this._eventColorScope = visualTheme.eventColorScope;
+        this._disableEmphasis = visualTheme.disableEmphasis;
         this._emphasisSpecs = isObject(timelineTheme?.emphasisSpecs)
             ? timelineTheme.emphasisSpecs
             : {};
-        this._tagsToIconColor = isObject(eventTheme.tagsToIconColor)
-            ? eventTheme.tagsToIconColor
+        this._tagsToIconColor = isObject(visualTheme.tagsToIconColor)
+            ? visualTheme.tagsToIconColor
             : {};
         this._bubbleWidth = themedFinite({}, bubbleTheme, "width", 320);
         this._bubbleMaxHeight = themedValue({}, bubbleTheme, "maxHeight", null);
@@ -650,7 +650,7 @@ import {
         const attachment = getAttachedEventContext(record.item);
         fillRepriseBubble(div, attachment?.presentationEvent ?? record.item, {
             runtime: attachment?.runtime ?? this._runtime,
-            eventTheme: attachment?.eventTheme ?? this._eventTheme,
+            visualTheme: attachment?.visualTheme ?? this._visualTheme,
             nativeTheme: this._nativeTheme,
             eventTime: attachment?.eventTime ?? record.eventTime,
             renderField: attachment == null
@@ -691,7 +691,7 @@ import {
         const title = attachment == null
             ? renderEventField(
                 this._runtime,
-                this._eventTheme,
+                this._visualTheme,
                 record.eventTime,
                 record.item,
                 "title",
@@ -707,7 +707,7 @@ import {
         const caption = attachment == null
             ? renderEventField(
                 this._runtime,
-                this._eventTheme,
+                this._visualTheme,
                 record.eventTime,
                 record.item,
                 "caption",

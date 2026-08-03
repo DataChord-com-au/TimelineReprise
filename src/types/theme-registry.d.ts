@@ -1,15 +1,15 @@
 declare namespace Timeline {
-    function composeEventTheme(
+    function composeVisualTheme(
         nativeTheme: NativeTheme,
-        explicit?: EventThemeSelection | null
-    ): EventTheme;
-    function resolveEventTheme(
-        explicit: EventThemeSelection | null | undefined,
+        explicit?: VisualThemeSelection | null
+    ): VisualTheme;
+    function resolveVisualTheme(
+        explicit: VisualThemeSelection | null | undefined,
         nativeTheme?: NativeTheme | null
-    ): EventTheme;
-    function loadEventThemes(
-        eventThemes?: readonly (EventTheme | EventThemeConfig)[] | null
-    ): Readonly<Record<string, EventTheme>>;
+    ): VisualTheme;
+    function loadVisualThemes(
+        visualThemes?: readonly (VisualTheme | VisualThemeConfig)[] | null
+    ): Readonly<Record<string, VisualTheme>>;
     function loadDisplayProfiles(
         displayProfiles?:
             | readonly (DisplayProfile | DisplayProfileConfig)[]

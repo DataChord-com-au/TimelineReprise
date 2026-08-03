@@ -1,10 +1,10 @@
 import { EmphasisStyle } from "./emphasis-style.js";
 import { DisplayProfile } from "./display-profile.js";
-import { EventTheme, defaultEventTheme } from "./event-theme.js";
+import { VisualTheme, defaultVisualTheme } from "./visual-theme.js";
 
 const REGISTRY_MODULE_LABEL = "TimelineReprise";
 const REGISTRY_SPEC_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
-let eventThemesById = Object.freeze({});
+let visualThemesById = Object.freeze({});
 let displayProfilesById = Object.freeze({});
 
 function deepFreezeRegistryPlain(value) {
@@ -129,70 +129,70 @@ function resolveDisplayProfile(explicit) {
     );
 }
 
-function loadEventThemes(eventThemes) {
-    const caller = `${REGISTRY_MODULE_LABEL}.loadEventThemes \`eventThemes\``;
+function loadVisualThemes(visualThemes) {
+    const caller = `${REGISTRY_MODULE_LABEL}.loadVisualThemes \`visualThemes\``;
 
-    if (eventThemes == null) {
-        eventThemesById = keyItemsById([], caller);
-        return eventThemesById;
+    if (visualThemes == null) {
+        visualThemesById = keyItemsById([], caller);
+        return visualThemesById;
     }
-    if (!Array.isArray(eventThemes)) {
+    if (!Array.isArray(visualThemes)) {
         throw new TypeError(`${caller} must be an array.`);
     }
 
-    const items = eventThemes.map(config =>
-        config instanceof EventTheme ? config : new EventTheme(config)
+    const items = visualThemes.map(config =>
+        config instanceof VisualTheme ? config : new VisualTheme(config)
     );
     items.forEach(theme => resolveDisplayProfile(theme.presentation));
 
-    eventThemesById = keyItemsById(
+    visualThemesById = keyItemsById(
         items,
         caller
     );
 
-    return eventThemesById;
+    return visualThemesById;
 }
 
-function resolveEventTheme(explicit, nativeTheme) {
-    const caller = `${REGISTRY_MODULE_LABEL}.resolveEventTheme`;
+function resolveVisualTheme(explicit, nativeTheme) {
+    const caller = `${REGISTRY_MODULE_LABEL}.resolveVisualTheme`;
 
     if (typeof explicit === "string") {
         const id = validateSpecId(explicit, caller, "explicit");
-        const namedTheme = eventThemesById[id];
+        const namedTheme = visualThemesById[id];
 
         if (namedTheme === undefined) {
-            throw new RangeError(`${caller} unknown EventTheme: ${id}.`);
+            throw new RangeError(`${caller} unknown VisualTheme: ${id}.`);
         }
 
         return namedTheme;
     }
 
-    if (explicit instanceof EventTheme) {
+    if (explicit instanceof VisualTheme) {
         return explicit;
     }
 
     if (explicit != null) {
-        throw new TypeError(`${caller} \`explicit\` must be an EventTheme or registered theme id.`);
+        throw new TypeError(`${caller} \`explicit\` must be a VisualTheme or registered theme id.`);
     }
 
-    const authoredTheme = nativeTheme?.eventTheme;
-    if (authoredTheme instanceof EventTheme) {
+    const authoredTheme = nativeTheme?.visualTheme;
+    if (authoredTheme instanceof VisualTheme) {
         return authoredTheme;
     }
 
     const resolved = authoredTheme == null
-        ? defaultEventTheme
-        : new EventTheme(authoredTheme);
+        ? defaultVisualTheme
+        : new VisualTheme(authoredTheme);
 
     if (nativeTheme != null && typeof nativeTheme === "object") {
-        nativeTheme.eventTheme = resolved;
+        nativeTheme.visualTheme = resolved;
     }
 
     return resolved;
 }
 
-function composeEventTheme(nativeTheme, explicit = null) {
-    const caller = `${REGISTRY_MODULE_LABEL}.composeEventTheme`;
+function composeVisualTheme(nativeTheme, explicit = null) {
+    const caller = `${REGISTRY_MODULE_LABEL}.composeVisualTheme`;
 
     if (
         nativeTheme == null ||
@@ -202,19 +202,19 @@ function composeEventTheme(nativeTheme, explicit = null) {
         throw new TypeError(`${caller} \`nativeTheme\` must be an object.`);
     }
 
-    const resolved = resolveEventTheme(explicit, nativeTheme);
-    nativeTheme.eventTheme = resolved;
+    const resolved = resolveVisualTheme(explicit, nativeTheme);
+    nativeTheme.visualTheme = resolved;
     return resolved;
 }
 
 export {
-    composeEventTheme,
+    composeVisualTheme,
     keyItemsById,
     loadDisplayProfiles,
     loadEmphasisStyles,
-    loadEventThemes,
+    loadVisualThemes,
     resolveDisplayProfile,
-    resolveEventTheme,
+    resolveVisualTheme,
     selectItemsById,
     validateSpecId
 };

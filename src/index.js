@@ -2,7 +2,7 @@ import { assertColorString, normalizeColorString } from "./color.js";
 import { DATE_TIME_UNIT_NAMES, resolveTimelineDateTimeUnit } from "./date-time.js";
 import { EmphasisStyle } from "./emphasis-style.js";
 import { DisplayProfile } from "./display-profile.js";
-import { EventTheme, defaultEventTheme, deriveEventTheme } from "./event-theme.js";
+import { VisualTheme, defaultVisualTheme, deriveVisualTheme } from "./visual-theme.js";
 import { filterEvents } from "./event-filters.js";
 import {
     HistoricalYear,
@@ -22,13 +22,13 @@ import {
     normalizeTimelineOrientation
 } from "./orientation.js";
 import {
-    composeEventTheme,
+    composeVisualTheme,
     keyItemsById,
     loadDisplayProfiles,
     loadEmphasisStyles,
-    loadEventThemes,
+    loadVisualThemes,
     resolveDisplayProfile,
-    resolveEventTheme,
+    resolveVisualTheme,
     selectItemsById,
     validateSpecId
 } from "./theme-registry.js";
@@ -56,7 +56,7 @@ export {
     DisplayProfile,
     EmphasisStyle,
     TIMELINE_ORIENTATIONS,
-    EventTheme,
+    VisualTheme,
     HistoricalYear,
     HistoricalYearLabeller,
     HistoricalYearUnit,
@@ -75,20 +75,20 @@ export {
     createBandSet,
     createTimeline,
     clampBandChains,
-    composeEventTheme,
+    composeVisualTheme,
     assertColorString,
     assertTimelineOrientation,
-    defaultEventTheme,
-    deriveEventTheme,
+    defaultVisualTheme,
+    deriveVisualTheme,
     filterEvents,
     keyItemsById,
     loadDisplayProfiles,
     loadEmphasisStyles,
-    loadEventThemes,
+    loadVisualThemes,
     normalizeColorString,
     normalizeTimelineOrientation,
     resolveDisplayProfile,
-    resolveEventTheme,
+    resolveVisualTheme,
     resolveTimelineDateTimeUnit,
     selectItemsById,
     validateSpecId

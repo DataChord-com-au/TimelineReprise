@@ -32,9 +32,10 @@ declare namespace Timeline {
         unit?: BandUnit<T>;
         labeller?: TimelineLabeller<T> | null;
         runtime?: RepriseRuntimeContract<T> | null;
-        eventTheme?: EventThemeSelection | null;
+        visualTheme?: VisualThemeSelection | null;
         etherTheme?: EtherTheme | null;
         intervalMarkers?: boolean;
+        intervalLines?: boolean;
         markerAlign?: BandMarkerAlign | string | null;
         emphasisSpecs?: Readonly<Record<string, EmphasisStyle>> | null;
         backgroundColor?: string | null;

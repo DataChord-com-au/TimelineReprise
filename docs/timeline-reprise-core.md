@@ -43,13 +43,15 @@ Override the inset when the original gap, or another gap, is wanted:
 ## Ether Interval Date Markers
 
 Use the direct `intervalMarkers` band option to control whether the normal
-interval labels are rendered. Use the direct `markerAlign` band option to
-choose the band edge for normal date or unit markers. Marker dimensions remain
-presentation settings under `etherTheme.interval.marker`:
+interval labels are rendered. Use `intervalLines` to control the grid lines
+spanning the band, and `markerAlign` to choose the band edge for normal date or
+unit markers. Marker dimensions remain presentation settings under
+`etherTheme.interval.marker`:
 
 ```js
 var bandSet = Timeline.createBandSet({
     intervalMarkers: false,
+    intervalLines: true,
     markerAlign: "Top",
     etherTheme: {
         interval: {
@@ -71,8 +73,10 @@ var bandSet = Timeline.createBandSet({
 ```
 
 - `intervalMarkers` defaults to `true`. Setting it to `false` leaves the normal
-  ether painter active, including synced highlights, backgrounds, interval
-  lines, weekends, and grid marks.
+  ether painter active, including synced highlights, backgrounds, weekends,
+  and any explicitly enabled interval lines.
+- `intervalLines` defaults to `false`. Setting it to `true` draws the ether
+  grid line at each interval across the whole band.
 - `markerAlign` accepts `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`. It is
   band behavior, not theme. For horizontal timelines use `"Top"` or
   `"Bottom"`; for vertical timelines use `"Left"` or `"Right"`.
@@ -100,16 +104,12 @@ Marker text extends inward from its configured band edge: rightward for
 vertical `Left`, leftward for vertical `Right`, downward for horizontal `Top`,
 and upward for horizontal `Bottom`.
 
-Marker visibility is independent of `etherTheme.interval.line.show`. Use the
-line option separately when interval lines should also be hidden:
+Marker visibility is independent of `intervalLines`. Configure the two band
+options separately:
 
 ```js
 intervalMarkers: false,
-etherTheme: {
-    interval: {
-        line: { show: false }
-    }
-}
+intervalLines: true
 ```
 
 The shared marker layout applies the marker presentation options to Gregorian,

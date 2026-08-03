@@ -4,7 +4,7 @@ import { TIMELINE_ORIENTATIONS } from "./orientation.js";
 
 const _MODULE_LABEL = "TimelineReprise";
 
-function _eventThemeIsPlainObject(value) {
+function _visualThemeIsPlainObject(value) {
     if (value == null || typeof value !== "object" || Array.isArray(value)) {
         return false;
     }
@@ -22,7 +22,7 @@ function deepFreezePlain(value) {
         return Object.freeze(value);
     }
 
-    if (_eventThemeIsPlainObject(value)) {
+    if (_visualThemeIsPlainObject(value)) {
         Object.values(value).forEach(deepFreezePlain);
         return Object.freeze(value);
     }
@@ -35,7 +35,7 @@ function clonePlain(value) {
         return value.map(clonePlain);
     }
 
-    if (_eventThemeIsPlainObject(value)) {
+    if (_visualThemeIsPlainObject(value)) {
         return Object.fromEntries(
             Object.entries(value).map(([key, item]) => [key, clonePlain(item)])
         );
@@ -45,7 +45,7 @@ function clonePlain(value) {
 }
 
 function collectExplicitFields(value, prefix = [], fields = new Set()) {
-    if (!_eventThemeIsPlainObject(value)) return fields;
+    if (!_visualThemeIsPlainObject(value)) return fields;
 
     for (const [key, item] of Object.entries(value)) {
         if (item === undefined) continue;
@@ -64,8 +64,8 @@ function mergePlain(base, override) {
     for (const [key, value] of Object.entries(override)) {
         if (value === undefined) continue;
 
-        result[key] = _eventThemeIsPlainObject(value) &&
-            _eventThemeIsPlainObject(result[key])
+        result[key] = _visualThemeIsPlainObject(value) &&
+            _visualThemeIsPlainObject(result[key])
             ? mergePlain(result[key], value)
             : clonePlain(value);
     }
@@ -91,9 +91,9 @@ function validateThemeSpecId(value, caller) {
     return id;
 }
 
-const _EVENT_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'both']);
+const _VISUAL_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'both']);
 const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
-const _EVENT_THEME_FIELDS = new Set([
+const _VISUAL_THEME_FIELDS = new Set([
     'id',
     'disableEmphasis',
     'eventColorScope',
@@ -174,7 +174,7 @@ const _LAYER_FIELDS = new Set([
     'dividerZIndex',
     'labelZIndex'
 ]);
-const _EVENT_THEME_DEFAULTS = Object.freeze({
+const _VISUAL_THEME_DEFAULTS = Object.freeze({
     disableEmphasis: false,
     eventColorScope: 'graphic',
     spans: true,
@@ -265,12 +265,12 @@ const _EVENT_THEME_DEFAULTS = Object.freeze({
     presentation: null
 });
 
-class EventTheme {
-    static get displayName() { return 'EventTheme'; }
+class VisualTheme {
+    static get displayName() { return 'VisualTheme'; }
     static get label() { return `${_MODULE_LABEL}.${this.displayName || this.name || '<anonymous class>'}`; }
 
     static #assertPlainObject(value, caller) {
-        if (!_eventThemeIsPlainObject(value)) {
+        if (!_visualThemeIsPlainObject(value)) {
             throw new TypeError(`${caller} must be an object.`);
         }
     }
@@ -328,7 +328,7 @@ class EventTheme {
     static #assertEventColorScope(value, caller) {
         if (value === undefined) return;
 
-        if (typeof value !== 'string' || !_EVENT_THEME_COLOR_SCOPES.includes(value)) {
+        if (typeof value !== 'string' || !_VISUAL_THEME_COLOR_SCOPES.includes(value)) {
             throw new RangeError(`${caller} must be 'none', 'label', 'graphic', or 'both'.`);
         }
     }
@@ -465,8 +465,8 @@ class EventTheme {
 
     static #assertThemeShape(theme, caller) {
         for (const field of Object.keys(theme)) {
-            if (!_EVENT_THEME_FIELDS.has(field)) {
-                throw new TypeError(`${caller}.${field} is not a supported event theme field.`);
+            if (!_VISUAL_THEME_FIELDS.has(field)) {
+                throw new TypeError(`${caller}.${field} is not a supported visual theme field.`);
             }
         }
 
@@ -511,7 +511,7 @@ class EventTheme {
         const caller = `${this.constructor.label}.ctor`;
         this.constructor.#assertPlainObject(config, caller);
 
-        const theme = mergePlain(_EVENT_THEME_DEFAULTS, config);
+        const theme = mergePlain(_VISUAL_THEME_DEFAULTS, config);
         const id = validateThemeSpecId(config.id, `${caller}.id`);
         const explicitFields = options.explicitFields instanceof Set
             ? new Set(options.explicitFields)
@@ -540,12 +540,12 @@ class EventTheme {
     }
 }
 
-function deriveEventTheme(base, overrides = {}) {
-    if (!(base instanceof EventTheme)) {
-        throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`base\` must be an EventTheme.`);
+function deriveVisualTheme(base, overrides = {}) {
+    if (!(base instanceof VisualTheme)) {
+        throw new TypeError(`${_MODULE_LABEL}.deriveVisualTheme \`base\` must be a VisualTheme.`);
     }
-    if (!_eventThemeIsPlainObject(overrides)) {
-        throw new TypeError(`${_MODULE_LABEL}.deriveEventTheme \`overrides\` must be an object.`);
+    if (!_visualThemeIsPlainObject(overrides)) {
+        throw new TypeError(`${_MODULE_LABEL}.deriveVisualTheme \`overrides\` must be an object.`);
     }
 
     const explicitFields = new Set(base._repriseExplicitFields ?? []);
@@ -553,12 +553,12 @@ function deriveEventTheme(base, overrides = {}) {
         explicitFields.add(path);
     }
 
-    return new EventTheme(mergePlain(
+    return new VisualTheme(mergePlain(
         Object.fromEntries(Object.entries(base)),
         overrides
     ), { explicitFields });
 }
 
-const defaultEventTheme = new EventTheme();
+const defaultVisualTheme = new VisualTheme();
 
-export { EventTheme, defaultEventTheme, deriveEventTheme };
+export { VisualTheme, defaultVisualTheme, deriveVisualTheme };

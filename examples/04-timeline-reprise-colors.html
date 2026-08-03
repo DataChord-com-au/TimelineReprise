@@ -15,6 +15,10 @@
       margin: 24px;
       color: #6a1b9a;
     }
+
+    #timeline .timeline-ether-lines {
+      border-color: #f6c344;
+    }
     
     @media (prefers-color-scheme: dark) {
       body {
@@ -32,6 +36,7 @@
   <ul>
     <li>named colors can be reused for event markers and duration tapes</li>
     <li>label colors can be set using <code>labelColor</code>, and <code>inherit</code> will take the color from the page</li>
+    <li>interval lines are enabled on the band and styled faint gold with timeline-scoped CSS</li>
     <li>the page follows the browser's light or dark color preference</li>
   </ul>
   
@@ -70,7 +75,8 @@
         {
           id: "main",
           intervalUnit: "month",
-          intervalPixels: 100
+          intervalPixels: 100,
+          intervalLines: true
         }
       ]
     });

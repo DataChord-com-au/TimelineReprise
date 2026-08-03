@@ -5,7 +5,7 @@ Overview band styling for Timeline Reprise.
 ## Overview Theme
 
 ```js
-var eventThemes = Timeline.loadEventThemes([{
+var visualThemes = Timeline.loadVisualThemes([{
     id: "overview",
     track: {
         horizontal: {
@@ -29,10 +29,10 @@ var eventThemes = Timeline.loadEventThemes([{
 ```
 
 Overview consumes the same resolved
-[`Timeline.EventTheme`](timeline-reprise-event-theme.md) as normal events and
+[`Timeline.VisualTheme`](timeline-reprise-visual-theme.md) as normal events and
 Narrative.
 
-### `eventTheme.track`
+### `visualTheme.track`
 Sets overview track placement and spacing.
 
 ```js
@@ -51,26 +51,26 @@ track: {
 `horizontal` is used when the timeline is horizontal.
 `vertical` is used when the timeline is vertical.
 
-### `eventTheme.track.horizontal.offset`
+### `visualTheme.track.horizontal.offset`
 Sets the cross-axis edge where instant ticks end for horizontal timelines.
-Range tapes begin after `eventTheme.track.horizontal.gap`.
+Range tapes begin after `visualTheme.track.horizontal.gap`.
 
-### `eventTheme.track.horizontal.gap`
+### `visualTheme.track.horizontal.gap`
 Sets spacing between instant ticks and the first range tape, and between range tape tracks, for horizontal timelines.
 
-### `eventTheme.track.vertical.offset`
+### `visualTheme.track.vertical.offset`
 Sets the cross-axis edge where instant ticks end for vertical timelines.
-Range tapes begin after `eventTheme.track.vertical.gap`.
+Range tapes begin after `visualTheme.track.vertical.gap`.
 When omitted on a vertical band with `markerAlign: "Left"`, Reprise uses a
 larger default offset of `48` so overview ticks and tapes clear the marker
 edge. Set this value explicitly to tune that clearance.
 
-### `eventTheme.track.vertical.gap`
+### `visualTheme.track.vertical.gap`
 Sets spacing between instant ticks and the first range tape, and between range tape tracks, for vertical timelines.
 
 ## Instant Events
 
-### `eventTheme.instant.tickWidth`
+### `visualTheme.instant.tickWidth`
 Sets the cross-axis length of overview ticks for instant events.
 
 ```js
@@ -79,7 +79,7 @@ instant: {
 }
 ```
 
-### `eventTheme.instant.iconColor`
+### `visualTheme.instant.iconColor`
 Sets the default overview colour for instant event ticks.
 
 ```js
@@ -95,7 +95,7 @@ Orientation branches under `instant` are ignored by the overview painter.
 
 ## Range Events
 
-### `eventTheme.range.width`
+### `visualTheme.range.width`
 Sets the overview tape thickness for range events.
 
 ```js
@@ -104,7 +104,7 @@ range: {
 }
 ```
 
-### `eventTheme.range.iconColor`
+### `visualTheme.range.iconColor`
 Sets the default overview colour for range event tapes.
 
 ```js

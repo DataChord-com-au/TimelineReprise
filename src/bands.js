@@ -4,7 +4,7 @@ import { resolveTimelineDateTimeUnit } from "./date-time.js";
 import { normalizeTimelineOrientation } from "./orientation.js";
 import { resolveRepriseRuntime } from "./presentation-runtime.js";
 import { UnitScaledZoneEther } from "./scaled-zones.js";
-import { composeEventTheme, validateSpecId } from "./theme-registry.js";
+import { composeVisualTheme, validateSpecId } from "./theme-registry.js";
 
 const _BAND_MODULE_LABEL = "TimelineReprise";
 const _BAND_SET_MARKER = Symbol("TimelineReprise.BandSet");
@@ -105,8 +105,9 @@ function _makeEventSource(unit, caller) {
 }
 
 function _createNativeTheme({
-    eventTheme = null,
+    visualTheme = null,
     etherTheme = null,
+    intervalLines = false,
     emphasisSpecs = null
 }, caller) {
     const theme = Timeline.ClassicTheme?.create?.();
@@ -123,10 +124,18 @@ function _createNativeTheme({
                 `${caller} etherTheme.interval.marker.show is not supported; use intervalMarkers.`
             );
         }
+        if (_bandHasOwn(etherTheme?.interval?.line, "show")) {
+            throw new TypeError(
+                `${caller} etherTheme.interval.line.show is not supported; use intervalLines.`
+            );
+        }
         theme.ether = _bandMergePlain(theme.ether, etherTheme);
     }
 
-    composeEventTheme(theme, eventTheme);
+    composeVisualTheme(theme, visualTheme);
+    theme.ether = _bandMergePlain(theme.ether, {
+        interval: { line: { show: intervalLines } }
+    });
 
     if (emphasisSpecs != null) {
         if (!_bandIsObject(emphasisSpecs)) {
@@ -248,6 +257,8 @@ class UnitEtherPainter {
         const totalLength = this._band.getTotalViewLength();
         const horizontal = this._timeline.isHorizontal();
         const markerTheme = this._theme?.ether?.interval?.marker ?? {};
+        const lineTheme = this._theme?.ether?.interval?.line ?? {};
+        const showLines = lineTheme.show === true;
         const align = horizontal
             ? this._markerAlign ?? markerTheme.hAlign ?? "Bottom"
             : this._markerAlign ?? markerTheme.vAlign ?? "Right";
@@ -267,16 +278,23 @@ class UnitEtherPainter {
 
             if (pixel < -80 || pixel > totalLength + 80) continue;
 
-            const line = document.createElement("div");
-            line.className = "timeline-ether-lines";
+            if (showLines) {
+                const line = document.createElement("div");
+                line.className = "timeline-ether-lines";
 
-            if (horizontal) {
-                line.style.left = `${pixel}px`;
-            } else {
-                line.style.top = `${pixel}px`;
+                if (horizontal) {
+                    line.style.left = `${pixel}px`;
+                } else {
+                    line.style.top = `${pixel}px`;
+                }
+
+                if (Number.isFinite(lineTheme.opacity)) {
+                    line.style.opacity = String(
+                        Math.min(100, Math.max(0, lineTheme.opacity)) / 100
+                    );
+                }
+                this._lineLayer.appendChild(line);
             }
-
-            this._lineLayer.appendChild(line);
 
             if (this._intervalMarkers) {
                 const label = document.createElement("div");
@@ -534,12 +552,13 @@ function _nativeBandInfo(spec, runtime, eventSource, theme, zones, caller) {
         runtime: _runtime,
         unit: _unit,
         labeller: _labeller,
-        eventTheme: _eventTheme,
+        visualTheme: _visualTheme,
         etherTheme: _etherTheme,
         emphasisSpecs: _emphasisSpecs,
         backgroundColor: _backgroundColor,
         scaledZones: _scaledZones,
         intervalMarkers: _intervalMarkers,
+        intervalLines: _intervalLines,
         markerAlign: _markerAlign,
         interval: _interval,
         etherPainter: _etherPainter,
@@ -665,6 +684,11 @@ function createBand(spec = {}, context = {}) {
         throw new TypeError(`${caller} intervalMarkers must be a boolean.`);
     }
     resolved.intervalMarkers = intervalMarkers;
+    const intervalLines = resolved.intervalLines ?? false;
+    if (typeof intervalLines !== "boolean") {
+        throw new TypeError(`${caller} intervalLines must be a boolean.`);
+    }
+    resolved.intervalLines = intervalLines;
     resolved.markerAlign = _normalizeBandMarkerAlign(
         resolved.markerAlign,
         caller
@@ -697,6 +721,11 @@ function createBand(spec = {}, context = {}) {
             configurable: true,
             enumerable: true,
             value: intervalMarkers
+        },
+        intervalLines: {
+            configurable: true,
+            enumerable: true,
+            value: intervalLines
         },
         markerAlign: {
             configurable: true,

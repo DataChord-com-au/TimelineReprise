@@ -62,7 +62,7 @@
       }
     ]);
 
-    Timeline.loadEventThemes([
+    Timeline.loadVisualThemes([
       {
         id: "maEvents",
         presentation: "maEvents",
@@ -152,13 +152,14 @@
     var bandSet = Timeline.createBandSet({
       unit: Timeline.MaUnit,
       initialDate: new Timeline.Ma(100),
-      eventTheme: "maEvents",
+      visualTheme: "maEvents",
       bands: [
         {
           id: "main",
           width: "100%",
           interval: 25,
-          intervalPixels: 120
+          intervalPixels: 120,
+          intervalLines: true
         }
       ]
     });
@@ -168,7 +169,7 @@
       bandSet.byId.main,
       narrativeEvents,
       {
-        eventTheme: "maNarrative"
+        visualTheme: "maNarrative"
       }
     );
 

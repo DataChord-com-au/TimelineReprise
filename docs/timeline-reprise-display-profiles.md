@@ -1,8 +1,8 @@
 # Display Profiles
 
 `Timeline.DisplayProfile` is Reprise's validated model for event and Narrative
-content templates. It is separate from `EventTheme` visual layout, but an
-`EventTheme` selects one profile through its `presentation` field.
+content templates. It is separate from `VisualTheme` visual layout, but an
+`VisualTheme` selects one profile through its `presentation` field.
 
 Load profiles before themes:
 
@@ -31,7 +31,7 @@ var displayProfiles = Timeline.loadDisplayProfiles([
     }
 ]);
 
-Timeline.loadEventThemes([
+Timeline.loadVisualThemes([
     {
         id: "main",
         presentation: "mainDisplay"
@@ -46,7 +46,7 @@ a `DisplayProfile` instance, or `null`.
 ## Surfaces and shapes
 
 The `label` surface accepts `title` and `caption`. `caption` is the Narrative
-label tooltip when the selected EventTheme enables tooltips.
+label tooltip when the selected VisualTheme enables tooltips.
 
 The `bubble` surface accepts:
 

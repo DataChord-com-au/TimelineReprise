@@ -123,8 +123,8 @@ Optional:
 ## Theme
 
 Narrative and event layout consume the same resolved
-[`Timeline.EventTheme`](timeline-reprise-event-theme.md). Load emphasis styles
-and EventThemes through the Reprise registries, then select them in the band
+[`Timeline.VisualTheme`](timeline-reprise-visual-theme.md). Load emphasis styles
+and VisualThemes through the Reprise registries, then select them in the band
 spec:
 
 ```js
@@ -136,7 +136,7 @@ var emphasisSpecs = Timeline.loadEmphasisStyles([
     }
 ]);
 
-var eventThemes = Timeline.loadEventThemes([{
+var visualThemes = Timeline.loadVisualThemes([{
     id: "narrative",
     spans: true,
     dividers: true,
@@ -191,7 +191,7 @@ var eventThemes = Timeline.loadEventThemes([{
 }]);
 
 var bandSet = Timeline.createBandSet({
-    eventTheme: "narrative",
+    visualTheme: "narrative",
     emphasisSpecs: emphasisSpecs,
     bands: [{
         id: "main",
@@ -202,27 +202,27 @@ var bandSet = Timeline.createBandSet({
 });
 ```
 
-### `eventTheme.spans`
+### `visualTheme.spans`
 Set to `false` to stop range span decorators being drawn.
 
-### `eventTheme.dividers`
+### `visualTheme.dividers`
 Set to `false` to stop instant divider decorators being drawn.
 
 `spans` and `dividers` are painter/theme controls only. Item-level fields with those names are ignored.
 
-### `eventTheme.labels`
+### `visualTheme.labels`
 Set to `false` to hide narrative labels.
 
-### `eventTheme.bubbles`
+### `visualTheme.bubbles`
 Set to `false` to stop narrative bubble popups.
 
-### `eventTheme.tooltips`
+### `visualTheme.tooltips`
 Set to `false` to suppress caption tooltips on narrative labels. Defaults to
 `true`. An enabled tooltip makes its label pointer-interactive even when
 bubbles are disabled, but only bubbles use the pointer cursor and click
 handler.
 
-### `eventTheme.eventColorScope`
+### `visualTheme.eventColorScope`
 Controls which item-supplied colours may affect rendering.
 
 Values:
@@ -236,7 +236,7 @@ Default: `graphic`.
 
 Named emphasis colours remain above this gate unless emphasis is disabled.
 
-### `eventTheme.disableEmphasis`
+### `visualTheme.disableEmphasis`
 Set to `true` to ignore named emphasis styles on this decorator.
 
 Default: `false`.
@@ -248,7 +248,7 @@ not a Narrative decorator option.
 
 An emphasis spec is applied only when all three are true:
 
-- `eventTheme.disableEmphasis` is not `true`
+- `visualTheme.disableEmphasis` is not `true`
 - the range or instant has `emphasis: "key"`
 - `emphasisSpecs.key` exists
 
@@ -269,8 +269,8 @@ Supported emphasis properties:
 
 ## Track Theme
 
-`eventTheme.track.horizontal` is used on horizontal timelines.
-`eventTheme.track.vertical` is used on vertical timelines.
+`visualTheme.track.horizontal` is used on horizontal timelines.
+`visualTheme.track.vertical` is used on vertical timelines.
 
 ### `track.count`
 Initial number of label tracks. Extra tracks can be used if routed labels need more space.
@@ -294,94 +294,94 @@ Vertical-only track alignment. Use `start` or `end`.
 
 ## Range Theme
 
-### `eventTheme.range.offset`
+### `visualTheme.range.offset`
 Cross-band offset for range spans.
 
-### `eventTheme.range.size`
+### `visualTheme.range.size`
 Optional cross-band size for range spans. If omitted, spans fill the available narrative band space from `range.offset`.
 
-### `eventTheme.range.colors`
+### `visualTheme.range.colors`
 Array of fallback span colours, cycled by range index.
 
-### `eventTheme.range.cssClass`
+### `visualTheme.range.cssClass`
 Extra class added to range span elements.
 
-### `eventTheme.range.labelCssClass`
+### `visualTheme.range.labelCssClass`
 Extra class added to range label elements.
 
-### `eventTheme.range.horizontal.toLabelGap`
+### `visualTheme.range.horizontal.toLabelGap`
 Horizontal inset between a range start edge and its label. Defaults to `4`.
 
-### `eventTheme.range.vertical.toLabelGap`
+### `visualTheme.range.vertical.toLabelGap`
 Vertical inset between a range start edge and its label. Defaults to `4`.
 
 ## Instant Theme
 
-### `eventTheme.instant.lineWidth`
+### `visualTheme.instant.lineWidth`
 Width of narrative instant divider lines. Defaults to `1`.
 
 Item-level `lineWidth` overrides this value for a single instant.
 
-### `eventTheme.instant.horizontal.toLabelGap`
+### `visualTheme.instant.horizontal.toLabelGap`
 Horizontal gap between an instant divider line and its label. Defaults to `4`.
 
-### `eventTheme.instant.vertical.toLabelGap`
+### `visualTheme.instant.vertical.toLabelGap`
 Vertical gap between an instant divider line and its label. Defaults to `4`.
 
-### `eventTheme.instant.iconColor`
+### `visualTheme.instant.iconColor`
 Default colour of instant graphics. Event layout uses it for event dots;
 narrative decorators use it for instant divider lines.
 
-### `eventTheme.instant.cssClass`
+### `visualTheme.instant.cssClass`
 Extra class added to instant divider-line elements.
 
-### `eventTheme.instant.labelCssClass`
+### `visualTheme.instant.labelCssClass`
 Extra class added to instant label elements.
 
 ## Label Theme
 
-### `eventTheme.label.colorSource`
+### `visualTheme.label.colorSource`
 Controls the fallback used when neither emphasis nor the item supplies a label
 colour and a scoped item `color` does not apply to the label.
 
 - `graphic` (default) derives a legible range-label tint from the final span
   colour; instant labels use the final divider colour directly.
-- `theme` uses `eventTheme.label.color`.
+- `theme` uses `visualTheme.label.color`.
 - `inherit` sets no inline colour, allowing normal CSS inheritance.
 
-### `eventTheme.label.color`
+### `visualTheme.label.color`
 Theme label colour used when `colorSource` is `theme`.
 
-### `eventTheme.label.*.offset`
+### `visualTheme.label.*.offset`
 Offset applied along the timeline axis when placing labels.
 
-### `eventTheme.label.*.stickyInset`
+### `visualTheme.label.*.stickyInset`
 Inset from the visible viewport edge used by sticky range labels.
 It also contributes to the span-contact release threshold. The effective
 threshold is `12px + stickyInset` horizontally and `6px + stickyInset`
 vertically.
 
-### `eventTheme.label.*.stickyGap`
+### `visualTheme.label.*.stickyGap`
 Minimum gap used between routed labels.
 
 ## Bubble Theme
 
-### `eventTheme.bubble.width`
+### `visualTheme.bubble.width`
 Bubble popup width.
 
-### `eventTheme.bubble.maxHeight`
+### `visualTheme.bubble.maxHeight`
 Optional maximum bubble popup height.
 
 ## Layer Theme
 
-### `eventTheme.layer.zIndex`
+### `visualTheme.layer.zIndex`
 Z-index for span graphics. Defaults to `5`, below date/unit and cardinal-axis
 markers.
 
-### `eventTheme.layer.dividerZIndex`
+### `visualTheme.layer.dividerZIndex`
 Z-index for instant divider lines. Defaults to `101`.
 
-### `eventTheme.layer.labelZIndex`
+### `visualTheme.layer.labelZIndex`
 Z-index for narrative labels. Defaults to `114`.
 
 By default, Narrative instant divider lines render on a separate layer at
@@ -411,7 +411,7 @@ Base classes:
 - `timeline-narrative-instant-line`
 - `timeline-narrative-instant-label`
 
-Set `eventTheme.id` to add generated theme classes:
+Set `visualTheme.id` to add generated theme classes:
 
 - `timeline-narrative-{id}-span`
 - `timeline-narrative-{id}-label`
@@ -430,11 +430,11 @@ Set to `false` on one range or instant to hide only that label.
 Set to `false` on one range or instant to stop only that bubble popup.
 
 ### `eventColorScope`
-Overrides `eventTheme.eventColorScope` for one range or instant.
+Overrides `visualTheme.eventColorScope` for one range or instant.
 
 ### `emphasis`
 References a named spec from the band theme's `emphasisSpecs` registry. It
-applies unless `eventTheme.disableEmphasis` is `true`.
+applies unless `visualTheme.disableEmphasis` is `true`.
 
 ### `labelColor`
 Preferred Reprise field for one narrative label colour. It applies only when

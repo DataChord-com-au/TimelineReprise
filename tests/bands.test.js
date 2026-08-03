@@ -211,9 +211,9 @@ function loadBands() {
         };
     }
 
-    function composeEventTheme(theme, selection) {
-        theme.eventTheme = selection ?? { id: "default" };
-        return theme.eventTheme;
+    function composeVisualTheme(theme, selection) {
+        theme.visualTheme = selection ?? { id: "default" };
+        return theme.visualTheme;
     }
 
     function validateSpecId(id, caller) {
@@ -255,7 +255,7 @@ function loadBands() {
         Element: FakeElement,
         UnitScaledZoneEther,
         clampBandChains,
-        composeEventTheme,
+        composeVisualTheme,
         normalizeColorString,
         normalizeTimelineOrientation,
         resolveRepriseRuntime,
@@ -316,7 +316,7 @@ test("Reprise owns native-date band construction and band-set wiring", () => {
             start: "2028-01-01",
             end: "2024-01-01"
         },
-        eventTheme: "events",
+        visualTheme: "events",
         syncTarget: "main",
         highlight: "overview",
         zones: [
@@ -355,7 +355,7 @@ test("Reprise owns native-date band construction and band-set wiring", () => {
 
     assert.equal(nativeBandCalls.length, 2);
     assert.equal(nativeBandCalls[0].intervalUnit, 6);
-    assert.equal(nativeBandCalls[0].theme.eventTheme, "events");
+    assert.equal(nativeBandCalls[0].theme.visualTheme, "events");
     assert.equal(nativeBandCalls[0].zones.length, 2);
     assert.equal(
         nativeBandCalls[0].zones[0].start.toISOString(),
@@ -457,12 +457,17 @@ test("dark-mode band backgrounds use overridable cycling variables", () => {
         assert.match(
             css,
             new RegExp(
-                `\\.timeline-reprise-band-tone-${index}\\s+\\.timeline-ether-bg\\s*\\{[^}]*` +
+                `\\.timeline-reprise-band-tone-${index}\\s+\\.timeline-ether-bg\\s*,\\s*` +
+                `\\.timeline-band-${index - 1}\\s+\\.timeline-ether-bg\\s*\\{[^}]*` +
                 `var\\(--timeline-band-background-color,\\s*var\\(--timeline-reprise-band-bg-${index}\\)\\)`,
                 "s"
             )
         );
     }
+    assert.match(
+        css,
+        /\.timeline-ether-lines\s*\{[^}]*border-color:\s*#ccc/s
+    );
 });
 
 test("Reprise builds scalar-unit bands without native band-info assembly", () => {
@@ -475,7 +480,7 @@ test("Reprise builds scalar-unit bands without native band-info assembly", () =>
         intervalPixels: 90,
         intervalMarkers: false,
         markerAlign: "Top",
-        eventTheme: "planning"
+        visualTheme: "planning"
     });
 
     assert.equal(nativeBandCalls.length, 0);
@@ -483,11 +488,76 @@ test("Reprise builds scalar-unit bands without native band-info assembly", () =>
     assert.equal(bandInfo.ether.options.centersOn, 20);
     assert.equal(bandInfo.ether.options.interval, 10);
     assert.equal(bandInfo.eventSource._events.unit, planningUnit);
-    assert.equal(bandInfo.theme.eventTheme, "planning");
+    assert.equal(bandInfo.theme.visualTheme, "planning");
     assert.equal(bandInfo.intervalMarkers, false);
+    assert.equal(bandInfo.intervalLines, false);
+    assert.equal(bandInfo.theme.ether.interval.line.show, false);
     assert.equal(bandInfo.markerAlign, "Top");
     assert.equal(bandInfo.etherPainter._intervalMarkers, false);
     assert.equal(bandInfo.etherPainter._markerAlign, "Top");
+});
+
+test("scalar-unit ether painting follows intervalLines and native opacity", () => {
+    const { createBand } = loadBands();
+    const unit = makeUnit();
+    const hidden = createBand({
+        unit,
+        interval: 10,
+        intervalPixels: 100,
+        intervalMarkers: false
+    });
+    const visible = createBand({
+        unit,
+        interval: 10,
+        intervalPixels: 100,
+        intervalMarkers: false,
+        intervalLines: true,
+        etherTheme: {
+            interval: { line: { opacity: 40 } }
+        }
+    });
+    const document = {
+        createElement() {
+            return { className: "", style: {} };
+        }
+    };
+    const makeLayer = () => ({
+        children: [],
+        set innerHTML(value) {
+            this.children = [];
+        },
+        appendChild(child) {
+            this.children.push(child);
+        }
+    });
+    const band = {
+        getLabeller: () => unit.createLabeller(),
+        getMinDate: () => 0,
+        getMaxDate: () => 20,
+        getTotalViewLength: () => 300,
+        dateToPixelOffset: value => value * 10
+    };
+    const timeline = {
+        getUnit: () => unit,
+        getDocument: () => document,
+        isHorizontal: () => true
+    };
+
+    for (const bandInfo of [hidden, visible]) {
+        Object.assign(bandInfo.etherPainter, {
+            _band: band,
+            _timeline: timeline,
+            _lineLayer: makeLayer(),
+            _markerLayer: makeLayer()
+        });
+        bandInfo.etherPainter.softPaint();
+    }
+
+    assert.equal(hidden.etherPainter._lineLayer.children.length, 0);
+    assert.equal(visible.etherPainter._lineLayer.children.length, 3);
+    assert.ok(visible.etherPainter._lineLayer.children.every(
+        line => line.style.opacity === "0.4"
+    ));
 });
 
 test("markerAlign is direct band behavior with band-set defaults", () => {
@@ -872,6 +942,66 @@ test("intervalMarkers is direct band behavior with band-set defaults", () => {
             }]
         }),
         /markerAlign must be 'Top', 'Bottom', 'Left', or 'Right'/
+    );
+});
+
+test("intervalLines is direct band behavior with band-set defaults", () => {
+    const { createBandSet } = loadBands();
+    const defaultsOff = createBandSet({
+        bands: [{
+            id: "main",
+            intervalUnit: "month",
+            intervalPixels: 100
+        }]
+    });
+    const configured = createBandSet({
+        intervalLines: true,
+        syncTarget: "main",
+        bands: [
+            {
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            },
+            {
+                id: "overview",
+                intervalLines: false,
+                intervalUnit: "year",
+                intervalPixels: 200
+            }
+        ]
+    });
+
+    assert.equal(defaultsOff.byId.main.intervalLines, false);
+    assert.equal(defaultsOff.byId.main.theme.ether.interval.line.show, false);
+    assert.equal(configured.byId.main.intervalLines, true);
+    assert.equal(configured.byId.main.theme.ether.interval.line.show, true);
+    assert.equal(configured.byId.overview.intervalLines, false);
+    assert.equal(configured.byId.overview.theme.ether.interval.line.show, false);
+
+    assert.throws(
+        () => createBandSet({
+            etherTheme: {
+                interval: { line: { show: true } }
+            },
+            bands: [{
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            }]
+        }),
+        /use intervalLines/
+    );
+    assert.throws(
+        () => createBandSet({
+            intervalLines: "yes",
+            bands: [{
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            }]
+        }),
+        /intervalLines must be a boolean/
     );
 });
 

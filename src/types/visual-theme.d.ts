@@ -92,7 +92,7 @@ declare namespace Timeline {
         labelZIndex?: number;
     }
 
-    interface EventThemeConfig {
+    interface VisualThemeConfig {
         id?: string;
         disableEmphasis?: boolean;
         eventColorScope?: EventColorScope;
@@ -111,11 +111,11 @@ declare namespace Timeline {
         presentation?: DisplayProfileSelection | null;
     }
 
-    class EventTheme {
-        static readonly displayName: "EventTheme";
+    class VisualTheme {
+        static readonly displayName: "VisualTheme";
         static readonly label: string;
 
-        constructor(config?: EventThemeConfig);
+        constructor(config?: VisualThemeConfig);
 
         readonly id?: string;
         readonly disableEmphasis: boolean;
@@ -135,12 +135,12 @@ declare namespace Timeline {
         readonly presentation: DisplayProfileSelection | null;
     }
 
-    type EventThemeSelection = string | EventTheme;
+    type VisualThemeSelection = string | VisualTheme;
 
-    const defaultEventTheme: EventTheme;
+    const defaultVisualTheme: VisualTheme;
 
-    function deriveEventTheme(
-        base: EventTheme,
-        overrides?: EventThemeConfig
-    ): EventTheme;
+    function deriveVisualTheme(
+        base: VisualTheme,
+        overrides?: VisualThemeConfig
+    ): VisualTheme;
 }

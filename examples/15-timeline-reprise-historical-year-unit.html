@@ -59,7 +59,7 @@
   <div id="timeline" style="height: 560px;"></div>
 
   <script>
-    Timeline.loadEventThemes([
+    Timeline.loadVisualThemes([
       {
         id: "historicalEvents",
         track: {
@@ -234,7 +234,7 @@
     var bandSet = Timeline.createBandSet({
       unit: Timeline.HistoricalYearUnit,
       initialDate: -1300,
-      eventTheme: "historicalEvents",
+      visualTheme: "historicalEvents",
       bands: [
         {
           id: "main",
@@ -250,7 +250,7 @@
       bandSet.byId.main,
       narrativeEvents,
       {
-        eventTheme: "historicalNarrative"
+        visualTheme: "historicalNarrative"
       }
     );
 

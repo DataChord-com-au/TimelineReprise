@@ -114,7 +114,7 @@
         }
       ];
 
-    var themes = Timeline.loadEventThemes([
+    var themes = Timeline.loadVisualThemes([
       {
         id: "main",
         track: {
@@ -150,7 +150,7 @@
       }
     ]);
 
-    var dividerTheme = Timeline.deriveEventTheme(themes.main, {
+    var dividerTheme = Timeline.deriveVisualTheme(themes.main, {
       labels: false,
       instant: {
         iconColor: projectStartEvent.iconColor,
@@ -169,7 +169,7 @@
           width: "80%",
           intervalUnit: "month",
           intervalPixels: 110,
-          eventTheme: "main"
+          visualTheme: "main"
         },
         {
           id: "overview",
@@ -177,7 +177,7 @@
           intervalUnit: "year",
           intervalPixels: 220,
           overview: true,
-          eventTheme: "main"
+          visualTheme: "main"
         }
       ]
     });
@@ -185,12 +185,12 @@
     Timeline.attachNarrativeDecorators(
       horizontalBandSet.byId.main,
       [projectStartEvent],
-      { eventTheme: dividerTheme }
+      { visualTheme: dividerTheme }
     );
     Timeline.attachNarrativeDecorators(
       horizontalBandSet.byId.overview,
       [projectStartEvent],
-      { eventTheme: dividerTheme }
+      { visualTheme: dividerTheme }
     );
     Timeline.attachEvents(
       [
@@ -217,14 +217,14 @@
           intervalUnit: "year",
           intervalPixels: 180,
           overview: true,
-          eventTheme: "main"
+          visualTheme: "main"
         },
         {
           id: "main",
           width: "*",
           intervalUnit: "month",
           intervalPixels: 90,
-          eventTheme: "main"
+          visualTheme: "main"
         }
       ]
     });
@@ -232,12 +232,12 @@
     Timeline.attachNarrativeDecorators(
       verticalBandSet.byId.main,
       [projectStartEvent],
-      { eventTheme: dividerTheme }
+      { visualTheme: dividerTheme }
     );
     Timeline.attachNarrativeDecorators(
       verticalBandSet.byId.overview,
       [projectStartEvent],
-      { eventTheme: dividerTheme }
+      { visualTheme: dividerTheme }
     );
     Timeline.attachEvents(
       [

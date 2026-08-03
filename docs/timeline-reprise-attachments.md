@@ -16,7 +16,7 @@ Timeline.attachEvents(
 ```
 
 The first argument is one band info or an array of band infos. For every target
-band, this resolves its `theme.eventTheme`, binds its Reprise runtime, prepares
+band, this resolves its `theme.visualTheme`, binds its Reprise runtime, prepares
 separate unit-aware event records, configures its event painter, and adds the
 records to its own `eventSource`.
 
@@ -38,35 +38,35 @@ Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents);
 
 The same preparation path classifies canonical instants and ranges, then adds
 one `Timeline.NarrativeDecorator` to `bandInfo.decorators`. The decorator
-receives the resolved `Timeline.EventTheme` as one complete theme.
+receives the resolved `Timeline.VisualTheme` as one complete theme.
 
 Use one event array. An instant has `date` or an instant `start`; a range has
 `startDate`/`endDate` or `start`/`end`.
 
 ## Theme selection
 
-Both methods accept the same explicit `eventTheme` option:
+Both methods accept the same explicit `visualTheme` option:
 
 ```js
 Timeline.attachEvents(bandInfo, events, {
-    eventTheme: "editorial"
+    visualTheme: "editorial"
 });
 
 Timeline.attachNarrativeDecorators(bandInfo, narrativeEvents, {
-    eventTheme: narrativeTheme
+    visualTheme: narrativeTheme
 });
 ```
 
-The value must be a registered theme id or a `Timeline.EventTheme` instance.
-When omitted, resolution falls back to `bandInfo.theme.eventTheme`, then the
+The value must be a registered theme id or a `Timeline.VisualTheme` instance.
+When omitted, resolution falls back to `bandInfo.theme.visualTheme`, then the
 defined Reprise default.
 
 Normal events and Narrative on one band may deliberately use different themes.
 The normal-event selection remains associated with its attached records, so
 painting does not revert those records to the band's fallback theme.
 
-There is no `eventThemeId` alias and no flat attachment-level visual options.
-Put visual values in `Timeline.EventTheme`.
+There is no `visualThemeId` alias and no flat attachment-level visual options.
+Put visual values in `Timeline.VisualTheme`.
 
 ## Runtime selection
 
@@ -120,7 +120,7 @@ injected runtime interpret domain-specific or open ranges before projecting
 them into the configured unit; the attachment pipeline does not inspect and
 reparse the source endpoints.
 
-The runtime receives templates selected from the EventTheme's DisplayProfile
+The runtime receives templates selected from the VisualTheme's DisplayProfile
 and the complete presentation context. Reprise's default TemplateRenderer
 handles generic macros and unit labels. A selector extension may interpret
 domain-specific values such as ChronicleTime without moving that interpretation
@@ -130,7 +130,7 @@ into the attachment pipeline.
 
 Normal events and Narrative use one preparation pipeline for:
 
-- EventTheme and runtime resolution;
+- VisualTheme and runtime resolution;
 - canonical instant/range time;
 - presentation rendering;
 - named colour normalization;

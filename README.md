@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `3.1.1`
+Version: `3.1.2`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.1.1"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.1.2"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -59,7 +59,7 @@ band infos internally:
 
 ```js
 var bandSet = Timeline.createBandSet({
-    eventTheme: "events",
+    visualTheme: "events",
     bands: [
         {
             id: "main",
@@ -80,11 +80,11 @@ values onto the timeline's primitive unit without constructing native SIMILE
 objects.
 
 Normal and Narrative attachments use the runtime retained by the constructed
-band. Both methods may still accept an explicit `{ eventTheme, runtime }`
+band. Both methods may still accept an explicit `{ visualTheme, runtime }`
 selection.
 
 Reprise-owned `DisplayProfile` and `TemplateRenderer` instances provide
-validated label, tooltip, and bubble templates. An EventTheme selects a
+validated label, tooltip, and bubble templates. A VisualTheme selects a
 registered profile through `presentation`; domain libraries can add selectors
 without replacing Reprise's generic macros or rendering pipeline.
 
@@ -156,7 +156,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [09-timeline-reprise-clamp-stress.html](examples/09-timeline-reprise-clamp-stress.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/09-timeline-reprise-clamp-stress.html) | Stresses one clamp with three synchronized bands whose temporal movement per pixel differs by several orders of magnitude. |
 | [10-timeline-reprise-event-layout.html](examples/10-timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/10-timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |
 | [11-timeline-reprise-narrative.html](examples/11-timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/11-timeline-reprise-narrative.html) | Reprise Narrative adds labelled spans and dividers alongside normal event content. |
-| [12-timeline-reprise-filtered-theme.html](examples/12-timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/12-timeline-reprise-filtered-theme.html) | Loads event theme configuration from embedded JSON and filters a larger event set by tags. |
+| [12-timeline-reprise-filtered-theme.html](examples/12-timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/12-timeline-reprise-filtered-theme.html) | Loads visual theme configuration from embedded JSON and filters a larger event set by tags. |
 | [13-timeline-reprise-planning-unit.html](examples/13-timeline-reprise-planning-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/13-timeline-reprise-planning-unit.html) | Uses the supported planning-day unit for day zero, numeric strings, ranges, labels, durations, and bubbles. |
 | [14-timeline-reprise-geochrono-unit.html](examples/14-timeline-reprise-geochrono-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/14-timeline-reprise-geochrono-unit.html) | Uses the supported Ma value and unit APIs, including duration labels, and normalizes narrative spans to older-to-younger order. |
 | [15-timeline-reprise-historical-year-unit.html](examples/15-timeline-reprise-historical-year-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/15-timeline-reprise-historical-year-unit.html) | Uses astronomical whole-year values with BCE/CE labels to compare ancient Egypt, the Greek world, and Rome without JavaScript dates. |

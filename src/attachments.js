@@ -2,10 +2,10 @@ import {
     renderEventField,
     resolveRepriseRuntime
 } from "./presentation-runtime.js";
-import { resolveEventTheme } from "./theme-registry.js";
+import { resolveVisualTheme } from "./theme-registry.js";
 
 const _ATTACHMENT_MODULE_LABEL = "TimelineReprise";
-const _ATTACHMENT_OPTION_NAMES = new Set(["eventTheme", "runtime"]);
+const _ATTACHMENT_OPTION_NAMES = new Set(["visualTheme", "runtime"]);
 const _ATTACHMENT_COLOUR_FIELDS = [
     "color",
     "textColor",
@@ -16,7 +16,7 @@ const _ATTACHMENT_COLOUR_FIELDS = [
     "lineColor"
 ];
 const _ATTACHMENT_RESERVED_RECORD_FIELDS = new Set([
-    "eventTheme",
+    "visualTheme",
     "runtime",
     "eventTime"
 ]);
@@ -118,8 +118,8 @@ function _attachmentResolveContext(bandInfo, options, caller) {
     _attachmentAssertBandInfo(bandInfo, caller);
     const resolvedOptions = _attachmentResolveOptions(options, caller);
     const unit = _attachmentResolveBandUnit(bandInfo);
-    const eventTheme = resolveEventTheme(
-        resolvedOptions.eventTheme ?? null,
+    const visualTheme = resolveVisualTheme(
+        resolvedOptions.visualTheme ?? null,
         bandInfo.theme
     );
     const runtime = resolveRepriseRuntime(
@@ -131,7 +131,7 @@ function _attachmentResolveContext(bandInfo, options, caller) {
     );
 
     return Object.freeze({
-        eventTheme,
+        visualTheme,
         nativeTheme: bandInfo.theme,
         runtime
     });
@@ -243,10 +243,10 @@ class AttachedEvent {
         this._earliestEnd = eventTime.earliestEnd ?? this._end;
 
         Object.defineProperties(this, {
-            eventTheme: {
+            visualTheme: {
                 configurable: false,
                 enumerable: false,
-                value: context.eventTheme,
+                value: context.visualTheme,
                 writable: false
             },
             runtime: {
@@ -430,7 +430,7 @@ function renderAttachedEventField(event, field, target, extra = {}) {
 
     const value = renderEventField(
         attachment.runtime,
-        attachment.eventTheme,
+        attachment.visualTheme,
         attachment.eventTime,
         attachment.presentationEvent,
         field,
@@ -483,9 +483,9 @@ function attachEvents(bandInfoOrBandInfos, events = [], options = {}) {
         painter._params = _attachmentIsObject(painter._params)
             ? painter._params
             : {};
-        painter._params.eventTheme = context.eventTheme;
+        painter._params.visualTheme = context.visualTheme;
         painter._params.runtime = context.runtime;
-        painter._eventTheme = context.eventTheme;
+        painter._visualTheme = context.visualTheme;
         painter._runtime = context.runtime;
         bandInfo.eventSource.addMany(records);
     }
@@ -503,7 +503,7 @@ function attachNarrativeDecorators(bandInfo, events = [], options = {}) {
     const ranges = records.filter(record => record.eventTime.kind === "range");
     const instants = records.filter(record => record.eventTime.kind === "instant");
     const decorator = new globalThis.Timeline.NarrativeDecorator({
-        eventTheme: context.eventTheme,
+        visualTheme: context.visualTheme,
         runtime: context.runtime,
         ranges,
         instants

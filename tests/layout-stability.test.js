@@ -36,7 +36,7 @@ function resolveTestRuntime(runtime, options = {}) {
     return runtime || testRuntime(options.unit, options.labeller);
 }
 
-function testEventTheme(overrides = {}) {
+function testVisualTheme(overrides = {}) {
     const defaults = {
         disableEmphasis: false,
         eventColorScope: "graphic",
@@ -106,9 +106,9 @@ function testEventTheme(overrides = {}) {
     return merge(defaults, overrides);
 }
 
-function resolveTestEventTheme(explicit, nativeTheme) {
-    const resolved = testEventTheme(explicit || nativeTheme?.eventTheme || {});
-    if (!explicit && nativeTheme) nativeTheme.eventTheme = resolved;
+function resolveTestVisualTheme(explicit, nativeTheme) {
+    const resolved = testVisualTheme(explicit || nativeTheme?.visualTheme || {});
+    if (!explicit && nativeTheme) nativeTheme.visualTheme = resolved;
     return resolved;
 }
 
@@ -150,7 +150,7 @@ function loadEventPainter() {
 
     const Timeline = {
         OriginalEventPainter,
-        resolveEventTheme: resolveTestEventTheme,
+        resolveVisualTheme: resolveTestVisualTheme,
         ThemeIcons: {
             getCssColor: (color) => color,
             get: (color, size) => `theme-icon:${color}:${size}`
@@ -230,7 +230,7 @@ function initializeEmptyEtherPainter(options) {
 function loadNarrativeDecorator() {
     const Timeline = {
         NativeDateUnit: {},
-        resolveEventTheme: resolveTestEventTheme
+        resolveVisualTheme: resolveTestVisualTheme
     };
     const context = vm.createContext({
         fillRepriseBubble: () => {},
@@ -308,9 +308,9 @@ function eventOnLane(id, start, end, lane) {
     };
 }
 
-function eventTheme() {
+function visualTheme() {
     return {
-        eventTheme: testEventTheme({
+        visualTheme: testVisualTheme({
             track: {
                 horizontal: { size: 20, gap: 2 },
                 vertical: { size: 20, gap: 2 }
@@ -388,8 +388,8 @@ function makeEventPainter(orientation, viewLength) {
         getViewWidth: () => 400,
         updateEventTrackInfo: () => {}
     };
-    painter._params = { theme: eventTheme() };
-    painter._eventTheme = painter._params.theme.eventTheme;
+    painter._params = { theme: visualTheme() };
+    painter._visualTheme = painter._params.theme.visualTheme;
     painter._nativeTheme = painter._params.theme;
     painter._repriseMetrics = {
         trackOffset: 2,
@@ -501,11 +501,11 @@ test("EmptyEtherPainter background rendering does not require the Reprise styles
 
 test("event-layout resolves presentation without mutating the native painter theme", () => {
     const OriginalEventPainter = loadEventPainter();
-    const theme = eventTheme();
+    const theme = visualTheme();
     const originalNativeColor = theme.event.instant.iconColor;
     const painter = new OriginalEventPainter();
 
-    theme.eventTheme = testEventTheme({
+    theme.visualTheme = testVisualTheme({
         instant: { iconColor: "orange" },
         bubble: { width: 360, maxHeight: 480 }
     });
@@ -515,9 +515,9 @@ test("event-layout resolves presentation without mutating the native painter the
         { isHorizontal: () => true, isVertical: () => false }
     );
 
-    assert.equal(painter._eventTheme.instant.iconColor, "orange");
-    assert.equal(painter._eventTheme.bubble.width, 360);
-    assert.equal(painter._eventTheme.bubble.maxHeight, 480);
+    assert.equal(painter._visualTheme.instant.iconColor, "orange");
+    assert.equal(painter._visualTheme.bubble.width, 360);
+    assert.equal(painter._visualTheme.bubble.maxHeight, 480);
     assert.equal(theme.event.instant.iconColor, originalNativeColor);
 });
 
@@ -741,9 +741,9 @@ function untrackedEvent(id, start, end) {
     };
 }
 
-function eventThemeWithTrackGap(trackGap) {
+function visualThemeWithTrackGap(trackGap) {
     return {
-        eventTheme: testEventTheme({
+        visualTheme: testVisualTheme({
             track: {
                 horizontal: { size: 20, gap: trackGap },
                 vertical: { size: 20, gap: trackGap }
@@ -782,8 +782,8 @@ function eventThemeWithTrackGap(trackGap) {
 
 function makePainterWithTrackGap(orientation, trackGap, viewLength) {
     const painter = makeEventPainter(orientation, viewLength);
-    painter._params = { theme: eventThemeWithTrackGap(trackGap) };
-    painter._eventTheme = painter._params.theme.eventTheme;
+    painter._params = { theme: visualThemeWithTrackGap(trackGap) };
+    painter._visualTheme = painter._params.theme.visualTheme;
     painter._nativeTheme = painter._params.theme;
     return painter;
 }
@@ -894,7 +894,7 @@ test("customizing track.gap does not change the labelRoutingGap default used to 
 
 function buildPointLabelGapFixture({ labelRoutingGap, labelTrackGap, overlap }) {
     const painter = makeEventPainter("horizontal", 300);
-    const tapeSpec = painter._eventTheme.range.horizontal;
+    const tapeSpec = painter._visualTheme.range.horizontal;
     const secondLeft = overlap ? 0 : 50;
     const labels = [
         {
@@ -965,9 +965,9 @@ test("vertical labelRoutingGap controls spacing between labels in a column", () 
         ];
 
         if (labelRoutingGap === undefined) {
-            delete painter._eventTheme.range.vertical.labelRoutingGap;
+            delete painter._visualTheme.range.vertical.labelRoutingGap;
         } else {
-            painter._eventTheme.range.vertical.labelRoutingGap = labelRoutingGap;
+            painter._visualTheme.range.vertical.labelRoutingGap = labelRoutingGap;
         }
         painter._repriseTapeLabels.push(...labels);
         painter.paint();
@@ -992,7 +992,7 @@ test("vertical labelTrackGap controls spacing between routed side columns", () =
             height: 20
         };
 
-        painter._eventTheme.range.vertical.labelTrackGap = labelTrackGap;
+        painter._visualTheme.range.vertical.labelTrackGap = labelTrackGap;
         painter._reprisePointLabels.push(first, second);
         painter.paint();
 
@@ -1008,7 +1008,7 @@ function buildRangeGapFixture(
 ) {
     const painter = makeEventPainter(orientation, 400);
     const theme = painter._params.theme;
-    const tapeSpec = painter._eventTheme.range[orientation];
+    const tapeSpec = painter._visualTheme.range[orientation];
     const evt = eventOnLane("range", 20, 200, 0);
     const label = tapeLabel(evt, 20, 40, 16);
     const tape = {
@@ -1019,8 +1019,8 @@ function buildRangeGapFixture(
         endPixel: 200
     };
 
-    painter._eventTheme.range.width = tapeWidth;
-    painter._eventTheme.track[orientation].gap = trackGap;
+    painter._visualTheme.range.width = tapeWidth;
+    painter._visualTheme.track[orientation].gap = trackGap;
     painter._repriseMetrics.trackGap = trackGap;
     tapeSpec.tapeGap = tapeGap;
     if (minLabelGap === undefined) {
@@ -1132,7 +1132,7 @@ for (const orientation of ["horizontal", "vertical"]) {
     test(`${orientation} range tapeGap controls tape lanes and minLabelGap controls label spacing`, () => {
         function build(tapeGap, minLabelGap) {
             const painter = makeEventPainter(orientation, 500);
-            const tapeSpec = painter._eventTheme.range[orientation];
+            const tapeSpec = painter._visualTheme.range[orientation];
             const events = [
                 eventOnLane("lane-0", 20, 140, 0),
                 eventOnLane("lane-1", 180, 320, 1)
@@ -1179,7 +1179,7 @@ for (const orientation of ["horizontal", "vertical"]) {
     test(`${orientation} range tapeGap does not change time-axis lane assignment`, () => {
         function assignedLanes(tapeGap) {
             const painter = makeEventPainter(orientation, 500);
-            const tapeSpec = painter._eventTheme.range[orientation];
+            const tapeSpec = painter._visualTheme.range[orientation];
             const labels = [
                 tapeLabel(untrackedEvent("first", 20, 100), 20, 40, 16),
                 tapeLabel(untrackedEvent("second", 101, 180), 101, 40, 16)
@@ -1235,8 +1235,8 @@ function buildShortRangeGapFixture(
     const theme = painter._params.theme;
     const short = eventOnLane("short", 20, 30, 0);
 
-    painter._eventTheme.range.horizontal.toLabelGap = horizontalGap;
-    painter._eventTheme.range.vertical.toLabelGap = verticalGap;
+    painter._visualTheme.range.horizontal.toLabelGap = horizontalGap;
+    painter._visualTheme.range.vertical.toLabelGap = verticalGap;
 
     const tape = painter._paintEventTape(
         short,
@@ -1396,13 +1396,13 @@ for (const orientation of ["horizontal", "vertical"]) {
                 emphasis: "critical"
             });
 
-            painter._eventTheme.instant.iconColor = themeColor || "blue";
+            painter._visualTheme.instant.iconColor = themeColor || "blue";
             theme.emphasisSpecs = {
                 critical: emphasisIconColor == null
                     ? {}
                     : { iconColor: emphasisIconColor }
             };
-            painter._eventTheme = testEventTheme({
+            painter._visualTheme = testVisualTheme({
                 instant: { iconColor: themeColor || "blue" },
                 eventColorScope: scope,
                 disableEmphasis
@@ -1452,7 +1452,7 @@ for (const orientation of ["horizontal", "vertical"]) {
                 iconColor: eventIconColor
             });
 
-            painter._eventTheme = testEventTheme({
+            painter._visualTheme = testVisualTheme({
                 instant: { iconColor: "orange" },
                 eventColorScope: scope
             });
@@ -1479,7 +1479,7 @@ for (const orientation of ["horizontal", "vertical"]) {
     test(`${orientation} instant custom icon URLs survive theme defaults but yield to event iconColor`, () => {
         const painter = makeEventPainter(orientation);
         const theme = painter._params.theme;
-        painter._eventTheme.instant.iconColor = "orange";
+        painter._visualTheme.instant.iconColor = "orange";
 
         function paint(eventIconColor) {
             return painter._paintEventIcon(
@@ -1538,7 +1538,7 @@ test("duration tapeColor obeys eventColorScope", () => {
             getProperty: name => name === "tapeColor" ? "green" : null
         };
 
-        painter._eventTheme = testEventTheme({
+        painter._visualTheme = testVisualTheme({
             eventColorScope: scope,
             range: { iconColor: "orange" }
         });
@@ -1574,7 +1574,7 @@ test("event labelColor and textColor obey eventColorScope", () => {
         };
 
         theme.emphasisSpecs = emphasisSpecs;
-        painter._eventTheme = testEventTheme({
+        painter._visualTheme = testVisualTheme({
             eventColorScope: scope,
             disableEmphasis
         });
@@ -1622,7 +1622,7 @@ test("horizontal instant toLabelGap is the exact visible dot-to-label gap", () =
     const painter = makeEventPainter("horizontal");
     const evt = instantEvent("instant", 20);
     const theme = painter._params.theme;
-    painter._eventTheme.instant.horizontal.toLabelGap = 6;
+    painter._visualTheme.instant.horizontal.toLabelGap = 6;
 
     const iconData = paintedData(20, 10, 10, 10);
     painter._reprisePointIcons.push({
@@ -1707,7 +1707,7 @@ test("vertical instant toLabelGap is exact and defaults to 4px", () => {
         const iconData = paintedData(10, 20, 10, 10);
 
         if (toLabelGap !== undefined) {
-            painter._eventTheme.instant.vertical.toLabelGap = toLabelGap;
+            painter._visualTheme.instant.vertical.toLabelGap = toLabelGap;
         }
         painter._reprisePointIcons.push({ evt, lane: 0, data: iconData, width: 10, height: 10 });
         const label = painter._paintEventLabel(
@@ -1825,7 +1825,7 @@ test("a vertical short-duration tape occupying track zero routes a colliding poi
     assert.equal(point.label.physicalTrack, 1);
     assert.equal(
         point.label.data.left - (shortLabel.data.left + shortLabel.data.width),
-        painter._eventTheme.range.vertical.toEventGap
+        painter._visualTheme.range.vertical.toEventGap
     );
 });
 
@@ -2044,7 +2044,7 @@ test("narrative defaults layer dividers between marker ticks and labels", () => 
 test("narrative span, divider, and label z-index overrides stay independent", () => {
     const NarrativeDecorator = loadNarrativeDecorator();
     const decorator = new NarrativeDecorator({
-        eventTheme: {
+        visualTheme: {
             layer: {
                 zIndex: 17,
                 dividerZIndex: 37,
@@ -2256,7 +2256,7 @@ test("narrative instant lineWidth is separate from event icon width", () => {
         200,
         { count: 1, offset: 0, gap: 4 },
         {
-            eventTheme: testEventTheme({
+            visualTheme: testVisualTheme({
                 instant: {
                     width: 12,
                     lineWidth: 2,
@@ -2268,7 +2268,7 @@ test("narrative instant lineWidth is separate from event icon width", () => {
         }
     );
 
-    assert.equal(decorator._eventTheme.instant.width, 12);
+    assert.equal(decorator._visualTheme.instant.width, 12);
     assert.equal(decorator._dividerWidth, 2);
     assert.equal(decorator._instantToLabelGap, 3);
 });
@@ -2279,7 +2279,7 @@ test("narrative range toLabelGap resolves from the oriented range theme", () => 
         200,
         { count: 1, offset: 0, gap: 4 },
         {
-            eventTheme: testEventTheme({
+            visualTheme: testVisualTheme({
                 range: {
                     horizontal: {
                         toLabelGap: 7
@@ -2568,7 +2568,7 @@ function makeConfiguredNarrative(orientation, viewWidth, trackTheme, extraParams
     const NarrativeDecorator = loadNarrativeDecorator();
     const horizontal = orientation === "horizontal";
     const decorator = new NarrativeDecorator({
-        eventTheme: testEventTheme({
+        visualTheme: testVisualTheme({
             track: { [orientation]: trackTheme }
         }),
         ...extraParams
@@ -2582,7 +2582,7 @@ function makeConfiguredNarrative(orientation, viewWidth, trackTheme, extraParams
     return decorator;
 }
 
-test("narrative decorators fill the band when EventTheme only defines event tape width", () => {
+test("narrative decorators fill the band when VisualTheme only defines event tape width", () => {
     for (const orientation of ["horizontal", "vertical"]) {
         const decorator = makeConfiguredNarrative(
             orientation,
@@ -2590,7 +2590,7 @@ test("narrative decorators fill the band when EventTheme only defines event tape
             { count: 1, offset: 2, gap: 4 }
         );
 
-        assert.equal(decorator._eventTheme.range.width, 4);
+        assert.equal(decorator._visualTheme.range.width, 4);
         assert.equal(decorator._spanSize, null);
     }
 });
@@ -2682,21 +2682,21 @@ test("narrative non-zero offset, endPadding, and gap combine deterministically",
     assert.equal(decorator._trackStart(2), 500 - 17 - 60 - 2 * increment);
 });
 
-test("event-layout resolves its horizontal track size from EventTheme", () => {
+test("event-layout resolves its horizontal track size from VisualTheme", () => {
     const OriginalEventPainter = loadEventPainter();
-    const theme = eventTheme();
+    const theme = visualTheme();
     const painter = new OriginalEventPainter();
     const timeline = {
         isHorizontal: () => true,
         isVertical: () => false
     };
 
-    theme.eventTheme = testEventTheme({
+    theme.visualTheme = testVisualTheme({
         track: { horizontal: { size: 55 } }
     });
     painter._params = { theme };
     painter.initialize({ _theme: theme }, timeline);
 
-    assert.equal(painter._eventTheme.track.horizontal.size, 55);
+    assert.equal(painter._visualTheme.track.horizontal.size, 55);
     assert.equal(theme.event.track.height, 20);
 });
