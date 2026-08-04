@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `3.1.2`
+Version: `3.2.0`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.1.2"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.2.0"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -100,9 +100,11 @@ var jurassic = new Timeline.Ma(190);
 ```
 
 Duration-aware runtimes expose numeric and formatted durations to renderers.
-Native dates use elapsed milliseconds, planning ranges use day counts,
+Native dates use elapsed milliseconds with minute-precision fallback text,
+planning ranges use day counts,
 historical ranges use elapsed years, and Ma ranges use older-to-younger
-differences. See
+differences. Active ranges can also expose elapsed and remaining values;
+bubbles recalculate them on every opening. See
 [Timeline Units and Durations](docs/timeline-reprise-units.md).
 
 Set `clampRange` on `Timeline.createBandSet()` to constrain the center of each

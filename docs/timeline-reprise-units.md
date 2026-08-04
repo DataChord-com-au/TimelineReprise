@@ -21,8 +21,8 @@ without replacing Reprise's band builder.
 
 When Reprise loads after SIMILE Timeline, it adds duration support to
 `Timeline.NativeDateUnit` and its Gregorian labeller. The numeric duration is
-elapsed milliseconds. The default text uses elapsed days, hours, minutes,
-seconds, and milliseconds as needed:
+elapsed milliseconds. Default text is truncated to minute precision and uses
+elapsed days, hours, and minutes as needed:
 
 ```js
 Timeline.NativeDateUnit.duration(
@@ -30,6 +30,20 @@ Timeline.NativeDateUnit.duration(
     new Date("2026-01-03T00:00:00Z")
 ); // 172800000
 ```
+
+Set `durationPrecision` on `Timeline.RepriseRuntime` when a different smallest
+unit is required. Millisecond output remains available explicitly:
+
+```js
+var runtime = new Timeline.RepriseRuntime({
+    durationPrecision: "millisecond"
+});
+```
+
+Accepted precisions are `day`, `hour`, `minute`, `second`, and `millisecond`.
+The same precision applies to duration, minimum duration, elapsed, and
+remaining fallback text. A render call may override it through
+`context.durationPrecision`.
 
 This is an extension-layer addition; the vendored SIMILE source is unchanged.
 

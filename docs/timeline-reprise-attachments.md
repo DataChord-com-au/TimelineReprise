@@ -30,6 +30,35 @@ repeated for every attachment.
 `bandInfo.eventSource` must be a `Timeline.DefaultEventSource` or another event
 source that provides `addMany(events)`.
 
+## Filtering events
+
+`Timeline.filterEvents(events, options)` returns a new array containing the
+events that satisfy all configured tag filters. It does not mutate the input
+array or its events.
+
+```js
+var filteredEvents = Timeline.filterEvents(events, {
+    tagsContain: ["showcase", "release"],
+    tagsNotContain: ["internal"],
+    tagsNotOnlyContain: ["draft", "archive"]
+});
+
+Timeline.attachEvents(bandInfo, filteredEvents);
+```
+
+The options are:
+
+- `tagsContain`: keep an event when it contains at least one listed tag.
+- `tagsNotContain`: reject an event when it contains any listed tag.
+- `tagsNotOnlyContain`: reject a tagged event when every one of its tags is in
+  this list. An untagged event passes this filter.
+
+Omitted options and empty arrays impose no condition. An event without `tags`
+is treated as having an empty tag array. Tag comparison is exact and
+case-sensitive. See
+[the filtered-theme example](../examples/12-timeline-reprise-filtered-theme.html)
+for a complete configuration-driven use.
+
 ## Narrative decorators
 
 ```js
@@ -109,10 +138,17 @@ values, numeric values including zero, and wrapper values use this same path.
 
 Duration-aware units and labellers also give automatically created runtimes
 derived duration context. This applies equally to `attachEvents()` and
-`attachNarrativeDecorators()`. Native dates use elapsed milliseconds,
+`attachNarrativeDecorators()`. Native dates use elapsed milliseconds with
+fallback text truncated to minutes,
 `Timeline.PlanningDayUnit` uses planning days,
 `Timeline.HistoricalYearUnit` uses elapsed years, and `Timeline.MaUnit` uses
 Ma.
+
+Active ranges may also expose elapsed and remaining duration context. Native
+date runtimes obtain the current date automatically; domain runtimes provide
+`readCurrentTime()` in their configured unit. Bubble fields are recalculated
+for every opening. Caption tooltips on labels and graphics are recalculated on
+hover.
 
 The canonical result may include `latestStart` and `earliestEnd`. Reprise uses
 those projected values directly for imprecise event layout. This lets an

@@ -21,6 +21,8 @@ A runtime is an object with:
 - `projectCardinalAxis(context)` - optional hook for projected cardinal-axis
   ranges and marker positions.
 - `readEventTime(event)` - returns a canonical instant or range.
+- `readCurrentTime()` - returns the current value in the configured unit, or
+  `null` when that domain has no implicit current value.
 - `render(template, event, context)` - returns text, HTML, or a DOM fragment for
   one field.
 
@@ -87,6 +89,25 @@ Duration-aware units additionally provide `duration(start, end)`, which returns
 a finite, non-negative number. Their labellers provide
 `labelDuration(value)`. The duration methods are optional as a pair so custom
 units without duration support continue to work.
+
+The default runtime supplies `readCurrentTime()` for native-date units. A
+domain runtime injects it when its unit has its own meaning of now:
+
+```js
+var runtime = new Timeline.RepriseRuntime({
+    unit: planningUnit,
+    durationPrecision: "minute",
+    readCurrentTime: function () {
+        return planningClock.currentDay();
+    }
+});
+```
+
+Native-date fallback duration text defaults to minute precision. Set
+`durationPrecision: "millisecond"` only when sub-minute detail is required.
+This option applies consistently to duration, minimum duration, elapsed, and
+remaining values; domain selector extensions may replace their text with
+their own named duration format.
 
 Band construction requires the complete timeline-unit contract, including
 `cloneValue(value)` and `change(value, delta)`. A cardinal axis over non-date
@@ -175,6 +196,21 @@ responsible for interpreting domain-specific values and projecting open or
 otherwise non-native ranges into values accepted by its configured unit.
 Attachments do not parse those source values a second time.
 
+The original event remains available during rendering. When its semantic
+range identifies a `present`, `open`, or `unresolved` endpoint, Reprise keeps
+that marker separate from the projected coordinate. Default text therefore
+uses these conventions instead of exposing the projection placeholder:
+
+```text
+2 Jan 2020 - present
+2 Jan 2020 ...
+2 Jan 2020 - ?
+```
+
+A `present` start is rendered as `now`. A range carrying only one concrete
+side through `bounded: "start"` or `bounded: "end"` is treated as open when
+the exact sentinel is unavailable.
+
 ## Duration context
 
 For a bounded range whose unit and labeller support duration, the render
@@ -204,8 +240,25 @@ For an imprecise range, `duration` is the longest duration from `start` to
 ```
 
 Overlapping imprecision bounds have a minimum duration of zero. Exact ranges
-have `duration` only. Instants, unresolved or open ranges, and units without
-the duration capability have neither property.
+omit `minimumDuration`. Instants and units without the duration capability
+have no derived durations.
+
+When a range contains `currentTime`, the context also includes independently
+derived elapsed and remaining durations:
+
+```js
+{
+    currentTime: 4,
+    elapsed: { value: 4, text: "4 days" },
+    remaining: { value: 6, text: "6 days" }
+}
+```
+
+Elapsed requires a finite start and remaining requires a finite end. An open
+or unresolved start therefore omits `elapsed` while retaining a finite
+`remaining`; an open or unresolved end does the reverse. A semantic `present`
+endpoint is resolved against the captured current value. Missing properties
+are treated as `null` by the bubble renderer and their rows are omitted.
 
 ## Rendering
 
@@ -220,7 +273,10 @@ The complete render context is:
     displayProfile: resolvedDisplayProfile,
     unit: runtime.unit,
     labeller: runtime.labeller,
-    duration: { value: 12, text: "12 days" }
+    duration: { value: 12, text: "12 days" },
+    currentTime: 4,
+    elapsed: { value: 4, text: "4 days" },
+    remaining: { value: 8, text: "8 days" }
 }
 ```
 
@@ -236,8 +292,9 @@ newline for a text target and `<br>` for an HTML target.
 
 Bare selectors read generic event fields. Reprise also supplies `eventTime`,
 `start`, `latestStart`, `earliestEnd`, `end`, `duration`, and
-`minimumDuration`. Timeline endpoints are formatted through the active
-labeller. Durations use the unit-derived values in the render context.
+`minimumDuration`, `elapsed`, and `remaining`. Timeline endpoints are formatted
+through the active labeller. Durations use the unit-derived values in the
+render context.
 
 Default event-time output remains late-bound to the active labeller: text
 event-time labels use `labelInterval()` and precise HTML/bubble values use
@@ -246,6 +303,17 @@ event-time labels use `labelInterval()` and precise HTML/bubble values use
 `context.minimumDuration.text` for `bubbleMinimumDuration`. Explicit event
 `bubbleDuration`/`duration` and `bubbleMinimumDuration`/`minimumDuration`
 values take precedence over those derived defaults.
+
+An unspecified `bubbleElapsed` or `bubbleRemaining` field inherits the active
+range's complete `bubbleDuration` template. While rendering that inherited
+template, the `duration` selector resolves to elapsed or remaining instead of
+the total duration. If all three templates are unspecified, their applicable
+default values use the runtime's minute-precision fallback text.
+
+Each bubble opening captures one current value and uses it consistently for
+all fields. Bubble fields are not retained in the attachment render cache, so
+opening the same bubble again recalculates its elapsed and remaining values.
+Caption tooltips are refreshed on `mouseenter` for event labels and graphics.
 
 ## Selector extensions
 
@@ -273,7 +341,22 @@ var renderer = new Timeline.TemplateRenderer({
 The first extension claiming a selector resolves it. A formatted selector must
 be accepted by that extension during DisplayProfile validation. Reprise owns
 the grammar and generic macros; the extension owns only its domain selectors
-and named formats.
+and named formats. Its returned value is preserved as-is, and each renderer
+invocation resolves the extension again. A semantic range formatter can
+therefore distinguish date-only `today` from date-time `present` while
+retaining its own endpoint formatting:
+
+```text
+2 Jan 2020 - today
+2 Jan 2020 - present
+2 Jan 2020 ...
+2 Jan 2020 - ?
+```
+
+Default bubble duration, minimum-duration, elapsed, and remaining output also
+passes through these selectors. A domain extension can therefore apply its
+named duration styles to fresh Reprise values without requiring explicit
+templates for every bubble field.
 
 ## Bubble structure
 
@@ -309,6 +392,9 @@ var runtime = new Timeline.RepriseRuntime({
     },
     readEventTime: function (event) {
         return domainAdapter.projectEventTime(event);
+    },
+    readCurrentTime: function () {
+        return domainAdapter.projectCurrentTime();
     }
 });
 
@@ -368,9 +454,9 @@ Callers may still provide fields such as `bubbleStart`,
 `bubbleDuration`, `bubbleLocation`, and `bubblePeople`; the renderer remains
 responsible only for their content.
 
-An injected renderer may use `context.duration.value` or
-`context.duration.text`. Duration calculation remains in the unit/runtime
-contract.
+An injected renderer may use the value or text from `context.duration`,
+`context.elapsed`, and `context.remaining`. Duration calculation remains in
+the unit/runtime contract.
 
 ---
 [Back to top](#presentation-runtime)<br>

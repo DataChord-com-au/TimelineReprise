@@ -1,6 +1,20 @@
 declare namespace Timeline {
+    type ElapsedDurationPrecision =
+        | "day"
+        | "hour"
+        | "minute"
+        | "second"
+        | "millisecond";
+
+    interface ElapsedDurationFormatOptions {
+        precision?: ElapsedDurationPrecision;
+    }
+
     interface DurationLabeller {
-        labelDuration(value: number): unknown;
+        labelDuration(
+            value: number,
+            options?: ElapsedDurationFormatOptions
+        ): unknown;
     }
 
     interface DurationUnit<T = unknown> {
@@ -14,7 +28,10 @@ declare namespace Timeline {
             value: number,
             intervalUnit?: number
         ): { text: string; emphasized: boolean };
-        labelDuration(value: number): string;
+        labelDuration(
+            value: number,
+            options?: ElapsedDurationFormatOptions
+        ): string;
     }
 
     interface PlanningDayUnitContract
@@ -49,7 +66,10 @@ declare namespace Timeline {
             value: HistoricalYear,
             intervalUnit?: number
         ): { text: string; emphasized: boolean };
-        labelDuration(value: number): string;
+        labelDuration(
+            value: number,
+            options?: ElapsedDurationFormatOptions
+        ): string;
     }
 
     interface HistoricalYearUnitContract
@@ -90,7 +110,10 @@ declare namespace Timeline {
             value: Ma,
             intervalUnit?: number
         ): { text: string; emphasized: boolean };
-        labelDuration(value: number): string;
+        labelDuration(
+            value: number,
+            options?: ElapsedDurationFormatOptions
+        ): string;
     }
 
     interface MaUnitContract extends BandUnit<Ma>, DurationUnit<Ma> {

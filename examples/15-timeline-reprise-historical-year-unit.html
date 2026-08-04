@@ -47,7 +47,8 @@
     for a broad comparison of ancient Egypt, the Greek world, and Rome. Reprise
     creates the unit-aware band and runtime. Event data uses astronomical
     whole-year numbers: raw 0 is displayed as 1 BCE, while raw 1 is displayed
-    as 1 CE. No JavaScript Date values are used.
+    as 1 CE. No JavaScript Date values are used. Hover an event tape or instant
+    marker to see its duration or value.
   </p>
 
   <ul class="legend">
@@ -59,9 +60,30 @@
   <div id="timeline" style="height: 560px;"></div>
 
   <script>
+    Timeline.loadDisplayProfiles([
+      {
+        id: "historicalEventDisplay",
+        label: {
+          caption: {
+            instant: "{prefix('Value: ', eventTime)}",
+            range: "{prefix('Duration: ', duration)}"
+          }
+        }
+      },
+      {
+        id: "historicalNarrativeDisplay",
+        label: {
+          caption: {
+            range: "{lines(caption, eventTime)}"
+          }
+        }
+      }
+    ]);
+
     Timeline.loadVisualThemes([
       {
         id: "historicalEvents",
+        presentation: "historicalEventDisplay",
         track: {
           horizontal: {
             count: 4,
@@ -88,6 +110,7 @@
       },
       {
         id: "historicalNarrative",
+        presentation: "historicalNarrativeDisplay",
         bubbles: false,
         track: {
           horizontal: {

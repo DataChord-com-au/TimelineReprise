@@ -3,6 +3,16 @@ const _SECOND = 1000 * _MILLISECOND;
 const _MINUTE = 60 * _SECOND;
 const _HOUR = 60 * _MINUTE;
 const _DAY = 24 * _HOUR;
+const _ELAPSED_DURATION_UNITS = Object.freeze([
+    [_DAY, "day"],
+    [_HOUR, "hour"],
+    [_MINUTE, "minute"],
+    [_SECOND, "second"],
+    [_MILLISECOND, "millisecond"]
+]);
+const _ELAPSED_DURATION_PRECISIONS = new Map(
+    _ELAPSED_DURATION_UNITS.map(([size, name]) => [name, size])
+);
 
 function _isDate(value) {
     return Object.prototype.toString.call(value) === "[object Date]" &&
@@ -13,28 +23,34 @@ function _plural(value, singular, plural = `${singular}s`) {
     return `${value} ${value === 1 ? singular : plural}`;
 }
 
-function _formatElapsedMilliseconds(value) {
+function _formatElapsedMilliseconds(value, { precision = "minute" } = {}) {
     if (!Number.isFinite(value) || value < 0) return "";
+    if (!_ELAPSED_DURATION_PRECISIONS.has(precision)) {
+        throw new RangeError(
+            "TimelineReprise native duration precision must be day, hour, minute, second, or millisecond."
+        );
+    }
 
-    const units = [
-        [_DAY, "day"],
-        [_HOUR, "hour"],
-        [_MINUTE, "minute"],
-        [_SECOND, "second"]
-    ];
-    let remaining = value;
+    const precisionSize = _ELAPSED_DURATION_PRECISIONS.get(precision);
+    let remaining = Math.floor(value / precisionSize) * precisionSize;
     const parts = [];
 
-    for (const [size, name] of units) {
+    for (const [size, name] of _ELAPSED_DURATION_UNITS) {
+        if (size < precisionSize) continue;
+
         const count = Math.floor(remaining / size);
         if (count === 0) continue;
 
-        parts.push(_plural(count, name));
+        parts.push(name === "millisecond"
+            ? `${count} ms`
+            : _plural(count, name));
         remaining -= count * size;
     }
 
-    if (remaining !== 0 || parts.length === 0) {
-        parts.push(`${remaining} ms`);
+    if (parts.length === 0) {
+        parts.push(precision === "millisecond"
+            ? "0 ms"
+            : _plural(0, precision));
     }
 
     return parts.join(", ");

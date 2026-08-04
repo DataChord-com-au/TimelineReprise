@@ -6,6 +6,7 @@ import {
     setRenderedContent
 } from "./presentation-runtime.js";
 import {
+    captureAttachedEventRenderContext,
     getAttachedEventContext,
     renderAttachedEventField
 } from "./attachments.js";
@@ -161,6 +162,37 @@ import {
         return source != null &&
             Object.prototype.hasOwnProperty.call(source, name) &&
             source[name] !== undefined;
+    }
+
+    function hasEventCaption(event) {
+        if (
+            hasDefinedOwn(event, "caption") &&
+            event.caption !== null &&
+            event.caption !== ""
+        ) {
+            return true;
+        }
+
+        const value = event?.getProperty?.("caption");
+        return value !== undefined && value !== null && value !== "";
+    }
+
+    function removeElementTitle(element) {
+        if (typeof element?.removeAttribute === "function") {
+            element.removeAttribute("title");
+        } else if (element != null) {
+            delete element.title;
+        }
+    }
+
+    function setDynamicCaption(element, value) {
+        if (hasRenderedContent(value)) {
+            element.title = String(value).replace(/<[^>]*>/g, "");
+            element._repriseHasDynamicCaption = true;
+        } else if (element._repriseHasDynamicCaption === true) {
+            removeElementTitle(element);
+            element._repriseHasDynamicCaption = false;
+        }
     }
 
     function ownValue(source, names) {
@@ -648,18 +680,22 @@ import {
         const doc = this._timeline.getDocument();
         const div = doc.createElement("div");
         const attachment = getAttachedEventContext(record.item);
+        const temporal = attachment == null
+            ? null
+            : captureAttachedEventRenderContext(record.item);
         fillRepriseBubble(div, attachment?.presentationEvent ?? record.item, {
             runtime: attachment?.runtime ?? this._runtime,
             visualTheme: attachment?.visualTheme ?? this._visualTheme,
             nativeTheme: this._nativeTheme,
-            eventTime: attachment?.eventTime ?? record.eventTime,
+            eventTime: temporal?.eventTime ?? record.eventTime,
+            currentTime: temporal?.currentTime,
             renderField: attachment == null
                 ? null
-                : (field, target) => renderAttachedEventField(
+                : (field, target, context) => renderAttachedEventField(
                     record.item,
                     field,
                     target,
-                    { surface: "bubble" }
+                    context
                 )
         });
 
@@ -679,6 +715,81 @@ import {
         domEvt.cancelBubble = true;
         SimileAjax.DOM.cancelEvent(domEvt);
         return false;
+    };
+
+    Timeline.NarrativeDecorator.prototype._renderCaption = function (record) {
+        const attachment = getAttachedEventContext(record.item);
+        if (attachment != null) {
+            const temporal = captureAttachedEventRenderContext(record.item);
+            return renderAttachedEventField(
+                record.item,
+                "caption",
+                "text",
+                {
+                    surface: "label",
+                    fresh: true,
+                    ...temporal
+                }
+            );
+        }
+
+        const eventTime = this._runtime.readEventTime(record.item) ??
+            record.eventTime;
+        const currentTime = this._runtime.readCurrentTime?.() ?? null;
+        return renderEventField(
+            this._runtime,
+            this._visualTheme,
+            eventTime,
+            record.item,
+            "caption",
+            "text",
+            { surface: "label", currentTime }
+        );
+    };
+
+    Timeline.NarrativeDecorator.prototype._recordHasCaption = function (
+        record,
+        renderedCaption
+    ) {
+        if (hasRenderedContent(renderedCaption) || hasEventCaption(record.item)) {
+            return true;
+        }
+
+        return Timeline.resolveDisplayProfile?.(this._visualTheme?.presentation)
+            ?.hasTemplate("caption", {
+                surface: "label",
+                eventTime: record.eventTime
+            }) === true;
+    };
+
+    Timeline.NarrativeDecorator.prototype._installCaptionRefresh = function (
+        record,
+        element,
+        renderedCaption
+    ) {
+        const enabled = this._tooltips !== false &&
+            this._recordHasCaption(record, renderedCaption);
+        if (element == null || !enabled) return false;
+
+        setDynamicCaption(element, renderedCaption);
+        if (element.style) element.style.pointerEvents = "auto";
+
+        const refresh = () => {
+            setDynamicCaption(element, this._renderCaption(record));
+        };
+        if (typeof element.addEventListener === "function") {
+            element.addEventListener("mouseenter", refresh);
+        } else {
+            const previous = element.onmouseenter;
+            element.onmouseenter = function () {
+                if (typeof previous === "function") {
+                    previous.apply(this, arguments);
+                }
+                refresh();
+            };
+        }
+
+        return true;
     };
 
     Timeline.NarrativeDecorator.prototype._makeLabel = function (record, cssClass) {
@@ -704,24 +815,10 @@ import {
                 "html",
                 { surface: "label" }
             );
-        const caption = attachment == null
-            ? renderEventField(
-                this._runtime,
-                this._visualTheme,
-                record.eventTime,
-                record.item,
-                "caption",
-                "text",
-                { surface: "label" }
-            )
-            : renderAttachedEventField(
-                record.item,
-                "caption",
-                "text",
-                { surface: "label" }
-            );
+        const caption = this._renderCaption(record);
         if (!hasRenderedContent(title) && !hasRenderedContent(caption)) return;
-        const tooltip = this._tooltips !== false && hasRenderedContent(caption);
+        const tooltip = this._tooltips !== false &&
+            this._recordHasCaption(record, caption);
 
         elmt.className = cssClass;
         elmt.style.position = "absolute";
@@ -736,11 +833,8 @@ import {
             elmt.appendChild(titleElmt);
         }
 
-        if (tooltip) {
-            elmt.title = String(caption).replace(/<[^>]*>/g, "");
-        } else {
-            elmt.removeAttribute("title");
-        }
+        if (tooltip) setDynamicCaption(elmt, caption);
+        else removeElementTitle(elmt);
 
         const labelColor = this._recordLabelColor(record);
         if (labelColor) elmt.style.color = labelColor;
@@ -748,6 +842,7 @@ import {
         if (bubbles) {
             elmt.onclick = domEvt => this._showBubble(record, domEvt || window.event);
         }
+        this._installCaptionRefresh(record, elmt, caption);
 
         this._labelLayerDiv.appendChild(elmt);
         record.labelElmt = elmt;
@@ -843,6 +938,7 @@ import {
                 this._spanLabelCssClass,
                 item.labelCssClass
             ].filter(Boolean).join(" "));
+            this._installCaptionRefresh(record, record.spanElmt, null);
             this._rangeRecords.push(record);
         });
 
@@ -888,6 +984,7 @@ import {
                 this._dividerLabelCssClass,
                 item.labelCssClass
             ].filter(Boolean).join(" "));
+            this._installCaptionRefresh(record, record.lineElmt, null);
             this._instantRecords.push(record);
         });
 

@@ -29,7 +29,10 @@ declare namespace Timeline {
     interface TimelineLabeller<T = unknown> {
         labelPrecise(value: T): unknown;
         labelInterval(value: T, intervalUnit?: number): unknown;
-        labelDuration?(value: number): unknown;
+        labelDuration?(
+            value: number,
+            options?: ElapsedDurationFormatOptions
+        ): unknown;
     }
 
     interface TimelineUnit<T = unknown> {

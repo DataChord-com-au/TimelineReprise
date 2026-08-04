@@ -4,6 +4,14 @@ import { resolveDisplayProfile } from "./theme-registry.js";
 
 const _RUNTIME_LABEL = "TimelineReprise.RepriseRuntime";
 const _RENDER_TARGETS = new Set(["text", "html"]);
+const _UNBOUNDED_ENDPOINTS = new Set(["open", "unresolved"]);
+const _DURATION_PRECISIONS = new Set([
+    "day",
+    "hour",
+    "minute",
+    "second",
+    "millisecond"
+]);
 
 function _runtimeIsObject(value) {
     return value != null && typeof value === "object" && !Array.isArray(value);
@@ -103,6 +111,16 @@ function _defaultProjectTimeRange(value) {
         ...(start == null ? {} : { start }),
         ...(end == null ? {} : { end })
     });
+}
+
+function _defaultReadCurrentTime() {
+    const nativeUnits = new Set([
+        globalThis.Timeline?.NativeDateUnit,
+        globalThis.SimileAjax?.NativeDateUnit
+    ]);
+    if (!nativeUnits.has(this.unit)) return null;
+
+    return new Date();
 }
 
 function _readAuxiliaryEndpoint(unit, sources, field, method) {
@@ -250,7 +268,28 @@ function _labelText(value) {
     return value;
 }
 
-function _durationValue(unit, labeller, start, end) {
+function _normalizeDurationPrecision(value, caller = _RUNTIME_LABEL) {
+    if (typeof value !== "string") {
+        throw new TypeError(`${caller} durationPrecision must be a string.`);
+    }
+
+    const precision = value.trim().toLowerCase();
+    if (!_DURATION_PRECISIONS.has(precision)) {
+        throw new RangeError(
+            `${caller} durationPrecision must be day, hour, minute, second, or millisecond.`
+        );
+    }
+
+    return precision;
+}
+
+function _durationValue(
+    unit,
+    labeller,
+    start,
+    end,
+    durationPrecision = "minute"
+) {
     if (
         start == null ||
         end == null ||
@@ -270,7 +309,9 @@ function _durationValue(unit, labeller, start, end) {
 
     let label;
     try {
-        label = _labelText(labeller.labelDuration(value));
+        label = _labelText(labeller.labelDuration(value, {
+            precision: durationPrecision
+        }));
     } catch {
         return null;
     }
@@ -291,9 +332,45 @@ function _durationValuesDiffer(unit, left, right) {
     }
 }
 
-function _hasIndeterminateDurationRange(event) {
+function _endpointMarker(value) {
+    if (typeof value !== "string") return null;
+
+    const marker = value.trim().toLowerCase();
+    return marker === "present" || _UNBOUNDED_ENDPOINTS.has(marker)
+        ? marker
+        : null;
+}
+
+function _eventRangeBoundaries(event) {
     const visited = new Set();
     let current = event;
+    const result = {
+        start: "bounded",
+        end: "bounded"
+    };
+
+    const recordBoundary = (name, value) => {
+        const marker = _endpointMarker(value);
+        if (marker == null) return;
+        result[name] = marker;
+    };
+
+    const inspectRange = range => {
+        if (!_runtimeIsObject(range)) return;
+
+        recordBoundary("start", range.start);
+        recordBoundary("end", range.end);
+
+        const bounded = typeof range.bounded === "string"
+            ? range.bounded.trim().toLowerCase()
+            : "";
+        if (bounded === "start" && result.end === "bounded") {
+            result.end = "open";
+        }
+        if (bounded === "end" && result.start === "bounded") {
+            result.start = "open";
+        }
+    };
 
     while (
         current != null &&
@@ -306,16 +383,11 @@ function _hasIndeterminateDurationRange(event) {
         if (
             eventTime.found &&
             _runtimeIsObject(eventTime.value) &&
-            eventTime.value.kind === "range" &&
-            (
-                eventTime.value.start === "open" ||
-                eventTime.value.start === "unresolved" ||
-                eventTime.value.end === "open" ||
-                eventTime.value.end === "unresolved"
-            )
+            eventTime.value.kind === "range"
         ) {
-            return true;
+            inspectRange(eventTime.value);
         }
+        inspectRange(current);
 
         const source = _readDirectField(current, "event");
         current = source.found && source.value !== current
@@ -323,40 +395,121 @@ function _hasIndeterminateDurationRange(event) {
             : null;
     }
 
-    return false;
+    return result;
 }
 
-function _eventDurations(unit, labeller, eventTime, event = null) {
+function _resolvePresentEventTime(eventTime, event, currentTime) {
+    if (eventTime?.kind !== "range" || currentTime == null) return eventTime;
+
+    const boundaries = _eventRangeBoundaries(event);
+    if (
+        boundaries.start !== "present" &&
+        boundaries.end !== "present"
+    ) {
+        return eventTime;
+    }
+
+    return Object.freeze({
+        ...eventTime,
+        ...(boundaries.start === "present" ? { start: currentTime } : {}),
+        ...(boundaries.end === "present" ? { end: currentTime } : {})
+    });
+}
+
+function _eventDurations(
+    unit,
+    labeller,
+    eventTime,
+    event = null,
+    currentTime = null,
+    durationPrecision = "minute"
+) {
     if (eventTime?.kind !== "range") return {};
-    if (_hasIndeterminateDurationRange(event)) return {};
 
-    const duration = _durationValue(
-        unit,
-        labeller,
-        eventTime.start,
-        eventTime.end
-    );
-    const latestStart = eventTime.latestStart ?? eventTime.start;
-    const earliestEnd = eventTime.earliestEnd ?? eventTime.end;
+    const boundaries = _eventRangeBoundaries(event);
+    let current = _parseUnitValue(unit, currentTime);
+    if (current == null && boundaries.start === "present") {
+        current = eventTime.start;
+    }
+    if (current == null && boundaries.end === "present") {
+        current = eventTime.end;
+    }
+
+    const start = boundaries.start === "present" && current != null
+        ? current
+        : eventTime.start;
+    const end = boundaries.end === "present" && current != null
+        ? current
+        : eventTime.end;
+    const boundedStart = !_UNBOUNDED_ENDPOINTS.has(boundaries.start);
+    const boundedEnd = !_UNBOUNDED_ENDPOINTS.has(boundaries.end);
+
+    const duration = boundedStart && boundedEnd
+        ? _durationValue(unit, labeller, start, end, durationPrecision)
+        : null;
+    const latestStart = eventTime.latestStart ?? start;
+    const earliestEnd = eventTime.earliestEnd ?? end;
     const imprecise =
-        _durationValuesDiffer(unit, eventTime.start, latestStart) ||
-        _durationValuesDiffer(unit, eventTime.end, earliestEnd);
-    if (!imprecise) {
-        return duration == null ? {} : { duration };
+        _durationValuesDiffer(unit, start, latestStart) ||
+        _durationValuesDiffer(unit, end, earliestEnd);
+
+    let minimumDuration = null;
+    if (imprecise && boundedStart && boundedEnd) {
+        try {
+            minimumDuration = unit.compare(latestStart, earliestEnd) > 0
+                ? _durationValue(
+                    unit,
+                    labeller,
+                    latestStart,
+                    latestStart,
+                    durationPrecision
+                )
+                : _durationValue(
+                    unit,
+                    labeller,
+                    latestStart,
+                    earliestEnd,
+                    durationPrecision
+                );
+        } catch {
+            minimumDuration = null;
+        }
     }
 
-    let minimumDuration;
-    try {
-        minimumDuration = unit.compare(latestStart, earliestEnd) > 0
-            ? _durationValue(unit, labeller, latestStart, latestStart)
-            : _durationValue(unit, labeller, latestStart, earliestEnd);
-    } catch {
-        minimumDuration = null;
+    let active = false;
+    if (current != null) {
+        try {
+            const afterStart = !boundedStart || unit.compare(start, current) <= 0;
+            const beforeEnd = !boundedEnd || unit.compare(current, end) <= 0;
+            active = afterStart && beforeEnd;
+        } catch {
+            active = false;
+        }
     }
+    const elapsed = active && boundedStart
+        ? _durationValue(
+            unit,
+            labeller,
+            start,
+            current,
+            durationPrecision
+        )
+        : null;
+    const remaining = active && boundedEnd
+        ? _durationValue(
+            unit,
+            labeller,
+            current,
+            end,
+            durationPrecision
+        )
+        : null;
 
     return {
         ...(duration == null ? {} : { duration }),
-        ...(minimumDuration == null ? {} : { minimumDuration })
+        ...(minimumDuration == null ? {} : { minimumDuration }),
+        ...(elapsed == null ? {} : { elapsed }),
+        ...(remaining == null ? {} : { remaining })
     };
 }
 
@@ -383,18 +536,45 @@ function _formatEndpoint(context, value, precise) {
     return interval === undefined || interval === null ? "" : String(interval);
 }
 
-function _formatEventTime(context, eventTime, precise) {
+function _formatRangeEndpoint(context, eventTime, boundaries, name, precise) {
+    const boundary = boundaries[name];
+    if (boundary === "open") return "...";
+    if (boundary === "unresolved") return "?";
+    if (boundary === "present") {
+        return name === "start" ? "now" : "present";
+    }
+
+    return _formatEndpoint(context, eventTime[name], precise);
+}
+
+function _formatEventTime(context, eventTime, precise, event = null) {
     if (eventTime == null) return "";
     if (eventTime.kind === "instant") {
         return _formatEndpoint(context, eventTime.value, precise);
     }
     if (eventTime.kind !== "range") return "";
 
+    const boundaries = _eventRangeBoundaries(event);
+    const start = _formatRangeEndpoint(
+        context,
+        eventTime,
+        boundaries,
+        "start",
+        precise
+    );
+    const end = _formatRangeEndpoint(
+        context,
+        eventTime,
+        boundaries,
+        "end",
+        precise
+    );
+
+    if (boundaries.start === "open") return `... ${end}`;
+    if (boundaries.end === "open") return `${start} ...`;
+
     const separator = context.target === "html" ? "<br>" : " - ";
-    return [
-        _formatEndpoint(context, eventTime.start, precise),
-        _formatEndpoint(context, eventTime.end, precise)
-    ].join(separator);
+    return `${start}${separator}${end}`;
 }
 
 function _normalizeRenderedValue(value) {
@@ -442,6 +622,8 @@ function _readDisplayValue(event, field, context) {
     const fallbackFields = {
         bubbleDuration: "duration",
         bubbleMinimumDuration: "minimumDuration",
+        bubbleElapsed: "elapsed",
+        bubbleRemaining: "remaining",
         bubbleLocation: "location",
         bubblePeople: "people",
         bubbleTags: "tags"
@@ -462,12 +644,16 @@ function _readDisplayValue(event, field, context) {
 
 function _resolveTemplateSelector(name, event, context) {
     const eventTime = context.eventTime;
+    const boundaries = eventTime?.kind === "range"
+        ? _eventRangeBoundaries(event)
+        : null;
 
     if (name === "eventTime") {
         return _formatEventTime(
             context,
             eventTime,
-            context.target === "html"
+            context.target === "html",
+            event
         );
     }
     if (name === "start") {
@@ -475,7 +661,13 @@ function _resolveTemplateSelector(name, event, context) {
             return _formatEndpoint(context, eventTime.value, true);
         }
         if (eventTime?.kind === "range") {
-            return _formatEndpoint(context, eventTime.start, true);
+            return _formatRangeEndpoint(
+                context,
+                eventTime,
+                boundaries,
+                "start",
+                true
+            );
         }
         return "";
     }
@@ -486,13 +678,23 @@ function _resolveTemplateSelector(name, event, context) {
         return _formatEndpoint(context, eventTime.earliestEnd, true);
     }
     if (name === "end" && eventTime?.kind === "range") {
-        return _formatEndpoint(context, eventTime.end, true);
+        return _formatRangeEndpoint(
+            context,
+            eventTime,
+            boundaries,
+            "end",
+            true
+        );
     }
     if (name === "duration") {
-        const explicit = _readEventField(event, "duration");
+        const durationName = context.durationRole === "elapsed" ||
+            context.durationRole === "remaining"
+            ? context.durationRole
+            : "duration";
+        const explicit = _readEventField(event, durationName);
         return explicit.found
             ? _normalizeRenderedValue(explicit.value)
-            : context.duration?.text ?? "";
+            : context[durationName]?.text ?? "";
     }
     if (name === "minimumDuration") {
         const explicit = _readEventField(event, "minimumDuration");
@@ -500,19 +702,39 @@ function _resolveTemplateSelector(name, event, context) {
             ? _normalizeRenderedValue(explicit.value)
             : context.minimumDuration?.text ?? "";
     }
+    if (name === "elapsed") {
+        const explicit = _readEventField(event, "elapsed");
+        return explicit.found
+            ? _normalizeRenderedValue(explicit.value)
+            : context.elapsed?.text ?? "";
+    }
+    if (name === "remaining") {
+        const explicit = _readEventField(event, "remaining");
+        return explicit.found
+            ? _normalizeRenderedValue(explicit.value)
+            : context.remaining?.text ?? "";
+    }
 
     return _normalizeRenderedValue(_readDisplayValue(event, name, context));
 }
 
+function _renderTemplateString(runtime, template, event, context) {
+    const renderer =
+        context.displayProfile?.templateRenderer ??
+        runtime.templateRenderer;
+    return renderer.render(template, event, {
+        ...context,
+        resolveSelector: _resolveTemplateSelector
+    });
+}
+
+function _renderDefaultSelector(runtime, name, event, context) {
+    return _renderTemplateString(runtime, `{${name}}`, event, context);
+}
+
 function _defaultRender(template, event, context) {
     if (typeof template === "string") {
-        const renderer =
-            context.displayProfile?.templateRenderer ??
-            this.templateRenderer;
-        return renderer.render(template, event, {
-            ...context,
-            resolveSelector: _resolveTemplateSelector
-        });
+        return _renderTemplateString(this, template, event, context);
     }
     if (template !== undefined && template !== null) {
         return _normalizeRenderedValue(template);
@@ -522,28 +744,54 @@ function _defaultRender(template, event, context) {
     if (value !== undefined) return _normalizeRenderedValue(value);
 
     const eventTime = context.eventTime;
+    const boundaries = eventTime?.kind === "range"
+        ? _eventRangeBoundaries(event)
+        : null;
     if (context.field === "bubbleStart") {
         if (eventTime?.kind === "instant") {
             return _formatEndpoint(context, eventTime.value, true);
         }
         if (eventTime?.kind === "range") {
-            return _formatEndpoint(context, eventTime.start, true);
+            return _formatRangeEndpoint(
+                context,
+                eventTime,
+                boundaries,
+                "start",
+                true
+            );
         }
     }
     if (context.field === "bubbleEnd" && eventTime?.kind === "range") {
-        return _formatEndpoint(context, eventTime.end, true);
+        return _formatRangeEndpoint(
+            context,
+            eventTime,
+            boundaries,
+            "end",
+            true
+        );
     }
     if (context.field === "bubbleByline") {
-        return _formatEventTime(context, eventTime, true);
+        return _formatEventTime(context, eventTime, true, event);
     }
     if (context.field === "eventTime") {
-        return _formatEventTime(context, eventTime, context.target === "html");
+        return _formatEventTime(
+            context,
+            eventTime,
+            context.target === "html",
+            event
+        );
     }
     if (context.field === "bubbleDuration") {
-        return context.duration?.text ?? "";
+        return _renderDefaultSelector(this, "duration", event, context);
     }
     if (context.field === "bubbleMinimumDuration") {
-        return context.minimumDuration?.text ?? "";
+        return _renderDefaultSelector(this, "minimumDuration", event, context);
+    }
+    if (context.field === "bubbleElapsed") {
+        return _renderDefaultSelector(this, "elapsed", event, context);
+    }
+    if (context.field === "bubbleRemaining") {
+        return _renderDefaultSelector(this, "remaining", event, context);
     }
 
     return "";
@@ -614,9 +862,11 @@ class RepriseRuntime {
         unit = _resolveDefaultUnit(),
         labeller = null,
         readEventTime = _defaultReadEventTime,
+        readCurrentTime = _defaultReadCurrentTime,
         projectTimeValue = _defaultProjectTimeValue,
         projectTimeRange = _defaultProjectTimeRange,
         projectCardinalAxis = null,
+        durationPrecision = "minute",
         templateRenderer = new TemplateRenderer(),
         render = _defaultRender
     } = {}) {
@@ -625,11 +875,21 @@ class RepriseRuntime {
                 `${this.constructor.label}.ctor templateRenderer must be a TemplateRenderer.`
             );
         }
+        if (typeof readCurrentTime !== "function") {
+            throw new TypeError(
+                `${this.constructor.label}.ctor readCurrentTime must be a function.`
+            );
+        }
 
         this.unit = unit;
         this.labeller = labeller ?? _resolveDefaultLabeller(unit);
+        this.durationPrecision = _normalizeDurationPrecision(
+            durationPrecision,
+            `${this.constructor.label}.ctor`
+        );
         this.templateRenderer = templateRenderer;
         this._readEventTime = readEventTime;
+        this._readCurrentTime = readCurrentTime;
         this._projectTimeValue = projectTimeValue;
         this._projectTimeRange = projectTimeRange;
         this._render = render;
@@ -656,6 +916,13 @@ class RepriseRuntime {
         return this._readEventTime.call(this, event);
     }
 
+    readCurrentTime() {
+        return _parseUnitValue(
+            this.unit,
+            this._readCurrentTime.call(this)
+        );
+    }
+
     projectTimeValue(value) {
         return this._projectTimeValue.call(this, value);
     }
@@ -677,18 +944,36 @@ class RepriseRuntime {
             throw new TypeError(`${this.constructor.label}.render context.target must be 'text' or 'html'.`);
         }
 
-        const eventTime = context.eventTime === undefined
+        const inputEventTime = context.eventTime === undefined
             ? this.readEventTime(event)
             : context.eventTime;
+        const currentTime = inputEventTime?.kind === "range"
+            ? context.currentTime === undefined
+                ? this.readCurrentTime()
+                : _parseUnitValue(this.unit, context.currentTime)
+            : null;
+        const eventTime = _resolvePresentEventTime(
+            inputEventTime,
+            event,
+            currentTime
+        );
+        const durationPrecision = _normalizeDurationPrecision(
+            context.durationPrecision ?? this.durationPrecision,
+            `${this.constructor.label}.render`
+        );
         const durations = _eventDurations(
             this.unit,
             this.labeller,
             eventTime,
-            event
+            event,
+            currentTime,
+            durationPrecision
         );
         const {
             duration: _ignoredDuration,
             minimumDuration: _ignoredMinimumDuration,
+            elapsed: _ignoredElapsed,
+            remaining: _ignoredRemaining,
             ...inputContext
         } = context;
         const renderContext = Object.freeze({
@@ -696,11 +981,21 @@ class RepriseRuntime {
             field,
             target,
             eventTime,
+            ...(currentTime == null ? {} : { currentTime }),
+            durationPrecision,
             visualTheme: context.visualTheme ?? defaultVisualTheme,
             unit: this.unit,
             labeller: this.labeller,
             ...durations
         });
+
+        if (
+            (renderContext.durationRole === "elapsed" ||
+                renderContext.durationRole === "remaining") &&
+            renderContext[renderContext.durationRole] == null
+        ) {
+            return "";
+        }
 
         return this._render.call(this, template, event, renderContext);
     }
@@ -720,7 +1015,7 @@ function resolvePresentationTemplate(visualTheme, field, context = {}) {
 
 function renderEventField(runtime, visualTheme, eventTime, event, field, target, extra = {}) {
     const displayProfile = resolveDisplayProfile(visualTheme?.presentation);
-    const context = {
+    let context = {
         ...extra,
         field,
         target,
@@ -728,9 +1023,30 @@ function renderEventField(runtime, visualTheme, eventTime, event, field, target,
         visualTheme,
         displayProfile
     };
+    let template = resolvePresentationTemplate(visualTheme, field, context);
+
+    if (
+        template == null &&
+        (field === "bubbleElapsed" || field === "bubbleRemaining")
+    ) {
+        const durationTemplate = resolvePresentationTemplate(
+            visualTheme,
+            "bubbleDuration",
+            context
+        );
+        if (durationTemplate != null) {
+            context = {
+                ...context,
+                durationRole: field === "bubbleElapsed"
+                    ? "elapsed"
+                    : "remaining"
+            };
+            template = durationTemplate;
+        }
+    }
 
     return runtime.render(
-        resolvePresentationTemplate(visualTheme, field, context),
+        template,
         event,
         context
     );
@@ -803,17 +1119,32 @@ function fillRepriseBubble(
         visualTheme = defaultVisualTheme,
         nativeTheme = null,
         eventTime,
+        currentTime,
         renderField = null
     } = {}
 ) {
     assertRepriseRuntime(runtime, "TimelineReprise.fillRepriseBubble runtime");
 
     const doc = element.ownerDocument;
-    const canonicalTime = eventTime === undefined
+    const inputEventTime = eventTime === undefined
         ? runtime.readEventTime(event)
         : eventTime;
+    const capturedCurrentTime = currentTime === undefined
+        ? runtime.readCurrentTime?.() ?? null
+        : currentTime;
+    const canonicalTime = _resolvePresentEventTime(
+        inputEventTime,
+        event,
+        capturedCurrentTime
+    );
+    const bubbleContext = {
+        surface: "bubble",
+        eventTime: canonicalTime,
+        currentTime: capturedCurrentTime
+    };
     const render = typeof renderField === "function"
-        ? (field, target = "html") => renderField(field, target)
+        ? (field, target = "html") =>
+            renderField(field, target, bubbleContext)
         : (field, target = "html") =>
             renderEventField(
                 runtime,
@@ -822,7 +1153,7 @@ function fillRepriseBubble(
                 event,
                 field,
                 target,
-                { surface: "bubble" }
+                bubbleContext
             );
 
     const image = render("image", "text");
@@ -874,7 +1205,9 @@ function fillRepriseBubble(
         runtime.unit,
         runtime.labeller,
         canonicalTime,
-        event
+        event,
+        capturedCurrentTime,
+        runtime.durationPrecision ?? "minute"
     );
     const hasMinimumDuration =
         derivedDurations.minimumDuration != null ||
@@ -885,7 +1218,10 @@ function fillRepriseBubble(
             "minimumDuration",
             { surface: "bubble", eventTime: canonicalTime }
         );
-    const hasStructuredBubble = derivedDurations.duration != null ||
+    const hasStructuredBubble =
+        derivedDurations.duration != null ||
+        derivedDurations.elapsed != null ||
+        derivedDurations.remaining != null ||
         structuredFields.some(([field, fallback]) =>
             _hasEventOrPresentationField(
                 event,

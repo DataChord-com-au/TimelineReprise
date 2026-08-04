@@ -1,8 +1,11 @@
 import {
     fillRepriseBubble,
+    hasRenderedContent,
+    renderEventField,
     resolveRepriseRuntime
 } from "./presentation-runtime.js";
 import {
+    captureAttachedEventRenderContext,
     getAttachedEventContext,
     renderAttachedEventField
 } from "./attachments.js";
@@ -344,6 +347,79 @@ import {
 
     function getPainterVisualTheme(painter, evt) {
         return getAttachedEventContext(evt)?.visualTheme ?? painter._visualTheme;
+    }
+
+    function _removeElementTitle(element) {
+        if (typeof element?.removeAttribute === "function") {
+            element.removeAttribute("title");
+        } else if (element != null) {
+            delete element.title;
+        }
+    }
+
+    function _setDynamicCaption(element, value) {
+        if (hasRenderedContent(value)) {
+            element.title = String(value).replace(/<[^>]*>/g, "");
+            element._repriseHasDynamicCaption = true;
+        } else if (element._repriseHasDynamicCaption === true) {
+            _removeElementTitle(element);
+            element._repriseHasDynamicCaption = false;
+        }
+    }
+
+    function _refreshEventCaption(painter, evt, element) {
+        const attachment = getAttachedEventContext(evt);
+        const runtime = attachment?.runtime ?? painter._runtime;
+        const visualTheme = attachment?.visualTheme ?? painter._visualTheme;
+        if (visualTheme?.tooltips === false || runtime == null) return;
+
+        let caption;
+        if (attachment != null) {
+            const temporal = captureAttachedEventRenderContext(evt);
+            caption = renderAttachedEventField(
+                evt,
+                "caption",
+                "text",
+                {
+                    surface: "label",
+                    fresh: true,
+                    ...temporal
+                }
+            );
+        } else {
+            const eventTime = runtime.readEventTime(evt);
+            const currentTime = runtime.readCurrentTime?.() ?? null;
+            caption = renderEventField(
+                runtime,
+                visualTheme,
+                eventTime,
+                evt,
+                "caption",
+                "text",
+                { surface: "label", currentTime }
+            );
+        }
+
+        _setDynamicCaption(element, caption);
+    }
+
+    function _installEventCaptionRefresh(painter, evt, data) {
+        const element = data?.elmt;
+        const visualTheme = getPainterVisualTheme(painter, evt);
+        if (element == null || visualTheme?.tooltips === false) return;
+
+        const refresh = () => _refreshEventCaption(painter, evt, element);
+        if (typeof element.addEventListener === "function") {
+            element.addEventListener("mouseenter", refresh);
+        } else {
+            const previous = element.onmouseenter;
+            element.onmouseenter = function () {
+                if (typeof previous === "function") {
+                    previous.apply(this, arguments);
+                }
+                refresh();
+            };
+        }
     }
 
     function ensureTapeSparklineStyles(doc) {
@@ -1870,6 +1946,7 @@ import {
             : evt;
         const data = originalPaintIcon.apply(this, paintArguments);
         makeEventContentInteractive(data, EVENT_GRAPHIC_Z_INDEX);
+        _installEventCaptionRefresh(this, evt, data);
         applyThemeIconSize(data, metrics);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data);
@@ -1918,6 +1995,7 @@ import {
             tapeIndex
         );
         makeEventContentInteractive(data, EVENT_GRAPHIC_Z_INDEX);
+        _installEventCaptionRefresh(this, evt, data);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data, { swapSize: true });
             const tapeEvent = isTapeEvent(this, evt);
@@ -1985,6 +2063,7 @@ import {
     ) {
         const data = originalPaintLabel.apply(this, arguments);
         makeEventContentInteractive(data, EVENT_LABEL_Z_INDEX);
+        _installEventCaptionRefresh(this, evt, data);
 
         if (data?.elmt) {
             const visualTheme = getPainterVisualTheme(this, evt);
@@ -2103,18 +2182,22 @@ import {
         if (!graphics?.createBubbleForContentAndPoint || !windowManager?.cancelPopups) return;
 
         const content = this._timeline.getDocument().createElement("div");
+        const temporal = attachment == null
+            ? null
+            : captureAttachedEventRenderContext(evt);
         fillRepriseBubble(content, attachment?.presentationEvent ?? evt, {
             runtime,
             visualTheme,
             nativeTheme,
-            eventTime: attachment?.eventTime,
+            eventTime: temporal?.eventTime,
+            currentTime: temporal?.currentTime,
             renderField: attachment == null
                 ? null
-                : (field, target) => renderAttachedEventField(
+                : (field, target, context) => renderAttachedEventField(
                     evt,
                     field,
                     target,
-                    { surface: "bubble" }
+                    context
                 )
         });
         windowManager.cancelPopups();

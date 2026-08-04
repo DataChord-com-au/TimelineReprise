@@ -60,11 +60,25 @@ The `bubble` surface accepts:
 A field may be a template string, which applies to instants and ranges, or an
 object with optional `instant` and `range` templates. A missing surface, field,
 or shape delegates that output to Reprise's default renderer. For example, a
-label-only `title` template does not alter the bubble title.
+label-only `title` template does not alter the bubble title. Default bubble
+duration, minimum-duration, elapsed, and remaining fields still pass through
+the profile's TemplateRenderer selector pipeline, allowing a domain extension
+to format their runtime-derived values.
 
 Profile construction validates surface names, output fields, shape names,
 template syntax, formatter names, and formatted selector references. Instances
 are immutable.
+
+For active ranges, `bubbleElapsed` and `bubbleRemaining` default to the
+runtime-derived `elapsed` and `remaining` values. When either field has no
+template, it inherits the complete `bubbleDuration` template, with that
+template's `duration` selector rebound to the applicable elapsed or remaining
+value. If none of the three fields has a template, all applicable values use
+the runtime's minute-precision fallback text. Templates may also use the
+`elapsed` and `remaining` selectors directly, including from a label
+`caption`. Bubble values are recalculated on every opening, while caption
+tooltips on labels and graphics are recalculated when their hover surface is
+entered.
 
 ## Domain selector validation
 

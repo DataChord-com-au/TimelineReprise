@@ -414,6 +414,22 @@ function getAttachedEventContext(event) {
     return null;
 }
 
+function captureAttachedEventRenderContext(event) {
+    const attachment = getAttachedEventContext(event);
+    if (attachment == null) {
+        throw new TypeError(
+            `${_ATTACHMENT_MODULE_LABEL}.captureAttachedEventRenderContext requires an attached event record.`
+        );
+    }
+
+    return Object.freeze({
+        eventTime:
+            attachment.runtime.readEventTime(attachment.source) ??
+            attachment.eventTime,
+        currentTime: attachment.runtime.readCurrentTime?.() ?? null
+    });
+}
+
 function renderAttachedEventField(event, field, target, extra = {}) {
     const attachment = getAttachedEventContext(event);
     if (attachment == null) {
@@ -422,23 +438,31 @@ function renderAttachedEventField(event, field, target, extra = {}) {
         );
     }
 
-    const surface = typeof extra.surface === "string" ? extra.surface : "";
+    const {
+        fresh = false,
+        eventTime = attachment.eventTime,
+        ...renderExtra
+    } = extra;
+    const surface = typeof renderExtra.surface === "string"
+        ? renderExtra.surface
+        : "";
     const key = `${field}\u0000${target}\u0000${surface}`;
-    if (attachment.renderedFields.has(key)) {
+    const useCache = fresh !== true && surface !== "bubble";
+    if (useCache && attachment.renderedFields.has(key)) {
         return attachment.renderedFields.get(key);
     }
 
     const value = renderEventField(
         attachment.runtime,
         attachment.visualTheme,
-        attachment.eventTime,
+        eventTime,
         attachment.presentationEvent,
         field,
         target,
-        extra
+        renderExtra
     );
 
-    if (_attachmentIsReusableRenderedValue(value)) {
+    if (useCache && _attachmentIsReusableRenderedValue(value)) {
         attachment.renderedFields.set(key, value);
     }
 
@@ -519,6 +543,7 @@ function attachNarrativeDecorators(bandInfo, events = [], options = {}) {
 export {
     attachEvents,
     attachNarrativeDecorators,
+    captureAttachedEventRenderContext,
     getAttachedEventContext,
     renderAttachedEventField
 };

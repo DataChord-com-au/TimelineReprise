@@ -528,16 +528,21 @@ test("supported PlanningDayUnit and MaUnit calculate and label durations", () =>
     );
 });
 
-test("default native date duration is elapsed milliseconds with formatted text", () => {
+test("native date duration defaults to minute precision and permits overrides", () => {
     const { Timeline } = loadTimeline();
     const unit = Timeline.NativeDateUnit;
     const runtime = new Timeline.RepriseRuntime({
         unit,
         labeller: unit.createLabeller()
     });
+    const preciseRuntime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        durationPrecision: "millisecond"
+    });
     const event = {
         start: new Date("2020-01-01T00:00:00Z"),
-        end: new Date("2020-01-03T00:00:00Z")
+        end: new Date("2020-01-02T02:03:04.005Z")
     };
     let context;
     const observingRuntime = new Timeline.RepriseRuntime({
@@ -554,14 +559,240 @@ test("default native date duration is elapsed milliseconds with formatted text",
             field: "bubbleDuration",
             target: "html"
         }),
-        "2 days"
+        "1 day, 2 hours, 3 minutes"
+    );
+    assert.equal(
+        preciseRuntime.render(null, event, {
+            field: "bubbleDuration",
+            target: "html"
+        }),
+        "1 day, 2 hours, 3 minutes, 4 seconds, 5 ms"
+    );
+    assert.equal(
+        runtime.render(null, event, {
+            field: "bubbleDuration",
+            target: "html",
+            durationPrecision: "millisecond"
+        }),
+        "1 day, 2 hours, 3 minutes, 4 seconds, 5 ms"
     );
     observingRuntime.render(null, event, {
         field: "bubbleDuration",
         target: "html"
     });
-    assert.equal(context.duration.value, 2 * 24 * 60 * 60 * 1000);
-    assert.equal(context.duration.text, "2 days");
+    assert.equal(
+        context.duration.value,
+        24 * 60 * 60 * 1000 +
+            2 * 60 * 60 * 1000 +
+            3 * 60 * 1000 +
+            4 * 1000 +
+            5
+    );
+    assert.equal(context.duration.text, "1 day, 2 hours, 3 minutes");
+    assert.equal(context.durationPrecision, "minute");
+
+    assert.throws(
+        () => new Timeline.RepriseRuntime({
+            unit,
+            durationPrecision: "microsecond"
+        }),
+        /durationPrecision must be day, hour, minute, second, or millisecond/
+    );
+});
+
+test("native elapsed and remaining use the configured duration precision", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.NativeDateUnit;
+    const start = new Date("2020-01-01T00:00:00.000Z");
+    const current = new Date("2020-01-01T00:26:42.250Z");
+    const end = new Date("2020-01-01T01:00:47.750Z");
+    const event = { start, end };
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => current
+    });
+    const preciseRuntime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => current,
+        durationPrecision: "millisecond"
+    });
+
+    assert.equal(
+        runtime.render("{elapsed} / {remaining}", event, {
+            field: "caption",
+            target: "text"
+        }),
+        "26 minutes / 34 minutes"
+    );
+    assert.equal(
+        preciseRuntime.render("{elapsed} / {remaining}", event, {
+            field: "caption",
+            target: "text"
+        }),
+        "26 minutes, 42 seconds, 250 ms / 34 minutes, 5 seconds, 500 ms"
+    );
+});
+
+test("active ranges expose fresh elapsed and remaining duration context", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    let current = 4;
+    let context;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime() {
+            return current;
+        },
+        render(_template, _event, renderContext) {
+            context = renderContext;
+            return renderContext[renderContext.field]?.text ?? "";
+        }
+    });
+    const event = { start: 0, end: 10 };
+
+    assert.equal(
+        runtime.render(null, event, {
+            field: "elapsed",
+            target: "text"
+        }),
+        "4 days"
+    );
+    assert.equal(context.currentTime, 4);
+    assert.deepEqual(
+        { value: context.elapsed.value, text: context.elapsed.text },
+        { value: 4, text: "4 days" }
+    );
+    assert.deepEqual(
+        { value: context.remaining.value, text: context.remaining.text },
+        { value: 6, text: "6 days" }
+    );
+
+    current = 7;
+    runtime.render(null, event, { field: "elapsed", target: "text" });
+    assert.equal(context.elapsed.value, 7);
+    assert.equal(context.remaining.value, 3);
+
+    current = 12;
+    runtime.render(null, event, { field: "elapsed", target: "text" });
+    assert.equal(Object.hasOwn(context, "elapsed"), false);
+    assert.equal(Object.hasOwn(context, "remaining"), false);
+});
+
+test("open, unresolved, and present endpoints derive only finite active durations", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const contexts = [];
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => 5,
+        render(_template, _event, context) {
+            contexts.push(context);
+            return "";
+        }
+    });
+    const cases = [
+        {
+            event: {
+                start: -100,
+                end: 12,
+                eventTime: {
+                    kind: "range",
+                    bounded: "end",
+                    start: "open",
+                    end: 12
+                }
+            },
+            expected: { remaining: 7 }
+        },
+        {
+            event: {
+                start: 0,
+                end: 100,
+                eventTime: {
+                    kind: "range",
+                    bounded: "start",
+                    start: 0,
+                    end: "unresolved"
+                }
+            },
+            expected: { elapsed: 5 }
+        },
+        {
+            event: {
+                start: 0,
+                end: 12,
+                eventTime: {
+                    kind: "range",
+                    start: "present",
+                    end: 12
+                }
+            },
+            expected: { duration: 7, elapsed: 0, remaining: 7 }
+        },
+        {
+            event: {
+                start: 0,
+                end: 12,
+                eventTime: {
+                    kind: "range",
+                    start: 0,
+                    end: "present"
+                }
+            },
+            expected: { duration: 5, elapsed: 5, remaining: 0 }
+        }
+    ];
+
+    for (const item of cases) {
+        runtime.render(null, item.event, { field: "title", target: "text" });
+        const context = contexts.at(-1);
+        const actual = {};
+        for (const field of ["duration", "elapsed", "remaining"]) {
+            if (context[field] != null) actual[field] = context[field].value;
+        }
+        assert.deepEqual(actual, item.expected);
+        assert.equal(Object.hasOwn(context, "minimumDuration"), false);
+        if (item.event.eventTime.start === "present") {
+            assert.equal(context.eventTime.start, 5);
+        }
+        if (item.event.eventTime.end === "present") {
+            assert.equal(context.eventTime.end, 5);
+        }
+    }
+});
+
+test("a projected present endpoint supplies current time without a separate clock", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    let context;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        render(_template, _event, renderContext) {
+            context = renderContext;
+            return "";
+        }
+    });
+    const event = {
+        eventTime: {
+            kind: "range",
+            start: "present",
+            end: 12
+        }
+    };
+
+    runtime.render(null, event, {
+        field: "title",
+        target: "text",
+        eventTime: { kind: "range", start: 5, end: 12 }
+    });
+
+    assert.equal(context.elapsed.value, 0);
+    assert.equal(context.remaining.value, 7);
 });
 
 test("runtime exposes longest and minimum imprecise durations to renderers", () => {
@@ -759,6 +990,209 @@ test("default rendering returns field text and late-bound HTML time content", ()
     assert.equal(
         runtime.render(null, event, { field: "eventTime", target: "html" }),
         "day-precise:4"
+    );
+});
+
+test("default range templates retain semantic unbounded endpoint conventions", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const labeller = {
+        labelPrecise: value => value === 2
+            ? "2 Jan 2020"
+            : `projected:${value}`,
+        labelInterval: value => ({
+            text: value === 2 ? "2 Jan 2020" : `projected:${value}`,
+            emphasized: false
+        })
+    };
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller,
+        readCurrentTime: () => 10,
+        readEventTime: event => event.eventTime
+    });
+    const cases = [
+        {
+            marker: "present",
+            bounded: "start",
+            projectedEnd: 10,
+            expectedRange: "2 Jan 2020 - present",
+            expectedEnd: "present"
+        },
+        {
+            marker: "open",
+            bounded: "start",
+            projectedEnd: 100,
+            expectedRange: "2 Jan 2020 ...",
+            expectedEnd: "..."
+        },
+        {
+            marker: "unresolved",
+            bounded: "start",
+            projectedEnd: 24,
+            expectedRange: "2 Jan 2020 - ?",
+            expectedEnd: "?"
+        }
+    ];
+
+    for (const item of cases) {
+        const source = {
+            eventTime: {
+                kind: "range",
+                bounded: item.bounded,
+                start: { kind: "domain-time" },
+                end: item.marker
+            }
+        };
+        const event = {
+            event: source,
+            eventTime: {
+                kind: "range",
+                start: 2,
+                end: item.projectedEnd
+            },
+            start: 2,
+            end: item.projectedEnd
+        };
+
+        assert.equal(
+            runtime.render("{eventTime}", event, {
+                field: "caption",
+                target: "text"
+            }),
+            item.expectedRange
+        );
+        assert.equal(
+            runtime.render("{join(' | ', start, end)}", event, {
+                field: "caption",
+                target: "text"
+            }),
+            `2 Jan 2020 | ${item.expectedEnd}`
+        );
+        assert.equal(
+            runtime.render(null, event, {
+                field: "bubbleByline",
+                target: "text"
+            }),
+            item.expectedRange
+        );
+    }
+});
+
+test("domain selectors preserve fresh semantic range text over projections", () => {
+    const { Timeline } = loadTimeline();
+    let calls = 0;
+    const semanticRange = {
+        kind: "range",
+        bounded: "start",
+        start: { kind: "domain-time" },
+        end: "present",
+        text: "",
+        toString() {
+            calls += 1;
+            return this.text;
+        }
+    };
+    const extension = {
+        hasSelector: name => name === "eventTime",
+        hasFormat: () => false,
+        resolveSelector(_name, _formatName, event) {
+            return event.event.eventTime.toString();
+        }
+    };
+    const templateRenderer = new Timeline.TemplateRenderer({
+        selectorExtensions: [extension]
+    });
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        templateRenderer,
+        readEventTime: event => event.eventTime
+    });
+    const source = {
+        eventTime: semanticRange,
+    };
+    const event = {
+        event: source,
+        eventTime: {
+            kind: "range",
+            start: 2,
+            end: 100
+        },
+        start: 2,
+        end: 100
+    };
+    const expected = [
+        { marker: "present", text: "2 Jan 2020 - today" },
+        { marker: "present", text: "2 Jan 2020 - present" },
+        { marker: "open", text: "2 Jan 2020 ..." },
+        { marker: "unresolved", text: "2 Jan 2020 - ?" }
+    ];
+
+    for (const item of expected) {
+        semanticRange.end = item.marker;
+        semanticRange.text = item.text;
+        assert.equal(
+            runtime.render("{eventTime}", event, {
+                field: "caption",
+                target: "text"
+            }),
+            item.text
+        );
+    }
+
+    assert.equal(calls, expected.length);
+});
+
+test("default bubble duration fields pass through selector extensions", () => {
+    const { Timeline } = loadTimeline();
+    const calls = [];
+    const extension = {
+        hasSelector: name => name === "elapsed" || name === "remaining",
+        hasFormat: () => false,
+        resolveSelector(name, formatName, _event, context) {
+            calls.push({ name, formatName, context });
+            return `domain ${name}: ${context[name].value}`;
+        }
+    };
+    const templateRenderer = new Timeline.TemplateRenderer({
+        selectorExtensions: [extension]
+    });
+    const profile = new Timeline.DisplayProfile(
+        { id: "domainDurationDefaults" },
+        { templateRenderer }
+    );
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => 4
+    });
+    const event = { start: 0, end: 10 };
+    const context = {
+        target: "html",
+        displayProfile: profile,
+        surface: "bubble"
+    };
+
+    assert.equal(
+        runtime.render(null, event, {
+            ...context,
+            field: "bubbleElapsed"
+        }),
+        "domain elapsed: 4"
+    );
+    assert.equal(
+        runtime.render(null, event, {
+            ...context,
+            field: "bubbleRemaining"
+        }),
+        "domain remaining: 6"
+    );
+    assert.deepEqual(
+        calls.map(call => [call.name, call.formatName]),
+        [["elapsed", null], ["remaining", null]]
     );
 });
 
@@ -1127,6 +1561,46 @@ test("Narrative caption templates use Reprise duration as the label tooltip", ()
     assert.equal(label.style.pointerEvents, "auto");
 });
 
+test("Narrative labels and graphics refresh dynamic captions on hover", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    let current = 4;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => current
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "dynamicNarrativeTooltip",
+        label: {
+            caption: {
+                range: "{join(' / ', elapsed, remaining)}"
+            }
+        }
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 0, endDate: 10, title: "Chapter" }],
+        [],
+        {
+            presentation: profile,
+            bubbles: false
+        }
+    );
+    const record = decorator._rangeRecords[0];
+
+    assert.equal(record.labelElmt.title, "4 days / 6 days");
+    current = 7;
+    record.labelElmt.onmouseenter();
+    assert.equal(record.labelElmt.title, "7 days / 3 days");
+
+    assert.equal(record.spanElmt.title, undefined);
+    record.spanElmt.onmouseenter();
+    assert.equal(record.spanElmt.title, "7 days / 3 days");
+    assert.equal(record.spanElmt.style.pointerEvents, "auto");
+});
+
 test("DisplayProfile-only structured bubble fields select the table layout", () => {
     const { Timeline, bubbleCalls } = loadTimeline();
     const doc = makeDocument();
@@ -1186,6 +1660,102 @@ test("DisplayProfile-only structured bubble fields select the table layout", () 
             row.childNodes.some(cell => cell.innerHTML === "Profile elapsed")
         )
     );
+});
+
+test("bubble elapsed and remaining inherit the duration template and recalculate", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const doc = makeDocument();
+    const unit = Timeline.PlanningDayUnit;
+    let current = 4;
+    let currentTimeCalls = 0;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime() {
+            currentTimeCalls += 1;
+            return current;
+        }
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "inheritedRelativeDurationTemplate",
+        bubble: {
+            bubbleDuration: {
+                range: "{prefix('Measured: ', duration)}"
+            }
+        }
+    });
+    const visualTheme = new Timeline.VisualTheme({ presentation: profile });
+    const nativeTheme = makeNativeTheme(visualTheme);
+    const painter = new Timeline.OriginalEventPainter({
+        theme: nativeTheme,
+        runtime
+    });
+    const records = [];
+    const bandInfo = {
+        theme: nativeTheme,
+        unit,
+        labeller: runtime.labeller,
+        eventPainter: painter,
+        eventSource: {
+            _events: { getUnit: () => unit },
+            addMany(events) {
+                records.push(...events);
+            }
+        }
+    };
+
+    Timeline.attachEvents(
+        bandInfo,
+        [{ start: 0, end: 10, title: "Active range" }],
+        { runtime }
+    );
+    painter.initialize(
+        {
+            _theme: nativeTheme,
+            getLabeller: () => runtime.labeller
+        },
+        {
+            getDocument: () => doc,
+            getUnit: () => unit,
+            isHorizontal: () => true,
+            isVertical: () => false
+        }
+    );
+
+    const readRows = content => {
+        const table = content.childNodes
+            .flatMap(node => node.childNodes)
+            .find(node => node.tagName === "TABLE");
+        return Object.fromEntries(table.childNodes.map(row => [
+            row.childNodes[0].textContent,
+            row.childNodes[1].innerHTML
+        ]));
+    };
+
+    painter._showBubble(10, 20, records[0]);
+    assert.deepEqual(
+        {
+            Duration: readRows(bubbleCalls[0][0]).Duration,
+            Elapsed: readRows(bubbleCalls[0][0]).Elapsed,
+            Remaining: readRows(bubbleCalls[0][0]).Remaining
+        },
+        {
+            Duration: "Measured: 10 days",
+            Elapsed: "Measured: 4 days",
+            Remaining: "Measured: 6 days"
+        }
+    );
+
+    current = 7;
+    painter._showBubble(10, 20, records[0]);
+    assert.deepEqual(
+        {
+            Elapsed: readRows(bubbleCalls[1][0]).Elapsed,
+            Remaining: readRows(bubbleCalls[1][0]).Remaining
+        },
+        { Elapsed: "Measured: 7 days", Remaining: "Measured: 3 days" }
+    );
+    assert.equal(currentTimeCalls, 2);
 });
 
 test("Reprise image bubble stays above the title and retains structured content", () => {
