@@ -125,7 +125,7 @@ declare namespace Timeline {
             name: string,
             formatName: string | null,
             event: object,
-            context: RenderContext
+            context: TemplateRenderContext
         ): RenderedContent;
     }
 
