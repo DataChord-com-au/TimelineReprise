@@ -757,12 +757,147 @@ test("open, unresolved, and present endpoints derive only finite active duration
         assert.deepEqual(actual, item.expected);
         assert.equal(Object.hasOwn(context, "minimumDuration"), false);
         if (item.event.eventTime.start === "present") {
-            assert.equal(context.eventTime.start, 5);
+            assert.equal(context.eventTime.start, item.event.start);
         }
         if (item.event.eventTime.end === "present") {
-            assert.equal(context.eventTime.end, 5);
+            assert.equal(context.eventTime.end, item.event.end);
         }
     }
+});
+
+test("injected duration derivation preserves opaque semantic values", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    unit.duration = () => {
+        throw new Error("projected unit duration must not be used");
+    };
+    const currentTime = Object.freeze({ kind: "semantic-now" });
+    const values = Object.freeze({
+        duration: Object.freeze({ kind: "semantic-total" }),
+        minimumDuration: Object.freeze({ kind: "semantic-minimum" }),
+        elapsed: Object.freeze({ kind: "semantic-elapsed" }),
+        remaining: Object.freeze({ kind: "semantic-remaining" })
+    });
+    let renderContext;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => currentTime,
+        deriveDurations(event, context) {
+            assert.equal(event.title, "Semantic range");
+            assert.equal(context.currentTime, currentTime);
+            return {
+                duration: { value: values.duration, text: "1 year, 2 months" },
+                minimumDuration: {
+                    value: values.minimumDuration,
+                    text: "11 months"
+                },
+                elapsed: { value: values.elapsed, text: "8 months" },
+                remaining: { value: values.remaining, text: "6 months" }
+            };
+        },
+        render(_template, _event, context) {
+            renderContext = context;
+            return "";
+        }
+    });
+
+    runtime.render(null, {
+        title: "Semantic range",
+        start: 0,
+        latestStart: 1,
+        earliestEnd: 9,
+        end: 10
+    }, { field: "title", target: "text" });
+
+    for (const field of Object.keys(values)) {
+        assert.equal(renderContext[field].value, values[field]);
+    }
+    assert.equal(renderContext.duration.text, "1 year, 2 months");
+    assert.equal(renderContext.minimumDuration.text, "11 months");
+    assert.equal(renderContext.elapsed.text, "8 months");
+    assert.equal(renderContext.remaining.text, "6 months");
+});
+
+test("open endpoint presentation and relative duration stay semantic across labels, captions, and bubbles", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = makePlanningUnit();
+    unit.duration = () => {
+        throw new Error("projected unit duration must not be used");
+    };
+    const semanticNow = Object.freeze({ kind: "semantic-now" });
+    const elapsed = Object.freeze({ kind: "calendar-interval", months: 2 });
+    const source = {
+        title: "Open work",
+        startDate: 0,
+        end: "open"
+    };
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller(),
+        readCurrentTime: () => semanticNow,
+        readEventTime(event) {
+            assert.equal(event.end, "open");
+            return Object.freeze({ kind: "range", start: 0, end: 100 });
+        },
+        deriveDurations(event, context) {
+            assert.equal(event.end, "open");
+            assert.equal(context.currentTime, semanticNow);
+            return {
+                elapsed: { value: elapsed, text: "2 calendar months" }
+            };
+        }
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "semanticOpenRange",
+        label: {
+            title: {
+                range: "{lines(title, relativeDuration)}"
+            },
+            caption: {
+                range: "{join(' / ', endpointLabel('end', 'present'), relativeDuration)}"
+            }
+        },
+        bubble: {
+            bubbleEnd: {
+                range: "{endpointLabel('end', 'present')}"
+            },
+            bubbleElapsed: {
+                range: "{relativeDuration}"
+            }
+        }
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [source],
+        [],
+        { presentation: profile }
+    );
+    const record = decorator._rangeRecords[0];
+    const title = childWithClass(
+        record.labelElmt,
+        "timeline-narrative-label-title"
+    );
+
+    assert.equal(source.end, "open");
+    assert.equal(record.eventTime.end, 100);
+    assert.equal(title.innerHTML, "Open work<br>2 calendar months");
+    assert.equal(record.labelElmt.title, "present / 2 calendar months");
+
+    decorator._showBubble(record, { pageX: 10, pageY: 20 });
+    const table = bubbleCalls[0][0].childNodes
+        .flatMap(node => node.childNodes)
+        .find(node => node.tagName === "TABLE");
+    const rows = Object.fromEntries(table.childNodes.map(row => [
+        row.childNodes[0].textContent,
+        row.childNodes[1].innerHTML
+    ]));
+
+    assert.equal(rows.End, "present");
+    assert.equal(rows.Elapsed, "2 calendar months");
+    assert.equal(rows.Duration, undefined);
+    assert.equal(source.end, "open");
 });
 
 test("a projected present endpoint supplies current time without a separate clock", () => {

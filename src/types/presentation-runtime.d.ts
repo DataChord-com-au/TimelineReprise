@@ -28,9 +28,22 @@ declare namespace Timeline {
         | CanonicalInstant<T>
         | CanonicalRange<T>;
 
-    interface RepriseDuration {
-        readonly value: number;
+    interface RepriseDuration<T = unknown> {
+        readonly value: T;
         readonly text: string;
+    }
+
+    interface RepriseDurations<T = unknown> {
+        readonly duration?: RepriseDuration<T>;
+        readonly minimumDuration?: RepriseDuration<T>;
+        readonly elapsed?: RepriseDuration<T>;
+        readonly remaining?: RepriseDuration<T>;
+    }
+
+    interface DurationDerivationContext<T = unknown> {
+        readonly eventTime: CanonicalEventTime<T> | null;
+        readonly currentTime?: unknown;
+        readonly durationPrecision: ElapsedDurationPrecision;
     }
 
     type CardinalAxisAnchor = "start" | "end";
@@ -73,12 +86,16 @@ declare namespace Timeline {
         readonly displayProfile?: DisplayProfile | null;
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
-        readonly currentTime?: T;
+        readonly currentTime?: unknown;
         readonly durationPrecision: ElapsedDurationPrecision;
         readonly duration?: RepriseDuration;
         readonly minimumDuration?: RepriseDuration;
         readonly elapsed?: RepriseDuration;
         readonly remaining?: RepriseDuration;
+        readonly relativeDurationRole?:
+            | "duration"
+            | "elapsed"
+            | "remaining";
         readonly durationRole?: "elapsed" | "remaining";
         readonly intervalUnit?: number;
         readonly surface?: string;
@@ -91,7 +108,7 @@ declare namespace Timeline {
         eventTime?: CanonicalEventTime<T> | null;
         visualTheme?: VisualTheme;
         displayProfile?: DisplayProfile | null;
-        currentTime?: T | null;
+        currentTime?: unknown;
         durationPrecision?: ElapsedDurationPrecision;
         durationRole?: "elapsed" | "remaining";
         intervalUnit?: number;
@@ -103,13 +120,17 @@ declare namespace Timeline {
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
         readonly durationPrecision?: ElapsedDurationPrecision;
-        readCurrentTime?(): T | null;
+        readCurrentTime?(): unknown;
         projectTimeValue(value: unknown): T | null;
         projectTimeRange(value: unknown): ClampRange<T> | null;
         projectCardinalAxis?(
             context: CardinalAxisProjectionContext
         ): CardinalAxisProjection<T> | null;
         readEventTime(event: object): CanonicalEventTime<T> | null;
+        deriveDurations(
+            event: object,
+            context: DurationDerivationContext<T>
+        ): RepriseDurations;
         render(
             template: unknown,
             event: object,
@@ -128,7 +149,12 @@ declare namespace Timeline {
         ) => CanonicalEventTime<T> | null;
         readCurrentTime?: (
             this: RepriseRuntimeContract<T>
-        ) => T | null;
+        ) => unknown;
+        deriveDurations?: (
+            this: RepriseRuntimeContract<T>,
+            event: object,
+            context: DurationDerivationContext<T>
+        ) => RepriseDurations | null;
         projectTimeValue?: (
             this: RepriseRuntimeContract<T>,
             value: unknown
@@ -160,13 +186,17 @@ declare namespace Timeline {
         readonly labeller: TimelineLabeller<T>;
         readonly durationPrecision: ElapsedDurationPrecision;
         readonly templateRenderer: TemplateRenderer;
-        readCurrentTime(): T | null;
+        readCurrentTime(): unknown;
         projectTimeValue(value: unknown): T | null;
         projectTimeRange(value: unknown): ClampRange<T> | null;
         projectCardinalAxis?(
             context: CardinalAxisProjectionContext
         ): CardinalAxisProjection<T> | null;
         readEventTime(event: object): CanonicalEventTime<T> | null;
+        deriveDurations(
+            event: object,
+            context: DurationDerivationContext<T>
+        ): RepriseDurations;
         render(
             template: unknown,
             event: object,

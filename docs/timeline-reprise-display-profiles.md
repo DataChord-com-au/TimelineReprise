@@ -80,6 +80,13 @@ the runtime's minute-precision fallback text. Templates may also use the
 tooltips on labels and graphics are recalculated when their hover surface is
 entered.
 
+`relativeDuration` selects `duration` for a bounded range, `elapsed` for a
+concrete start with an open or unresolved end, and `remaining` for an open or
+unresolved start with a concrete end. Endpoint presentation remains separate:
+`endpointLabel('end', 'present')` renders an open or unresolved end as
+`present` without changing the source event, its canonical geometry, or its
+semantic boundary. A third argument may provide a different unresolved label.
+
 ## Domain selector validation
 
 Pass a configured `TemplateRenderer` when a profile uses domain-specific

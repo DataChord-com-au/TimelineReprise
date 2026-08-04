@@ -7,7 +7,8 @@ const _BUILTIN_FORMATTERS = Object.freeze({
     PAREN: "paren",
     PREFIX: "prefix",
     SUFFIX: "suffix",
-    LINES: "lines"
+    LINES: "lines",
+    ENDPOINT_LABEL: "endpointLabel"
 });
 
 function _templateIsObject(value) {
@@ -65,6 +66,7 @@ class TemplateRenderer {
         this.registerFormatter(BF.PREFIX, this._prefix);
         this.registerFormatter(BF.SUFFIX, this._suffix);
         this.registerFormatter(BF.LINES, this._lines);
+        this.registerFormatter(BF.ENDPOINT_LABEL, this._endpointLabel);
 
         for (const [name, formatter] of Object.entries(formatters)) {
             this.registerFormatter(name, formatter);
@@ -362,6 +364,17 @@ class TemplateRenderer {
             context?.target === "html" ? "<br>" : "\n",
             ...args
         ]);
+    }
+
+    _endpointLabel(args, context) {
+        if (args.length < 1 || args.length > 3) {
+            throw new RangeError(
+                `${this.constructor.label}.render endpointLabel() expects one to three arguments.`
+            );
+        }
+        if (typeof context?.resolveEndpointLabel !== "function") return "";
+
+        return context.resolveEndpointLabel(args[0], args[1], args[2]);
     }
 }
 

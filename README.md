@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `3.2.0`
+Version: `3.2.1`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.2.0"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.2.1"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -99,12 +99,14 @@ var caesar = new Timeline.HistoricalYear(-43); // "44 BCE"
 var jurassic = new Timeline.Ma(190);
 ```
 
-Duration-aware runtimes expose numeric and formatted durations to renderers.
-Native dates use elapsed milliseconds with minute-precision fallback text,
-planning ranges use day counts,
+Duration-aware runtimes expose semantic values and formatted durations to
+renderers. Native dates use elapsed milliseconds with minute-precision
+fallback text, planning ranges use day counts,
 historical ranges use elapsed years, and Ma ranges use older-to-younger
 differences. Active ranges can also expose elapsed and remaining values;
-bubbles recalculate them on every opening. See
+bubbles recalculate them on every opening. Injected runtimes may instead
+derive all four duration fields through `deriveDurations()` without converting
+their semantic values to the projected timeline unit. See
 [Timeline Units and Durations](docs/timeline-reprise-units.md).
 
 Set `clampRange` on `Timeline.createBandSet()` to constrain the center of each
@@ -154,7 +156,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [05-timeline-reprise-overview.html](examples/05-timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/05-timeline-reprise-overview.html) | Reprise Overview extends theme support for overview bands. |
 | [06-timeline-reprise-scales.html](examples/06-timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/06-timeline-reprise-scales.html) | Reprise Scaled Zones expands selected date ranges within a band. |
 | [07-timeline-reprise-cardinal-axis.html](examples/07-timeline-reprise-cardinal-axis.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/07-timeline-reprise-cardinal-axis.html) | Reprise Cardinal Axis shows finishing modes, truncate threshold behavior, multi-count markers, and an end anchor. |
-| [08-timeline-reprise-imprecise-ranges.html](examples/08-timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/08-timeline-reprise-imprecise-ranges.html) | Stress-tests routed duration labels and their tape-to-label sparklines with heavily overlapping imprecise ranges. |
+| [08-timeline-reprise-imprecise-ranges.html](examples/08-timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/08-timeline-reprise-imprecise-ranges.html) | Projects open, unresolved, present, and imprecise ranges without rewriting their semantic endpoints, then renders endpoint labels and relative durations through a DisplayProfile. |
 | [09-timeline-reprise-clamp-stress.html](examples/09-timeline-reprise-clamp-stress.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/09-timeline-reprise-clamp-stress.html) | Stresses one clamp with three synchronized bands whose temporal movement per pixel differs by several orders of magnitude. |
 | [10-timeline-reprise-event-layout.html](examples/10-timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/10-timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |
 | [11-timeline-reprise-narrative.html](examples/11-timeline-reprise-narrative.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/11-timeline-reprise-narrative.html) | Reprise Narrative adds labelled spans and dividers alongside normal event content. |

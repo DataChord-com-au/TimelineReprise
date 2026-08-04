@@ -5,6 +5,12 @@ import { resolveDisplayProfile } from "./theme-registry.js";
 const _RUNTIME_LABEL = "TimelineReprise.RepriseRuntime";
 const _RENDER_TARGETS = new Set(["text", "html"]);
 const _UNBOUNDED_ENDPOINTS = new Set(["open", "unresolved"]);
+const _DURATION_FIELDS = Object.freeze([
+    "duration",
+    "minimumDuration",
+    "elapsed",
+    "remaining"
+]);
 const _DURATION_PRECISIONS = new Set([
     "day",
     "hour",
@@ -398,25 +404,7 @@ function _eventRangeBoundaries(event) {
     return result;
 }
 
-function _resolvePresentEventTime(eventTime, event, currentTime) {
-    if (eventTime?.kind !== "range" || currentTime == null) return eventTime;
-
-    const boundaries = _eventRangeBoundaries(event);
-    if (
-        boundaries.start !== "present" &&
-        boundaries.end !== "present"
-    ) {
-        return eventTime;
-    }
-
-    return Object.freeze({
-        ...eventTime,
-        ...(boundaries.start === "present" ? { start: currentTime } : {}),
-        ...(boundaries.end === "present" ? { end: currentTime } : {})
-    });
-}
-
-function _eventDurations(
+function _unitDurations(
     unit,
     labeller,
     eventTime,
@@ -513,6 +501,58 @@ function _eventDurations(
     };
 }
 
+function _defaultDeriveDurations(event, context = {}) {
+    return _unitDurations(
+        this.unit,
+        this.labeller,
+        context.eventTime,
+        event,
+        context.currentTime,
+        context.durationPrecision ?? this.durationPrecision
+    );
+}
+
+function _normalizeDerivedDurations(value, caller) {
+    if (value == null) return Object.freeze({});
+    if (!_runtimeIsObject(value)) {
+        throw new TypeError(`${caller} must return an object.`);
+    }
+
+    const result = {};
+    for (const field of _DURATION_FIELDS) {
+        const duration = value[field];
+        if (duration == null) continue;
+        if (
+            !_runtimeIsObject(duration) ||
+            !_hasOwn(duration, "value") ||
+            !_hasOwn(duration, "text")
+        ) {
+            throw new TypeError(
+                `${caller} ${field} must provide value and text.`
+            );
+        }
+        if (typeof duration.text !== "string") {
+            throw new TypeError(`${caller} ${field}.text must be a string.`);
+        }
+        result[field] = duration;
+    }
+
+    return Object.freeze(result);
+}
+
+function _relativeDurationRole(eventTime, event) {
+    if (eventTime?.kind !== "range") return null;
+
+    const boundaries = _eventRangeBoundaries(event);
+    const boundedStart = !_UNBOUNDED_ENDPOINTS.has(boundaries.start);
+    const boundedEnd = !_UNBOUNDED_ENDPOINTS.has(boundaries.end);
+
+    if (boundedStart && boundedEnd) return "duration";
+    if (boundedStart) return "elapsed";
+    if (boundedEnd) return "remaining";
+    return null;
+}
+
 function _formatEndpoint(context, value, precise) {
     const labeller = context.labeller;
 
@@ -545,6 +585,40 @@ function _formatRangeEndpoint(context, eventTime, boundaries, name, precise) {
     }
 
     return _formatEndpoint(context, eventTime[name], precise);
+}
+
+function _formatPresentationEndpoint(
+    context,
+    event,
+    name,
+    openLabel,
+    unresolvedLabel = openLabel
+) {
+    if (name !== "start" && name !== "end") {
+        throw new RangeError("endpointLabel endpoint must be 'start' or 'end'.");
+    }
+
+    const eventTime = context.eventTime;
+    if (eventTime?.kind !== "range") return "";
+
+    const boundaries = _eventRangeBoundaries(event);
+    if (boundaries[name] === "open" && openLabel !== undefined) {
+        return _normalizeRenderedValue(openLabel);
+    }
+    if (
+        boundaries[name] === "unresolved" &&
+        unresolvedLabel !== undefined
+    ) {
+        return _normalizeRenderedValue(unresolvedLabel);
+    }
+
+    return _formatRangeEndpoint(
+        context,
+        eventTime,
+        boundaries,
+        name,
+        true
+    );
 }
 
 function _formatEventTime(context, eventTime, precise, event = null) {
@@ -714,6 +788,15 @@ function _resolveTemplateSelector(name, event, context) {
             ? _normalizeRenderedValue(explicit.value)
             : context.remaining?.text ?? "";
     }
+    if (name === "relativeDuration") {
+        const role = context.relativeDurationRole;
+        if (role == null) return "";
+
+        const explicit = _readEventField(event, role);
+        return explicit.found
+            ? _normalizeRenderedValue(explicit.value)
+            : context[role]?.text ?? "";
+    }
 
     return _normalizeRenderedValue(_readDisplayValue(event, name, context));
 }
@@ -724,7 +807,18 @@ function _renderTemplateString(runtime, template, event, context) {
         runtime.templateRenderer;
     return renderer.render(template, event, {
         ...context,
-        resolveSelector: _resolveTemplateSelector
+        resolveSelector: _resolveTemplateSelector,
+        resolveEndpointLabel: (
+            name,
+            openLabel,
+            unresolvedLabel
+        ) => _formatPresentationEndpoint(
+            context,
+            event,
+            name,
+            openLabel,
+            unresolvedLabel
+        )
     });
 }
 
@@ -835,6 +929,9 @@ function assertRepriseRuntime(runtime, caller = _RUNTIME_LABEL) {
     if (typeof runtime.readEventTime !== "function") {
         throw new TypeError(`${caller}.readEventTime must be a function.`);
     }
+    if (typeof runtime.deriveDurations !== "function") {
+        throw new TypeError(`${caller}.deriveDurations must be a function.`);
+    }
     if (typeof runtime.projectTimeValue !== "function") {
         throw new TypeError(`${caller}.projectTimeValue must be a function.`);
     }
@@ -866,6 +963,7 @@ class RepriseRuntime {
         projectTimeValue = _defaultProjectTimeValue,
         projectTimeRange = _defaultProjectTimeRange,
         projectCardinalAxis = null,
+        deriveDurations = _defaultDeriveDurations,
         durationPrecision = "minute",
         templateRenderer = new TemplateRenderer(),
         render = _defaultRender
@@ -880,6 +978,11 @@ class RepriseRuntime {
                 `${this.constructor.label}.ctor readCurrentTime must be a function.`
             );
         }
+        if (typeof deriveDurations !== "function") {
+            throw new TypeError(
+                `${this.constructor.label}.ctor deriveDurations must be a function.`
+            );
+        }
 
         this.unit = unit;
         this.labeller = labeller ?? _resolveDefaultLabeller(unit);
@@ -892,6 +995,7 @@ class RepriseRuntime {
         this._readCurrentTime = readCurrentTime;
         this._projectTimeValue = projectTimeValue;
         this._projectTimeRange = projectTimeRange;
+        this._deriveDurations = deriveDurations;
         this._render = render;
 
         if (projectCardinalAxis != null) {
@@ -917,10 +1021,7 @@ class RepriseRuntime {
     }
 
     readCurrentTime() {
-        return _parseUnitValue(
-            this.unit,
-            this._readCurrentTime.call(this)
-        );
+        return this._readCurrentTime.call(this);
     }
 
     projectTimeValue(value) {
@@ -929,6 +1030,13 @@ class RepriseRuntime {
 
     projectTimeRange(value) {
         return this._projectTimeRange.call(this, value);
+    }
+
+    deriveDurations(event, context = {}) {
+        return _normalizeDerivedDurations(
+            this._deriveDurations.call(this, event, context),
+            `${this.constructor.label}.deriveDurations`
+        );
     }
 
     render(template, event, context = {}) {
@@ -950,30 +1058,25 @@ class RepriseRuntime {
         const currentTime = inputEventTime?.kind === "range"
             ? context.currentTime === undefined
                 ? this.readCurrentTime()
-                : _parseUnitValue(this.unit, context.currentTime)
+                : context.currentTime
             : null;
-        const eventTime = _resolvePresentEventTime(
-            inputEventTime,
-            event,
-            currentTime
-        );
+        const eventTime = inputEventTime;
         const durationPrecision = _normalizeDurationPrecision(
             context.durationPrecision ?? this.durationPrecision,
             `${this.constructor.label}.render`
         );
-        const durations = _eventDurations(
-            this.unit,
-            this.labeller,
+        const durations = this.deriveDurations(event, {
             eventTime,
-            event,
             currentTime,
             durationPrecision
-        );
+        });
+        const relativeDurationRole = _relativeDurationRole(eventTime, event);
         const {
             duration: _ignoredDuration,
             minimumDuration: _ignoredMinimumDuration,
             elapsed: _ignoredElapsed,
             remaining: _ignoredRemaining,
+            relativeDurationRole: _ignoredRelativeDurationRole,
             ...inputContext
         } = context;
         const renderContext = Object.freeze({
@@ -986,6 +1089,9 @@ class RepriseRuntime {
             visualTheme: context.visualTheme ?? defaultVisualTheme,
             unit: this.unit,
             labeller: this.labeller,
+            ...(relativeDurationRole == null
+                ? {}
+                : { relativeDurationRole }),
             ...durations
         });
 
@@ -1132,11 +1238,7 @@ function fillRepriseBubble(
     const capturedCurrentTime = currentTime === undefined
         ? runtime.readCurrentTime?.() ?? null
         : currentTime;
-    const canonicalTime = _resolvePresentEventTime(
-        inputEventTime,
-        event,
-        capturedCurrentTime
-    );
+    const canonicalTime = inputEventTime;
     const bubbleContext = {
         surface: "bubble",
         eventTime: canonicalTime,
@@ -1201,14 +1303,11 @@ function fillRepriseBubble(
         ["bubblePeople", "people"],
         ["bubbleTags", "tags"]
     ];
-    const derivedDurations = _eventDurations(
-        runtime.unit,
-        runtime.labeller,
-        canonicalTime,
-        event,
-        capturedCurrentTime,
-        runtime.durationPrecision ?? "minute"
-    );
+    const derivedDurations = runtime.deriveDurations(event, {
+        eventTime: canonicalTime,
+        currentTime: capturedCurrentTime,
+        durationPrecision: runtime.durationPrecision ?? "minute"
+    });
     const hasMinimumDuration =
         derivedDurations.minimumDuration != null ||
         _hasEventOrPresentationField(

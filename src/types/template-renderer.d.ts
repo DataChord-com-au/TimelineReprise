@@ -11,6 +11,11 @@ declare namespace Timeline {
             event: object,
             context: TemplateRenderContext<T>
         ) => RenderedContent;
+        resolveEndpointLabel?: (
+            endpoint: "start" | "end",
+            openLabel?: unknown,
+            unresolvedLabel?: unknown
+        ) => RenderedContent;
         readonly [key: string]: unknown;
     }
 
@@ -41,6 +46,7 @@ declare namespace Timeline {
             PREFIX: "prefix";
             SUFFIX: "suffix";
             LINES: "lines";
+            ENDPOINT_LABEL: "endpointLabel";
         }>;
 
         static validateTemplate(

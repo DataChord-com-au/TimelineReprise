@@ -21,8 +21,10 @@ A runtime is an object with:
 - `projectCardinalAxis(context)` - optional hook for projected cardinal-axis
   ranges and marker positions.
 - `readEventTime(event)` - returns a canonical instant or range.
-- `readCurrentTime()` - returns the current value in the configured unit, or
-  `null` when that domain has no implicit current value.
+- `readCurrentTime()` - captures the runtime's current value. Injected runtimes
+  may return an opaque semantic token; Reprise passes it through unchanged.
+- `deriveDurations(event, context)` - derives `duration`, `minimumDuration`,
+  `elapsed`, and `remaining` presentation values.
 - `render(template, event, context)` - returns text, HTML, or a DOM fragment for
   one field.
 
@@ -85,10 +87,11 @@ inject these methods when authored semantic values must first be projected
 onto the band's primitive unit. Reprise band construction consumes the
 projections directly; the integration does not construct native band infos.
 
-Duration-aware units additionally provide `duration(start, end)`, which returns
-a finite, non-negative number. Their labellers provide
-`labelDuration(value)`. The duration methods are optional as a pair so custom
-units without duration support continue to work.
+The default duration provider uses `unit.duration(start, end)`, which returns a
+finite, non-negative number, and `labeller.labelDuration(value)`. These methods
+are optional as a pair. Injected runtimes may instead supply
+`deriveDurations()` and must not derive semantic values from projected
+timeline geometry.
 
 The default runtime supplies `readCurrentTime()` for native-date units. A
 domain runtime injects it when its unit has its own meaning of now:
@@ -108,6 +111,25 @@ Native-date fallback duration text defaults to minute precision. Set
 This option applies consistently to duration, minimum duration, elapsed, and
 remaining values; domain selector extensions may replace their text with
 their own named duration format.
+
+An injected derivation hook returns any applicable fields in this shape:
+
+```js
+deriveDurations: function (event, context) {
+    return {
+        elapsed: {
+            value: semanticInterval,
+            text: semanticInterval.formatDuration()
+        }
+    };
+}
+```
+
+`value` is opaque to Reprise and is passed unchanged to the render context.
+`text` is the provider's default display text. The derivation context contains
+the canonical projected `eventTime`, the captured `currentTime`, and
+`durationPrecision`. One captured current value is reused throughout a bubble
+or refreshed caption.
 
 Band construction requires the complete timeline-unit contract, including
 `cloneValue(value)` and `change(value, delta)`. A cardinal axis over non-date
@@ -211,6 +233,12 @@ A `present` start is rendered as `now`. A range carrying only one concrete
 side through `bounded: "start"` or `bounded: "end"` is treated as open when
 the exact sentinel is unavailable.
 
+Templates can override endpoint presentation without changing those
+semantics. For example, `{endpointLabel('end', 'present')}` renders an open or
+unresolved end as `present`. The source remains `end: "open"` or
+`end: "unresolved"`; the range remains unbounded and has no total duration.
+The optional third argument supplies a distinct unresolved label.
+
 ## Duration context
 
 For a bounded range whose unit and labeller support duration, the render
@@ -225,8 +253,9 @@ context includes:
 }
 ```
 
-`value` comes from `unit.duration(start, end)`. `text` comes from
-`labeller.labelDuration(value)`; Reprise does not derive it from `toString()`.
+For the default provider, `value` comes from `unit.duration(start, end)` and
+`text` comes from `labeller.labelDuration(value)`. An injected provider owns
+both and may return an opaque semantic interval or duration value.
 
 For an imprecise range, `duration` is the longest duration from `start` to
 `end`, and `minimumDuration` is calculated from `latestStart` to
@@ -287,14 +316,17 @@ default field renderer.
 
 The default runtime interprets string templates through
 `Timeline.TemplateRenderer`. Its built-in macros are `join()`, `joinUnique()`,
-`wrap()`, `paren()`, `prefix()`, `suffix()`, and `lines()`. `lines()` emits a
-newline for a text target and `<br>` for an HTML target.
+`wrap()`, `paren()`, `prefix()`, `suffix()`, `lines()`, and
+`endpointLabel()`. `lines()` emits a newline for a text target and `<br>` for
+an HTML target.
 
 Bare selectors read generic event fields. Reprise also supplies `eventTime`,
 `start`, `latestStart`, `earliestEnd`, `end`, `duration`, and
-`minimumDuration`, `elapsed`, and `remaining`. Timeline endpoints are formatted
-through the active labeller. Durations use the unit-derived values in the
-render context.
+`minimumDuration`, `elapsed`, `remaining`, and `relativeDuration`. The relative
+selector resolves to total duration for a bounded range, elapsed for a
+concrete-start/open-end range, and remaining for an open-start/concrete-end
+range. Timeline endpoints are formatted through the active labeller.
+Durations use the runtime-derived values in the render context.
 
 Default event-time output remains late-bound to the active labeller: text
 event-time labels use `labelInterval()` and precise HTML/bubble values use
@@ -456,7 +488,7 @@ responsible only for their content.
 
 An injected renderer may use the value or text from `context.duration`,
 `context.elapsed`, and `context.remaining`. Duration calculation remains in
-the unit/runtime contract.
+the runtime's `deriveDurations()` contract.
 
 ---
 [Back to top](#presentation-runtime)<br>

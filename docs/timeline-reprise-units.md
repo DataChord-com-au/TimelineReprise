@@ -8,8 +8,10 @@ unit.duration(start, end);       // finite, non-negative number
 labeller.labelDuration(value);   // display text
 ```
 
-A custom unit that does not provide these methods remains supported. Its
-ranges simply have no derived duration.
+A custom unit that does not provide these methods remains supported. The
+default duration provider gives its ranges no derived duration. A semantic
+runtime may instead implement `deriveDurations()` independently of the
+projected timeline unit.
 
 The unit and labeller also provide the built-in dependency injection used by
 `Timeline.RepriseRuntime` and Reprise band construction. Parsing, comparison,

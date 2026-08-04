@@ -136,17 +136,18 @@ runtime, then the default for the band unit and labeller. Values are parsed
 through `unit.parseFromObject()` and ordered with `unit.compare()`. Native date
 values, numeric values including zero, and wrapper values use this same path.
 
-Duration-aware units and labellers also give automatically created runtimes
-derived duration context. This applies equally to `attachEvents()` and
-`attachNarrativeDecorators()`. Native dates use elapsed milliseconds with
+Automatically created runtimes derive duration context through their units and
+labellers. Injected runtimes derive it through `runtime.deriveDurations()` and
+may retain opaque semantic values. This applies equally to `attachEvents()`
+and `attachNarrativeDecorators()`. Native dates use elapsed milliseconds with
 fallback text truncated to minutes,
 `Timeline.PlanningDayUnit` uses planning days,
 `Timeline.HistoricalYearUnit` uses elapsed years, and `Timeline.MaUnit` uses
 Ma.
 
 Active ranges may also expose elapsed and remaining duration context. Native
-date runtimes obtain the current date automatically; domain runtimes provide
-`readCurrentTime()` in their configured unit. Bubble fields are recalculated
+date runtimes obtain the current date automatically; domain runtimes may
+return an opaque semantic value from `readCurrentTime()`. Bubble fields are recalculated
 for every opening. Caption tooltips on labels and graphics are recalculated on
 hover.
 

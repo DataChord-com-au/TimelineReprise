@@ -27,7 +27,9 @@
   <h1>SIMILE Timeline Reprise: Imprecise Ranges</h1>
   <p>
     This example shows precise and imprecise ranges, including open, present,
-    unresolved, and dynamically dated boundaries.
+    unresolved, and dynamically dated boundaries. Open and unresolved values
+    remain semantic sentinels in the source data; the runtime projects separate
+    geometry for SIMILE while templates may present those endpoints as present.
   </p>
 
   <section style="margin-top: 28px;">
@@ -42,91 +44,171 @@
 
   <script>
     var today = new Date();
-    var dynamicStart = new Date(today);
-    var dynamicEnd = new Date(today);
-    dynamicStart.setDate(dynamicStart.getDate() - 22);
-    dynamicEnd.setDate(dynamicEnd.getDate() + 4);
+
+    function dateFromToday(days) {
+      var date = new Date(today);
+      date.setUTCDate(date.getUTCDate() + days);
+      return date;
+    }
 
     function isoDate(date) {
       return date.toISOString().slice(0, 10);
     }
 
+    function isoDateFromToday(days) {
+      return isoDate(dateFromToday(days));
+    }
+
     var events = [
       {
-        start: "2026-01-01",
-        end: "2026-03-01",
+        start: isoDateFromToday(-210),
+        end: isoDateFromToday(-150),
         title: "Standard bounded",
         description: "Bounded both ends, no sentinels."
       },
       {
-        start: "2026-03-01",
-        latestStart: "2026-04-01",
-        earliestEnd: "2026-07-01",
-        end: "2026-07-14",
+        start: isoDateFromToday(-150),
+        latestStart: isoDateFromToday(-120),
+        earliestEnd: isoDateFromToday(-30),
+        end: isoDateFromToday(-16),
         title: "Imprecise example - both ends",
         description: "Imprecision both ends, no sentinels."
       },
       {
-        start: "2026-03-01",
-        latestStart: "2026-04-01",
-        end: "2026-08-01",
+        start: isoDateFromToday(-120),
+        latestStart: isoDateFromToday(-90),
+        end: isoDateFromToday(30),
         title: "Imprecise example - start",
         description: "Imprecision at start, no sentinels."
       },
       {
-        start: "2026-04-01",
-        earliestEnd: "2026-05-01",
-        end: "2026-05-15",
+        start: isoDateFromToday(-60),
+        earliestEnd: isoDateFromToday(30),
+        end: isoDateFromToday(45),
         title: "Imprecise example - end",
         description: "Imprecision at end, no sentinels."
       },
       {
-        start: "2000-01-01",
-        end: "2026-07-01",
+        start: "open",
+        end: isoDateFromToday(75),
+        projection: {
+          start: isoDateFromToday(-730)
+        },
         title: "Open start example",
-        description: "Sentinel start resolved before the timeline's visible range."
+        description: "The source start remains open; its endpoint text is presented as present."
       },
       {
-        start: isoDate(today),
-        end: "2026-08-01",
+        start: "present",
+        end: isoDateFromToday(90),
         title: "Present start example",
-        description: "Sentinel start resolved to today."
+        description: "The runtime projects the semantic present boundary to its current time."
       },
       {
-        start: "2025-06-01",
-        end: "2026-08-10",
+        start: "unresolved",
+        end: isoDateFromToday(105),
+        projection: {
+          start: isoDateFromToday(-365)
+        },
         title: "Unresolved start example",
-        description: "Sentinel start resolved to a distinct, deeply uncertain date."
+        description: "The unresolved source boundary remains distinct from its projected geometry."
       },
       {
-        start: "2026-04-01",
-        end: "2050-01-01",
+        start: isoDateFromToday(-105),
+        end: "open",
+        projection: {
+          end: isoDateFromToday(730)
+        },
         title: "Open end example",
-        description: "Sentinel end resolved after the timeline's visible range."
+        description: "The source end remains open while relativeDuration displays elapsed time."
       },
       {
-        start: "2026-05-01",
-        end: isoDate(today),
+        start: isoDateFromToday(-90),
+        end: "present",
         title: "Present end example",
-        description: "Sentinel end resolved to today."
+        description: "The runtime projects the semantic present boundary to its current time."
       },
       {
-        start: "2026-06-01",
-        end: "2027-12-01",
+        start: isoDateFromToday(-75),
+        end: "unresolved",
+        projection: {
+          end: isoDateFromToday(365)
+        },
         title: "Unresolved end example",
-        description: "Sentinel end resolved to a distinct, deeply uncertain date."
+        description: "The unresolved source boundary remains distinct from its projected geometry."
       },
       {
-        start: isoDate(dynamicStart),
-        end: isoDate(dynamicEnd),
+        start: isoDateFromToday(-22),
+        end: isoDateFromToday(4),
         title: "Dynamic bounded range spanning today",
         description: "Bounded both ends, dynamically generated to span today."
       }
     ];
 
+    var nativeRuntime = new Timeline.RepriseRuntime();
+    var runtime = new Timeline.RepriseRuntime({
+      readEventTime: function(event) {
+        var source = event.event || event;
+        var projection = source.projection || {};
+        var projected = {};
+
+        Object.keys(source).forEach(function(name) {
+          projected[name] = source[name];
+        });
+
+        if (source.start === "present") {
+          projected.start = new Date();
+        } else if (source.start === "open" || source.start === "unresolved") {
+          projected.start = projection.start;
+        }
+
+        if (source.end === "present") {
+          projected.end = new Date();
+        } else if (source.end === "open" || source.end === "unresolved") {
+          projected.end = projection.end;
+        }
+
+        return nativeRuntime.readEventTime(projected);
+      }
+    });
+
+    Timeline.loadDisplayProfiles([
+      {
+        id: "impreciseRanges",
+        label: {
+          title: {
+            range: "{lines(title, relativeDuration)}"
+          },
+          caption: {
+            range: "{join(' / ', join(' - ', endpointLabel('start', 'present'), endpointLabel('end', 'present')), relativeDuration)}"
+          }
+        },
+        bubble: {
+          bubbleStart: {
+            range: "{endpointLabel('start', 'present')}"
+          },
+          bubbleEnd: {
+            range: "{endpointLabel('end', 'present')}"
+          },
+          bubbleDuration: {
+            range: "{duration}"
+          },
+          bubbleMinimumDuration: {
+            range: "{minimumDuration}"
+          },
+          bubbleElapsed: {
+            range: "{elapsed}"
+          },
+          bubbleRemaining: {
+            range: "{remaining}"
+          }
+        }
+      }
+    ]);
+
     Timeline.loadVisualThemes([
       {
         id: "main",
+        presentation: "impreciseRanges",
         track: {
           horizontal: {
             offset: 12
@@ -149,12 +231,13 @@
     ]);
 
     var clampRange = {
-      start: new Date("2024-01-01T00:00:00Z"),
-      end: new Date("2028-01-01T00:00:00Z")
+      start: dateFromToday(-730),
+      end: dateFromToday(730)
     };
 
     var horizontalBandSet = Timeline.createBandSet({
       orientation: "horizontal",
+      runtime: runtime,
       initialDate: today,
       clampRange: clampRange,
 
@@ -174,6 +257,7 @@
 
     var verticalBandSet = Timeline.createBandSet({
       orientation: "vertical",
+      runtime: runtime,
       initialDate: today,
       clampRange: clampRange,
 
