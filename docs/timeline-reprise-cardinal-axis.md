@@ -235,15 +235,16 @@ The optional third argument accepts:
 
 - `runtime` - per-attachment runtime override
 - `theme` - native theme override; defaults to `bandInfo.theme`
-- `markerTheme` - cardinal-axis marker overrides
+- `markerLength` - cardinal-axis marker length override
 - `cssClass` - class added to generated markers
 - `align` - cardinal-axis marker alignment value independent of band
   `markerAlign`
 - `showLine` - whether SIMILE draws interval lines
 
-Marker options inherit the shared `theme.ether.interval.marker` settings
-documented under
-[Core](timeline-reprise-core.md#ether-interval-date-markers).
+When `markerLength` is omitted, the attachment inherits the band's
+`markerLength`. An attachment value wins over the band value. If both are
+omitted, the Reprise/native orientation default applies. Accepted values are a
+CSS length, `"label"`, and `null`.
 
 ## Low-level Timeline.CardinalAxis
 
@@ -268,27 +269,6 @@ The theme retained by a Reprise-created band info.
 ```js
 theme: bandInfo.theme
 ```
-
-### `markerTheme`
-Optional marker-theme properties for this cardinal axis.
-
-```js
-markerTheme: {
-    hLength: "label",
-    vLength: "4em",
-    tickZIndex: 100,
-    labelZIndex: 102
-}
-```
-
-The existing native marker presentation field names are unchanged, including
-`hLength` and `vLength`. Omitted fields continue to come from
-`theme.ether.interval.marker`. The resolved marker theme does not mutate the
-supplied `theme` or `markerTheme` object. Lengths control the separate marker
-tick, not the label dimensions; use a CSS length, `"label"` to follow the
-rendered label extent, or `null` for native SIMILE sizing.
-`tickZIndex` and `labelZIndex` independently override the cardinal marker tick
-and label stacking levels.
 
 ### `startDate`
 Projected timeline value where the cardinal axis starts.
@@ -443,9 +423,6 @@ These methods satisfy the SIMILE ether painter interface.
 ```js
 new Timeline.CardinalAxis({
     theme: bandInfo.theme,
-    markerTheme: {
-        vLength: "4em"
-    },
     startDate: new Date("2020-02-15T00:00:00Z"),
     endDate: new Date("2020-12-15T00:00:00Z"),
     unit: Timeline.DateTime.MONTH,

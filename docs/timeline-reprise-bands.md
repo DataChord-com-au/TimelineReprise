@@ -109,6 +109,7 @@ Common fields:
 - `intervalMarkers`
 - `intervalLines`
 - `markerAlign`
+- `markerLength`
 - `emphasisSpecs`
 - `backgroundColor`
 - `overview` or `layout`
@@ -128,8 +129,12 @@ a per-band override. Reprise maps it to the native ether theme internally.
 
 `markerAlign` controls which band edge receives the band's normal date or unit
 markers. It accepts `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`. This is band
-behavior; marker dimensions such as `hLength` and `vLength` remain in
-`etherTheme.interval.marker`.
+behavior.
+
+`markerLength` controls the marker tick's cross-axis length. It accepts a CSS
+length, `"label"` to follow the rendered label extent, or `null` for native
+SIMILE sizing. Set it on `createBandSet()` as a shared default or override it
+on one band. Reprise maps it to the active orientation internally.
 
 Vertical bands default to right-aligned markers. When a vertical band uses
 `markerAlign: "Left"`, Reprise gives event and overview tracks a larger default

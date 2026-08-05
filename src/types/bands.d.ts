@@ -33,10 +33,11 @@ declare namespace Timeline {
         labeller?: TimelineLabeller<T> | null;
         runtime?: RepriseRuntimeContract<T> | null;
         visualTheme?: VisualThemeSelection | null;
-        etherTheme?: EtherTheme | null;
+        etherTheme?: RepriseEtherTheme | null;
         intervalMarkers?: boolean;
         intervalLines?: boolean;
         markerAlign?: BandMarkerAlign | string | null;
+        markerLength?: MarkerLength;
         emphasisSpecs?: Readonly<Record<string, EmphasisStyle>> | null;
         backgroundColor?: string | null;
         scaledZones?: boolean | string | readonly string[];
@@ -53,6 +54,36 @@ declare namespace Timeline {
         decorators?: object[];
         zoomIndex?: number;
         zoomSteps?: readonly unknown[] | null;
+    }
+
+    interface RepriseEtherIntervalMarkerTheme {
+        show?: never;
+        hAlign?: never;
+        vAlign?: never;
+        hLength?: never;
+        vLength?: never;
+        tickZIndex?: number;
+        labelZIndex?: number;
+        [key: string]: unknown;
+    }
+
+    interface RepriseEtherIntervalTheme {
+        marker?: RepriseEtherIntervalMarkerTheme;
+        line?: {
+            show?: never;
+            opacity?: number;
+            [key: string]: unknown;
+        };
+        weekend?: {
+            opacity?: number;
+            [key: string]: unknown;
+        };
+        [key: string]: unknown;
+    }
+
+    interface RepriseEtherTheme {
+        interval?: RepriseEtherIntervalTheme;
+        [key: string]: unknown;
     }
 
     interface RepriseNamedBandSpec<T = unknown>

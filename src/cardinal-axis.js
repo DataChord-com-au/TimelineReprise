@@ -1,53 +1,18 @@
 import { resolveTimelineDateTimeUnit } from "./date-time.js";
 import { resolveRepriseRuntime } from "./presentation-runtime.js";
+import {
+    normalizeMarkerLength,
+    resolveMarkerPresentationTheme
+} from "./marker-presentation.js";
 
 (function () {
     if (!window.Timeline || Timeline.CardinalAxis) return;
 
-    function copyOwnProperties(source) {
-        var copy = {};
-
-        if (!source) return copy;
-
-        for (var key in source) {
-            if (Object.prototype.hasOwnProperty.call(source, key)) {
-                copy[key] = source[key];
-            }
-        }
-
-        return copy;
-    }
-
-    function resolveTheme(nativeTheme, markerTheme) {
-        var resolvedTheme = copyOwnProperties(nativeTheme);
-        var nativeEther = nativeTheme && nativeTheme.ether;
-        var resolvedEther = copyOwnProperties(nativeEther);
-        var nativeInterval = nativeEther && nativeEther.interval;
-        var resolvedInterval = copyOwnProperties(nativeInterval);
-        var nativeMarker = nativeInterval && nativeInterval.marker;
-        var resolvedMarker = copyOwnProperties(nativeMarker);
-
-        if (markerTheme) {
-            for (var key in markerTheme) {
-                if (
-                    Object.prototype.hasOwnProperty.call(markerTheme, key) &&
-                    markerTheme[key] !== undefined
-                ) {
-                    resolvedMarker[key] = markerTheme[key];
-                }
-            }
-        }
-
-        resolvedInterval.marker = resolvedMarker;
-        resolvedEther.interval = resolvedInterval;
-        resolvedTheme.ether = resolvedEther;
-
-        return resolvedTheme;
-    }
-
     Timeline.CardinalAxis = function (params) {
         this._params = params;
-        this._theme = resolveTheme(params.theme, params.markerTheme);
+        this._nativeTheme = params.theme;
+        this._markerLength = params.markerLength;
+        this._theme = params.theme;
         this._startDate = params.startDate;
         this._endDate = params.endDate ?? null;
         this._unit = params.unit;
@@ -131,6 +96,11 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
         this._band = band;
         this._timeline = timeline;
         this._valueUnit = this._runtime?.unit ?? timeline.getUnit?.() ?? null;
+        this._theme = resolveMarkerPresentationTheme(
+            this._nativeTheme,
+            timeline.isHorizontal() ? "horizontal" : "vertical",
+            this._markerLength
+        );
 
         this._backgroundLayer = null;
         if (this._background) {
@@ -144,7 +114,7 @@ import { resolveRepriseRuntime } from "./presentation-runtime.js";
 
         var align = ("align" in this._params)
             ? this._params.align
-            : this._theme.ether.interval.marker[timeline.isHorizontal() ? "hAlign" : "vAlign"];
+            : timeline.isHorizontal() ? "Bottom" : "Right";
 
         var showLine = ("showLine" in this._params)
             ? this._params.showLine
@@ -577,7 +547,7 @@ const _CARDINAL_SPEC_FIELDS = new Set([
 const _CARDINAL_OPTION_FIELDS = new Set([
     "runtime",
     "theme",
-    "markerTheme",
+    "markerLength",
     "cssClass",
     "align",
     "showLine"
@@ -763,15 +733,12 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
     ) {
         throw new TypeError(`${caller} spec.labelForIndex must be a function.`);
     }
-    if (
-        options.markerTheme != null &&
-        !_cardinalIsObject(options.markerTheme)
-    ) {
-        throw new TypeError(`${caller} options.markerTheme must be an object.`);
-    }
-    if (_cardinalHasOwn(options.markerTheme, "show")) {
-        throw new TypeError(`${caller} options.markerTheme.show is not supported.`);
-    }
+    const markerLength = normalizeMarkerLength(
+        _cardinalHasOwn(options, "markerLength")
+            ? options.markerLength
+            : bandInfo.markerLength,
+        `${caller} options`
+    );
     if (
         options.theme != null &&
         !_cardinalIsObject(options.theme)
@@ -815,7 +782,7 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
 
     const cardinalAxis = new globalThis.Timeline.CardinalAxis({
         theme: options.theme ?? bandInfo.theme,
-        markerTheme: options.markerTheme,
+        markerLength,
         runtime,
         startDate: range.start,
         endDate: _cardinalHasOwn(range, "end") ? range.end : null,
@@ -833,7 +800,11 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         labelForIndex: spec.labelForIndex,
         background: false,
         cssClass: _cardinalOptionalString(options.cssClass, "options.cssClass"),
-        ...(_cardinalHasOwn(options, "align") ? { align: options.align } : {}),
+        ...(_cardinalHasOwn(options, "align")
+            ? { align: options.align }
+            : bandInfo.markerAlign != null
+                ? { align: bandInfo.markerAlign }
+                : {}),
         ...(_cardinalHasOwn(options, "showLine") ? { showLine: options.showLine } : {})
     });
 

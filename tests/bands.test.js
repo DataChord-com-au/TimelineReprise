@@ -265,6 +265,19 @@ function loadBands() {
     context.globalThis = context;
     context.window = context;
 
+    const markerPresentationSource = fs.readFileSync(
+        path.join(__dirname, "..", "src", "marker-presentation.js"),
+        "utf8"
+    )
+        .replace(/^import\s+[\s\S]*?from\s+"[^"]+";\s*$/gm, "")
+        .replace(
+            /^export\s*\{\s*normalizeMarkerLength,\s*resolveMarkerPresentationTheme\s*\};?\s*$/m,
+            ""
+        );
+    vm.runInContext(markerPresentationSource, context, {
+        filename: "src/marker-presentation.js"
+    });
+
     vm.runInContext(
         `${source}
         globalThis.bandExports = {
@@ -588,6 +601,136 @@ test("markerAlign is direct band behavior with band-set defaults", () => {
         bandSet.byId.main.theme.ether.interval.marker.hAlign,
         "Bottom"
     );
+});
+
+test("markerLength inherits from a band set and supports per-band overrides", () => {
+    const { createBandSet } = loadBands();
+    const suppliedEtherTheme = {
+        interval: { marker: { tickZIndex: 41 } }
+    };
+    const before = JSON.parse(JSON.stringify(suppliedEtherTheme));
+    const bandSet = createBandSet({
+        orientation: "horizontal",
+        markerLength: "3rem",
+        etherTheme: suppliedEtherTheme,
+        syncTarget: "main",
+        bands: [
+            {
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            },
+            {
+                id: "overview",
+                markerLength: "label",
+                intervalUnit: "year",
+                intervalPixels: 200
+            }
+        ]
+    });
+
+    assert.equal(bandSet.byId.main.markerLength, "3rem");
+    assert.equal(bandSet.byId.overview.markerLength, "label");
+    assert.equal(
+        bandSet.byId.main.theme.ether.interval.marker.hLength,
+        "3rem"
+    );
+    assert.equal(
+        bandSet.byId.overview.theme.ether.interval.marker.hLength,
+        "label"
+    );
+    assert.equal(
+        Object.hasOwn(
+            bandSet.byId.main.theme.ether.interval.marker,
+            "vLength"
+        ),
+        false
+    );
+    assert.deepEqual(suppliedEtherTheme, before);
+});
+
+test("vertical markerLength maps to vLength and preserves null", () => {
+    const { createBandSet } = loadBands();
+    const bandSet = createBandSet({
+        orientation: "vertical",
+        markerLength: "4em",
+        syncTarget: "main",
+        bands: [
+            {
+                id: "main",
+                intervalUnit: "month",
+                intervalPixels: 100
+            },
+            {
+                id: "native-size",
+                markerLength: null,
+                intervalUnit: "year",
+                intervalPixels: 200
+            }
+        ]
+    });
+
+    assert.equal(
+        bandSet.byId.main.theme.ether.interval.marker.vLength,
+        "4em"
+    );
+    assert.equal(
+        bandSet.byId["native-size"].theme.ether.interval.marker.vLength,
+        null
+    );
+    assert.equal(
+        Object.hasOwn(
+            bandSet.byId.main.theme.ether.interval.marker,
+            "hLength"
+        ),
+        false
+    );
+});
+
+test("omitted markerLength retains native defaults and invalid routes reject", () => {
+    const { createBandSet } = loadBands();
+    const bandSet = createBandSet({
+        bands: [{
+            id: "main",
+            intervalUnit: "month",
+            intervalPixels: 100
+        }]
+    });
+    const marker = bandSet.byId.main.theme.ether.interval.marker;
+
+    assert.equal(bandSet.byId.main.markerLength, undefined);
+    assert.equal(Object.hasOwn(marker, "hLength"), false);
+    assert.equal(Object.hasOwn(marker, "vLength"), false);
+
+    for (const markerLength of [12, ""]) {
+        assert.throws(
+            () => createBandSet({
+                markerLength,
+                bands: [{
+                    id: "main",
+                    intervalUnit: "month",
+                    intervalPixels: 100
+                }]
+            }),
+            /markerLength must be a CSS length, 'label', or null/
+        );
+    }
+
+    for (const field of ["hLength", "vLength", "hAlign", "vAlign"]) {
+        assert.throws(
+            () => createBandSet({
+                etherTheme: {
+                    interval: { marker: { [field]: "2em" } }
+                },
+                bands: [{
+                    id: "main",
+                    intervalUnit: "month",
+                    intervalPixels: 100
+                }]
+            }),
+            new RegExp(`${field} is not supported`)
+        );
+    }
 });
 
 test("historical-year markers align independently in BCE and CE", () => {

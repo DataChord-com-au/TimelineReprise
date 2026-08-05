@@ -37,8 +37,8 @@
         element.className += " " + className;
     }
 
-    function markerZIndex(markerTheme, field, fallback) {
-        var value = markerTheme[field];
+    function markerZIndex(markerConfig, field, fallback) {
+        var value = markerConfig[field];
         if (value === undefined) return fallback;
         if (typeof value !== "number" || !isFinite(value)) {
             throw new RangeError(
@@ -77,7 +77,7 @@
         marker,
         markerLayer,
         timeline,
-        markerTheme,
+        markerConfig,
         align
     ) {
         var horizontal = timeline.isHorizontal();
@@ -87,22 +87,22 @@
             : (align === "Left" ? "left" : "right");
         var length = horizontal
             ? (
-                "hLength" in markerTheme
-                    ? markerTheme.hLength
+                "hLength" in markerConfig
+                    ? markerConfig.hLength
                     : DEFAULT_HORIZONTAL_LENGTH
             )
             : (
-                "vLength" in markerTheme
-                    ? markerTheme.vLength
+                "vLength" in markerConfig
+                    ? markerConfig.vLength
                     : DEFAULT_VERTICAL_LENGTH
             );
         var tickZIndex = markerZIndex(
-            markerTheme,
+            markerConfig,
             "tickZIndex",
             DEFAULT_TICK_Z_INDEX
         );
         var labelZIndex = markerZIndex(
-            markerTheme,
+            markerConfig,
             "labelZIndex",
             DEFAULT_LABEL_Z_INDEX
         );
@@ -186,7 +186,7 @@
             markerLayer,
             lineLayer
         ) {
-            var markerTheme = getMarkerTheme(theme) || {};
+            var markerConfig = getMarkerTheme(theme) || {};
             var targetMarkerLayer = showMarkers
                 ? markerLayer
                 : { appendChild: function () {} };
@@ -204,7 +204,7 @@
                     marker,
                     markerLayer,
                     timeline,
-                    markerTheme,
+                    markerConfig,
                     align
                 );
             }

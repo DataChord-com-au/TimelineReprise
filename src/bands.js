@@ -2,6 +2,10 @@ import { clampBandChains } from "./clamping.js";
 import { normalizeColorString } from "./color.js";
 import { resolveTimelineDateTimeUnit } from "./date-time.js";
 import { normalizeTimelineOrientation } from "./orientation.js";
+import {
+    normalizeMarkerLength,
+    resolveMarkerPresentationTheme
+} from "./marker-presentation.js";
 import { resolveRepriseRuntime } from "./presentation-runtime.js";
 import { UnitScaledZoneEther } from "./scaled-zones.js";
 import { composeVisualTheme, validateSpecId } from "./theme-registry.js";
@@ -108,8 +112,9 @@ function _createNativeTheme({
     visualTheme = null,
     etherTheme = null,
     intervalLines = false,
+    markerLength,
     emphasisSpecs = null
-}, caller) {
+}, orientation, caller) {
     const theme = Timeline.ClassicTheme?.create?.();
     if (!_bandIsObject(theme)) {
         throw new TypeError(`${caller} could not create a native SIMILE theme.`);
@@ -123,6 +128,20 @@ function _createNativeTheme({
             throw new TypeError(
                 `${caller} etherTheme.interval.marker.show is not supported; use intervalMarkers.`
             );
+        }
+        for (const field of ["hAlign", "vAlign"]) {
+            if (_bandHasOwn(etherTheme?.interval?.marker, field)) {
+                throw new TypeError(
+                    `${caller} etherTheme.interval.marker.${field} is not supported; use markerAlign.`
+                );
+            }
+        }
+        for (const field of ["hLength", "vLength"]) {
+            if (_bandHasOwn(etherTheme?.interval?.marker, field)) {
+                throw new TypeError(
+                    `${caller} etherTheme.interval.marker.${field} is not supported; use markerLength.`
+                );
+            }
         }
         if (_bandHasOwn(etherTheme?.interval?.line, "show")) {
             throw new TypeError(
@@ -144,7 +163,7 @@ function _createNativeTheme({
         theme.emphasisSpecs = emphasisSpecs;
     }
 
-    return theme;
+    return resolveMarkerPresentationTheme(theme, orientation, markerLength);
 }
 
 function _bandLabelText(label) {
@@ -256,12 +275,12 @@ class UnitEtherPainter {
         const document = this._timeline.getDocument();
         const totalLength = this._band.getTotalViewLength();
         const horizontal = this._timeline.isHorizontal();
-        const markerTheme = this._theme?.ether?.interval?.marker ?? {};
+        const markerConfig = this._theme?.ether?.interval?.marker ?? {};
         const lineTheme = this._theme?.ether?.interval?.line ?? {};
         const showLines = lineTheme.show === true;
         const align = horizontal
-            ? this._markerAlign ?? markerTheme.hAlign ?? "Bottom"
-            : this._markerAlign ?? markerTheme.vAlign ?? "Right";
+            ? this._markerAlign ?? "Bottom"
+            : this._markerAlign ?? "Right";
 
         this._lineLayer.innerHTML = "";
         this._markerLayer.innerHTML = "";
@@ -327,7 +346,7 @@ class UnitEtherPainter {
                         label,
                         this._markerLayer,
                         this._timeline,
-                        markerTheme,
+                        markerConfig,
                         align
                     );
                 }
@@ -560,6 +579,7 @@ function _nativeBandInfo(spec, runtime, eventSource, theme, zones, caller) {
         intervalMarkers: _intervalMarkers,
         intervalLines: _intervalLines,
         markerAlign: _markerAlign,
+        markerLength: _markerLength,
         interval: _interval,
         etherPainter: _etherPainter,
         ...nativeSpec
@@ -666,6 +686,7 @@ function createBand(spec = {}, context = {}) {
 
     const {
         zoneRegistry = Object.freeze({}),
+        orientation = "horizontal",
         ...contextDefaults
     } = context;
     const resolved = { ...contextDefaults, ...spec };
@@ -693,9 +714,13 @@ function createBand(spec = {}, context = {}) {
         resolved.markerAlign,
         caller
     );
+    resolved.markerLength = normalizeMarkerLength(
+        resolved.markerLength,
+        caller
+    );
     const eventSource = resolved.eventSource ??
         _makeEventSource(runtime.unit, caller);
-    const theme = _createNativeTheme(resolved, caller);
+    const theme = _createNativeTheme(resolved, orientation, caller);
     const zones = _selectZones(resolved.scaledZones, zoneRegistry, caller);
 
     const bandInfo = _isNativeDateUnit(runtime.unit)
@@ -731,6 +756,18 @@ function createBand(spec = {}, context = {}) {
             configurable: true,
             enumerable: true,
             value: resolved.markerAlign
+        },
+        markerLength: {
+            configurable: true,
+            enumerable: true,
+            value: resolved.markerLength
+        },
+        repriseOrientation: {
+            configurable: true,
+            value: normalizeTimelineOrientation(
+                orientation,
+                `${caller} orientation`
+            )
         },
         repriseBackgroundColor: {
             configurable: true,
@@ -827,7 +864,7 @@ function createBandSet(spec = {}) {
 
         const bandInfo = createBand(
             { ...bandDefaults, ...bandSpec, id },
-            { runtime, zoneRegistry }
+            { runtime, zoneRegistry, orientation: normalizedOrientation }
         );
         bandInfos.push(bandInfo);
         byId[id] = bandInfo;

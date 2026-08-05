@@ -157,7 +157,10 @@ function loadTimeline() {
     const context = vm.createContext({
         SimileAjax,
         Timeline,
-        window: { Timeline }
+        window: { Timeline },
+        normalizeTimelineOrientation(value) {
+            return String(value ?? "horizontal").trim().toLowerCase();
+        }
     });
 
     vm.runInContext(
@@ -193,6 +196,16 @@ function loadTimeline() {
     vm.runInContext(source("ether-interval-marker.js"), context, {
         filename: "src/ether-interval-marker.js"
     });
+    vm.runInContext(
+        source("marker-presentation.js")
+            .replace(/^import\s+[\s\S]*?from\s+"[^"]+";\s*$/gm, "")
+            .replace(
+                /^export\s*\{\s*normalizeMarkerLength,\s*resolveMarkerPresentationTheme\s*\};?\s*$/m,
+                ""
+            ),
+        context,
+        { filename: "src/marker-presentation.js" }
+    );
     vm.runInContext(
         source("cardinal-axis.js")
             .replace(/^import\s+[\s\S]*?from\s+"[^"]+";\s*$/gm, "")
@@ -651,25 +664,20 @@ test("null marker lengths retain native stylesheet sizing", () => {
     }
 });
 
-test("cardinal markerTheme resolves over the native theme without mutation", () => {
+test("cardinal markerLength maps by orientation without mutating its theme", () => {
     const { DAY, Timeline } = loadTimeline();
     const theme = Timeline.ClassicTheme.create();
     const nativeMarker = theme.ether.interval.marker;
     nativeMarker.hLength = "3em";
     nativeMarker.vLength = "4em";
-    const markerTheme = {
-        hLength: "6em",
-        vLength: "7em"
-    };
     const nativeMarkerBefore = { ...nativeMarker };
-    const markerThemeBefore = { ...markerTheme };
     const verticalFixture = makePainterFixture(false, () => ({
         text: "Unused",
         emphasized: false
     }), false);
     const verticalCardinal = new Timeline.CardinalAxis({
         labelForIndex: index => `Vertical cardinal marker ${index}`,
-        markerTheme,
+        markerLength: "7em",
         startDate: new Date("2024-01-01T00:00:00Z"),
         theme,
         unit: DAY
@@ -696,7 +704,7 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
     }), false);
     const horizontalCardinal = new Timeline.CardinalAxis({
         labelForIndex: index => `Horizontal cardinal marker ${index}`,
-        markerTheme,
+        markerLength: "7em",
         startDate: new Date("2024-01-01T00:00:00Z"),
         theme,
         unit: DAY
@@ -714,7 +722,7 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
     assert.ok(horizontalLabels.length > 0);
     assert.ok(horizontalLabels.every(label => !("height" in label.style)));
     assert.ok(horizontalLabels.every(label =>
-        markerTick(label).style.height === "6em"
+        markerTick(label).style.height === "7em"
     ));
     assert.notEqual(verticalCardinal._theme, theme);
     assert.notEqual(
@@ -722,7 +730,6 @@ test("cardinal markerTheme resolves over the native theme without mutation", () 
         nativeMarker
     );
     assert.deepEqual(nativeMarker, nativeMarkerBefore);
-    assert.deepEqual(markerTheme, markerThemeBefore);
 });
 
 test("cardinal axes advance scalar values through the injected unit", () => {

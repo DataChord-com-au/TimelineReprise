@@ -8,7 +8,6 @@ declare namespace Timeline {
         anchor?: CardinalAxisAnchor;
         finishing?: CardinalAxisFinishing;
         truncatePreviousMarkerThreshold?: number;
-        markerAtIndex?: ((index: number) => T | null) | null;
         startLabel?: string | null;
         endLabel?: string | null;
         labelForIndex?: (index: number) => string;
@@ -17,7 +16,7 @@ declare namespace Timeline {
     interface AttachCardinalAxisOptions<T = Date> {
         runtime?: RepriseRuntimeContract<T> | null;
         theme?: NativeTheme | null;
-        markerTheme?: EtherIntervalMarkerTheme | null;
+        markerLength?: MarkerLength;
         cssClass?: string | null;
         align?: string;
         showLine?: boolean;
@@ -25,7 +24,8 @@ declare namespace Timeline {
 
     interface CardinalAxisOptions<T = Date> {
         theme: NativeTheme;
-        markerTheme?: EtherIntervalMarkerTheme | null;
+        /** @internal Prefer AttachCardinalAxisOptions.markerLength. */
+        markerLength?: MarkerLength;
         runtime?: RepriseRuntimeContract<T> | null;
         startDate: T;
         endDate?: T | null;
@@ -39,6 +39,7 @@ declare namespace Timeline {
         startLabel?: string | null;
         endLabel?: string | null;
         labelForIndex?: (index: number) => string;
+        markerAtIndex?: ((index: number) => T | null) | null;
         indexAtValue?: ((
             value: T,
             context: CardinalAxisIndexContext<T>

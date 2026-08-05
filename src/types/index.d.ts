@@ -4,6 +4,7 @@
 declare namespace Timeline {
     type BandWidth = number | string;
     type BandMarkerAlign = "Top" | "Bottom" | "Left" | "Right";
+    type MarkerLength = "label" | (string & {}) | null;
 
     interface NativeTheme {
         visualTheme?: VisualTheme | VisualThemeConfig;
@@ -62,6 +63,8 @@ declare namespace Timeline {
         intervalMarkers?: boolean;
         intervalLines?: boolean;
         markerAlign?: BandMarkerAlign | null;
+        markerLength?: MarkerLength;
+        repriseOrientation?: TimelineOrientation;
         syncWith?: number;
         highlight?: boolean;
         repriseRuntime?: RepriseRuntimeContract<T>;
@@ -83,6 +86,7 @@ declare namespace Timeline {
         intervalPixels: number;
         multiple?: number;
         markerAlign?: BandMarkerAlign | string | null;
+        markerLength?: MarkerLength;
         theme?: NativeTheme;
         timeZone?: number;
         labeller?: TimelineLabeller<T>;

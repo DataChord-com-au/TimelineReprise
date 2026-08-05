@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v3.2.1`
+Version: `v3.2.2`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -28,6 +28,16 @@ browser ESM entry, each JavaScript source has a matching declaration under
 `src/types/`, and stylesheet inputs live under `src/css/`.
 
 ## Changelog
+
+### v3.3.0
+
+- Added orientation-neutral `markerLength` presentation defaults to bands and
+  band sets, with per-band overrides.
+- Replaced the cardinal attachment `markerTheme` option with `markerLength`.
+- Centralized horizontal and vertical native marker-length mapping and made
+  cardinal attachments inherit their band's marker length.
+- Removed high-level `hLength`, `vLength`, `hAlign`, and `vAlign` routes while
+  retaining the native fields inside the low-level marker implementation.
 
 ### v3.1.0
 

@@ -759,6 +759,35 @@ test("attachCardinalAxis uses the band's default native-date runtime", () => {
     assert.equal(axis._params.showLine, false);
 });
 
+test("cardinal markerLength inherits from its band and attachment overrides it", () => {
+    const unit = makeNativeUnit();
+    const Timeline = loadTimeline(unit);
+    const inherited = makeBand(Timeline, unit);
+    inherited.bandInfo.markerLength = "3rem";
+    inherited.bandInfo.markerAlign = "Top";
+    const inheritedThemeBefore = JSON.parse(JSON.stringify(inherited.theme));
+
+    Timeline.attachCardinalAxis(inherited.bandInfo, {
+        range: { start: "2020-01-01", end: "2020-02-01" },
+        intervalUnit: "day"
+    });
+
+    const inheritedAxis = inherited.bandInfo.decorators[0];
+    assert.equal(inheritedAxis._markerLength, "3rem");
+    assert.equal(inheritedAxis._params.align, "Top");
+    assert.deepEqual(inherited.theme, inheritedThemeBefore);
+
+    for (const markerLength of ["label", null, "5em"]) {
+        const fixture = makeBand(Timeline, unit);
+        fixture.bandInfo.markerLength = "3rem";
+        Timeline.attachCardinalAxis(fixture.bandInfo, {
+            range: { start: "2020-01-01", end: "2020-02-01" },
+            intervalUnit: "day"
+        }, { markerLength });
+        assert.equal(fixture.bandInfo.decorators[0]._markerLength, markerLength);
+    }
+});
+
 test("Planning events and cardinal axes share the band's injected runtime", () => {
     const Timeline = loadTimeline();
     const unit = Timeline.PlanningDayUnit;
@@ -938,6 +967,29 @@ test("legacy theme ids and flat decorator controls are rejected", () => {
             multiple: 2
         }),
         /spec\.multiple.*not supported/
+    );
+    for (const visualField of [
+        "markerLength",
+        "markerTheme",
+        "hLength",
+        "vLength"
+    ]) {
+        assert.throws(
+            () => Timeline.attachCardinalAxis(bandInfo, {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day",
+                [visualField]: "2em"
+            }),
+            new RegExp(`spec\\.${visualField}.*not supported`)
+        );
+    }
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            { range: { start: 0, end: 10 }, intervalUnit: "day" },
+            { markerTheme: { vLength: "2em" } }
+        ),
+        /options\.markerTheme.*not supported/
     );
     assert.throws(
         () => Timeline.attachCardinalAxis(

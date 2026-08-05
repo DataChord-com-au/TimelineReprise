@@ -3,10 +3,7 @@ declare namespace Timeline {
      * A CSS length, "label" for the rendered label extent, or null for native
      * SIMILE stylesheet sizing.
      */
-    type EtherIntervalMarkerLength =
-        | "label"
-        | (string & {})
-        | null;
+    type EtherIntervalMarkerLength = MarkerLength;
 
     interface EtherIntervalMarkerTheme {
         show?: never;

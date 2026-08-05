@@ -44,25 +44,15 @@ Override the inset when the original gap, or another gap, is wanted:
 
 Use the direct `intervalMarkers` band option to control whether the normal
 interval labels are rendered. Use `intervalLines` to control the grid lines
-spanning the band, and `markerAlign` to choose the band edge for normal date or
-unit markers. Marker dimensions remain presentation settings under
-`etherTheme.interval.marker`:
+spanning the band, `markerAlign` to choose the band edge, and `markerLength` to
+set the cross-axis tick length:
 
 ```js
 var bandSet = Timeline.createBandSet({
     intervalMarkers: false,
     intervalLines: true,
     markerAlign: "Top",
-    etherTheme: {
-        interval: {
-            marker: {
-                hLength: "2.5em",
-                vLength: "4em",
-                tickZIndex: 100,
-                labelZIndex: 102
-            }
-        }
-    },
+    markerLength: "2.5em",
     bands: [{
         id: "main",
         width: "100%",
@@ -80,25 +70,16 @@ var bandSet = Timeline.createBandSet({
 - `markerAlign` accepts `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`. It is
   band behavior, not theme. For horizontal timelines use `"Top"` or
   `"Bottom"`; for vertical timelines use `"Left"` or `"Right"`.
-- `hLength` is the tick's cross-axis length on a horizontal timeline. It
-  defaults to `null`, retaining SIMILE's existing native marker sizing.
-- `vLength` is the tick's cross-axis length on a vertical timeline. It defaults
-  to `"2.5em"`.
-- `tickZIndex` controls only the marker tick. It defaults to `100`.
-- `labelZIndex` controls only the marker label content. It defaults to `102`.
-
-The `h` and `v` length prefixes follow SIMILE's existing horizontal and
-vertical marker convention. Each length accepts a CSS length string, `"label"`,
-or `null`.
+- `markerLength` accepts a CSS length string, `"label"`, or `null`. When
+  omitted, the Reprise/native orientation default applies.
 `"label"` makes the tick follow the rendered cross-axis extent of the label,
 including its visual-box padding. A CSS length sizes only the tick; the
 `.timeline-date-label` retains its natural rendered size. `null` retains the
 native SIMILE marker box sizing and makes the separated tick follow that box.
 
 The marker layer itself does not establish a stacking context. Its tick and
-label content therefore participate independently in the band stack. The
-default `100`/`102` values leave z-index `101` available for Narrative instant
-divider lines.
+label content therefore participate independently in the band stack, leaving
+the Narrative divider layer between the default marker tick and label layers.
 
 Marker text extends inward from its configured band edge: rightward for
 vertical `Left`, leftward for vertical `Right`, downward for horizontal `Top`,
@@ -112,12 +93,11 @@ intervalMarkers: false,
 intervalLines: true
 ```
 
-The shared marker layout applies the marker presentation options to Gregorian,
-hot-zone, year-count, quarterly, and Timeline Reprise cardinal-axis painters.
+The shared marker layout applies marker presentation to Gregorian, hot-zone,
+year-count, quarterly, and Timeline Reprise cardinal-axis painters.
 `intervalMarkers` controls the band's normal unit markers; an explicitly
-attached cardinal axis remains visible. A `Timeline.CardinalAxis` can override
-marker presentation locally with its
-[`markerTheme`](timeline-reprise-cardinal-axis.md#markertheme) option.
+attached cardinal axis remains visible. An attachment inherits the band's
+`markerLength` and can override it with its own `markerLength` option.
 
 ## Timeline.EmptyEtherPainter
 
