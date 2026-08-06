@@ -116,10 +116,10 @@ function loadTimeline(defaultUnit = makeNumericUnit()) {
         _end,
         color
     ) {
-        return { color, elmt: null };
+        return { color, elmt: { className: "native-tape", style: {} } };
     };
     OriginalEventPainter.prototype._paintEventLabel = function () {
-        return { elmt: null };
+        return { elmt: { className: "native-label", style: {} } };
     };
     OriginalEventPainter.prototype._showBubble = function () {};
     OriginalEventPainter.prototype.paint = function () {};
@@ -678,6 +678,86 @@ test("an attached event keeps its selected theme through painter initialization 
     assert.equal(eventPainter._visualTheme, attachmentTheme);
     assert.equal(records[0].visualTheme, attachmentTheme);
     assert.equal(painted.color, "attachment-range");
+});
+
+test("attached event tape and label DOM receive selected visual theme classes", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const attachmentTheme = new Timeline.VisualTheme({
+        id: "attachment",
+        instant: { labelCssClass: "attachment-instant-label" },
+        range: {
+            cssClass: "attachment-range",
+            labelCssClass: "attachment-range-label"
+        }
+    });
+    const { bandInfo, eventPainter, records, theme } = makeBand(
+        Timeline,
+        unit
+    );
+
+    Timeline.attachEvents(
+        bandInfo,
+        [{
+            start: 1,
+            end: 2,
+            title: "Range",
+            cssClass: "record-range",
+            labelCssClass: "record-label"
+        }],
+        { visualTheme: attachmentTheme }
+    );
+
+    eventPainter.initialize(
+        {
+            _theme: theme,
+            getLabeller: () => unit.createLabeller()
+        },
+        {
+            getUnit: () => unit,
+            isHorizontal: () => false,
+            isVertical: () => false
+        }
+    );
+
+    const tape = eventPainter._paintEventTape(
+        records[0],
+        0,
+        10,
+        20,
+        "native-blue",
+        100,
+        {},
+        theme,
+        0
+    );
+    const label = eventPainter._paintEventLabel(
+        records[0],
+        "Range",
+        10,
+        20,
+        60,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+
+    assert.match(
+        tape.elmt.className,
+        /\btimeline-event-attachment-tape\b/
+    );
+    assert.match(tape.elmt.className, /\battachment-range\b/);
+    assert.match(tape.elmt.className, /\brecord-range\b/);
+    assert.match(
+        label.elmt.className,
+        /\btimeline-event-attachment-label\b/
+    );
+    assert.match(
+        label.elmt.className,
+        /\btimeline-event-attachment-range-label\b/
+    );
+    assert.match(label.elmt.className, /\battachment-range-label\b/);
+    assert.match(label.elmt.className, /\brecord-label\b/);
 });
 
 test("theme-icon painter wrappers retain the attached record context", () => {

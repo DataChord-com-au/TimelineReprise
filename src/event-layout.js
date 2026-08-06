@@ -220,6 +220,24 @@ import {
         return stringValue(evt?.getColor?.());
     }
 
+    function getEventTagGraphicColor(evt, visualTheme) {
+        if (!isObject(visualTheme.tagsToIconColor)) return null;
+
+        const value = getEventProperty(evt, "tags");
+        if (value == null) return null;
+
+        const tags = Array.isArray(value) ? value : [value];
+        for (const tag of tags) {
+            const name = stringValue(tag);
+            if (name == null || !hasDefinedOwn(visualTheme.tagsToIconColor, name)) continue;
+
+            const color = stringValue(visualTheme.tagsToIconColor[name]);
+            if (color != null) return resolveCssColor(color) || color;
+        }
+
+        return null;
+    }
+
     function getExplicitLabelColor(evt) {
         return stringValue(getEventProperty(evt, "labelColor")) ||
             stringValue(evt?.getTextColor?.()) ||
@@ -262,9 +280,12 @@ import {
             }
         }
 
+        const tagColor = getEventTagGraphicColor(evt, visualTheme);
+        if (tagColor != null) return tagColor;
+
         // An authored icon URL is already a more specific graphic than the
         // theme/default dot colour. Event and emphasis colour overrides above
-        // still replace it deliberately.
+        // still replace it deliberately, as does tagsToIconColor.
         if (stringValue(evt?.getIcon?.()) != null) return null;
 
         return stringValue(visualTheme.instant.iconColor) ||
@@ -519,6 +540,63 @@ import {
 
     function getShortTapeSpec(painter) {
         return painter._visualTheme?.range?.short || {};
+    }
+
+    function appendElementClasses(elmt, classes) {
+        if (!elmt) return;
+
+        const tokens = classes.flatMap(value => {
+            const text = stringValue(value);
+            return text == null ? [] : text.trim().split(/\s+/);
+        });
+        if (tokens.length === 0) return;
+
+        if (elmt.classList?.add) {
+            elmt.classList.add(...tokens);
+            return;
+        }
+
+        const existing = String(elmt.className ?? "").trim();
+        const next = new Set([
+            ...(existing === "" ? [] : existing.split(/\s+/)),
+            ...tokens
+        ]);
+        elmt.className = [...next].join(" ");
+    }
+
+    function getEventThemeCssClass(visualTheme, suffix) {
+        const id = stringValue(visualTheme?.id);
+        return id == null ? null : "timeline-event-" + id.trim() + "-" + suffix;
+    }
+
+    function getThemedClass(rootSpec, orientedSpec, name) {
+        return stringValue(orientedSpec?.[name]) ||
+            stringValue(rootSpec?.[name]);
+    }
+
+    function applyEventTapeClasses(painter, evt, data, visualTheme) {
+        appendElementClasses(data?.elmt, [
+            getEventThemeCssClass(visualTheme, "tape"),
+            getThemedClass(visualTheme?.range, getTapeSpec(painter), "cssClass"),
+            stringValue(evt?.getProperty?.("cssClass"))
+        ]);
+    }
+
+    function applyEventLabelClasses(painter, evt, data, visualTheme) {
+        const instant = evt?.isInstant?.() === true;
+        appendElementClasses(data?.elmt, [
+            getEventThemeCssClass(visualTheme, "label"),
+            getEventThemeCssClass(
+                visualTheme,
+                instant ? "instant-label" : "range-label"
+            ),
+            getThemedClass(
+                instant ? visualTheme?.instant : visualTheme?.range,
+                instant ? getInstantSpec(painter) : getTapeSpec(painter),
+                "labelCssClass"
+            ),
+            stringValue(evt?.getProperty?.("labelCssClass"))
+        ]);
     }
 
     function getRangeWidth(painter) {
@@ -978,6 +1056,9 @@ import {
                 return resolveCssColor(eventColor) || eventColor;
             }
         }
+
+        const tagColor = getEventTagGraphicColor(evt, visualTheme);
+        if (tagColor != null) return tagColor;
 
         return resolveCssColor(visualTheme.range.iconColor) ||
             getDefaultGraphicColor(evt, theme, fallback);
@@ -1996,6 +2077,7 @@ import {
         );
         makeEventContentInteractive(data, EVENT_GRAPHIC_Z_INDEX);
         _installEventCaptionRefresh(this, evt, data);
+        applyEventTapeClasses(this, evt, data, visualTheme);
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data, { swapSize: true });
             const tapeEvent = isTapeEvent(this, evt);
@@ -2069,6 +2151,7 @@ import {
             const visualTheme = getPainterVisualTheme(this, evt);
             const labelColor = getEventLabelColor(evt, theme, visualTheme);
             data.elmt.style.color = labelColor || "";
+            applyEventLabelClasses(this, evt, data, visualTheme);
 
             if (!labelsEnabled(evt, theme, visualTheme)) {
                 hidePaintedLabel(data);

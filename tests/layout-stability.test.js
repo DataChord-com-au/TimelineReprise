@@ -249,6 +249,7 @@ function loadNarrativeDecorator() {
 
 function element(width, height) {
     return {
+        className: "",
         offsetWidth: width,
         offsetHeight: height,
         scrollWidth: width,
@@ -266,6 +267,16 @@ function paintedData(left, top, width, height) {
         height,
         elmt: element(width, height)
     };
+}
+
+function assertHasClasses(elmt, expected) {
+    const classes = String(elmt?.className ?? "").split(/\s+/);
+    for (const className of expected) {
+        assert.ok(
+            classes.includes(className),
+            `expected "${classes.join(" ")}" to include "${className}"`
+        );
+    }
 }
 
 function event(id, start, end) {
@@ -289,9 +300,10 @@ function styledInstantEvent(id, start, {
     color = null,
     icon = null,
     iconColor = null,
-    emphasis = null
+    emphasis = null,
+    tags = null
 } = {}) {
-    const properties = { iconColor, emphasis };
+    const properties = { iconColor, emphasis, tags };
 
     return {
         ...instantEvent(id, start),
@@ -1383,6 +1395,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             eventColor,
             eventIconColor,
             emphasisIconColor,
+            tags = null,
             disableEmphasis = false,
             scope = "graphic",
             icon = null
@@ -1393,7 +1406,8 @@ for (const orientation of ["horizontal", "vertical"]) {
                 color: eventColor,
                 icon,
                 iconColor: eventIconColor,
-                emphasis: "critical"
+                emphasis: "critical",
+                tags
             });
 
             painter._visualTheme.instant.iconColor = themeColor || "blue";
@@ -1404,6 +1418,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             };
             painter._visualTheme = testVisualTheme({
                 instant: { iconColor: themeColor || "blue" },
+                tagsToIconColor: { release: "tag-color" },
                 eventColorScope: scope,
                 disableEmphasis
             });
@@ -1425,9 +1440,14 @@ for (const orientation of ["horizontal", "vertical"]) {
             "theme-icon:green:10"
         );
         assert.equal(
+            paint({ themeColor: "orange", tags: ["release"] }),
+            "theme-icon:tag-color:10"
+        );
+        assert.equal(
             paint({
                 themeColor: "orange",
                 eventIconColor: "green",
+                tags: ["release"],
                 emphasisIconColor: "red"
             }),
             "theme-icon:red:10"
@@ -1436,6 +1456,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             paint({
                 themeColor: "orange",
                 eventIconColor: "green",
+                tags: ["release"],
                 emphasisIconColor: "red",
                 disableEmphasis: true
             }),
@@ -1535,12 +1556,16 @@ test("duration tapeColor obeys eventColorScope", () => {
         const evt = {
             ...event("duration", 20, 80),
             getColor: () => "purple",
-            getProperty: name => name === "tapeColor" ? "green" : null
+            getProperty: name => ({
+                tags: ["release"],
+                tapeColor: "green"
+            })[name] ?? null
         };
 
         painter._visualTheme = testVisualTheme({
             eventColorScope: scope,
-            range: { iconColor: "orange" }
+            range: { iconColor: "orange" },
+            tagsToIconColor: { release: "tag-color" }
         });
 
         return painter._paintEventTape(
@@ -1558,8 +1583,85 @@ test("duration tapeColor obeys eventColorScope", () => {
 
     assert.equal(paint("graphic"), "green");
     assert.equal(paint("both"), "green");
-    assert.equal(paint("label"), "orange");
-    assert.equal(paint("none"), "orange");
+    assert.equal(paint("label"), "tag-color");
+    assert.equal(paint("none"), "tag-color");
+});
+
+test("event tape and label DOM receive visual theme classes", () => {
+    const painter = makeEventPainter("horizontal");
+    const theme = painter._params.theme;
+    const range = {
+        ...event("range", 20, 30),
+        getProperty: name => ({
+            cssClass: "range-item",
+            labelCssClass: "range-item-label"
+        })[name] ?? null
+    };
+    const instant = {
+        ...instantEvent("instant", 30),
+        getProperty: name => ({
+            labelCssClass: "instant-item-label"
+        })[name] ?? null
+    };
+
+    painter._visualTheme = testVisualTheme({
+        id: "editorial",
+        instant: { labelCssClass: "instant-theme-label" },
+        range: {
+            cssClass: "range-theme",
+            labelCssClass: "range-theme-label"
+        }
+    });
+
+    const tape = painter._paintEventTape(
+        range,
+        0,
+        20,
+        30,
+        "gray",
+        100,
+        painter._repriseMetrics,
+        theme,
+        0
+    );
+    const rangeLabel = painter._paintEventLabel(
+        range,
+        "range",
+        20,
+        0,
+        60,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+    const instantLabel = painter._paintEventLabel(
+        instant,
+        "instant",
+        30,
+        0,
+        60,
+        8,
+        theme,
+        "timeline-event-label"
+    );
+
+    assertHasClasses(tape.elmt, [
+        "timeline-event-editorial-tape",
+        "range-theme",
+        "range-item"
+    ]);
+    assertHasClasses(rangeLabel.elmt, [
+        "timeline-event-editorial-label",
+        "timeline-event-editorial-range-label",
+        "range-theme-label",
+        "range-item-label"
+    ]);
+    assertHasClasses(instantLabel.elmt, [
+        "timeline-event-editorial-label",
+        "timeline-event-editorial-instant-label",
+        "instant-theme-label",
+        "instant-item-label"
+    ]);
 });
 
 test("event labelColor and textColor obey eventColorScope", () => {
@@ -2195,6 +2297,30 @@ test("narrative event colours obey eventColorScope while emphasis overrides it",
     decorator._eventColorScope = "both";
     delete record.item.labelColor;
     assert.equal(decorator._recordLabelColor(record), "native-label");
+});
+
+test("narrative tag colours apply to span and instant graphics", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._tagsToIconColor = { release: "tag-color" };
+    decorator._spanColors = ["theme-span"];
+    decorator._instantIconColor = "theme-instant";
+
+    assert.equal(
+        decorator._recordGraphicColor(
+            { kind: "range", item: { tags: ["release"] } },
+            "spanColor",
+            "theme-span",
+            decorator._itemTagColor({ tags: ["release"] })
+        ),
+        "tag-color"
+    );
+    assert.equal(
+        decorator._recordInstantLineColor({
+            kind: "instant",
+            item: { tags: ["release"] }
+        }),
+        "tag-color"
+    );
 });
 
 test("horizontal narrative instant labels avoid their own divider width", () => {

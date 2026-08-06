@@ -91,6 +91,31 @@ import { getAttachedEventContext } from "./attachments.js";
             }
         }
 
+        if (isObject(visualTheme.tagsToIconColor)) {
+            const tagValue = getProperty("tags");
+            const tags = Array.isArray(tagValue) ? tagValue : [tagValue];
+            for (const tag of tags) {
+                const name = typeof tag === "string" && tag.trim() !== ""
+                    ? tag
+                    : null;
+                if (
+                    name == null ||
+                    !Object.prototype.hasOwnProperty.call(
+                        visualTheme.tagsToIconColor,
+                        name
+                    ) ||
+                    visualTheme.tagsToIconColor[name] === undefined
+                ) {
+                    continue;
+                }
+
+                const tagColor = resolveColor(visualTheme.tagsToIconColor[name]);
+                if (tagColor != null) {
+                    return { color: tagColor, eventOverride: true };
+                }
+            }
+        }
+
         return {
             color: resolveColor(visualTheme[themeField].iconColor),
             eventOverride: false

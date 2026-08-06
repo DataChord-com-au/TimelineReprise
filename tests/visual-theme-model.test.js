@@ -604,6 +604,9 @@ test("overview uses standard event colours and eventColorScope", () => {
             range: {
                 width: 3,
                 iconColor: "theme-range"
+            },
+            tagsToIconColor: {
+                release: "tag-color"
             }
         }
     };
@@ -664,6 +667,8 @@ test("overview uses standard event colours and eventColorScope", () => {
     assert.equal(tape({ color: "event", eventColorScope: "none" }), "theme-range");
     assert.equal(tape({ tapeColor: "range", eventColorScope: "graphic" }), "range");
     assert.equal(tape({ tapeColor: "range", eventColorScope: "none" }), "theme-range");
+    assert.equal(tick({ tags: ["release"] }), "tag-color");
+    assert.equal(tape({ tags: ["release"] }), "tag-color");
     assert.equal(
         tick({ emphasis: "critical", eventColorScope: "none" }),
         "emphasis"
