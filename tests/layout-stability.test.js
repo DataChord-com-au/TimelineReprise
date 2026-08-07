@@ -2377,13 +2377,13 @@ test("vertical narrative range labels route with the orthogonal text-length foot
     assert.deepEqual([first.track, second.track], [0, 0]);
 });
 
-test("vertical orthogonal narrative label length is independent of physical track size", () => {
+test("vertical orthogonal narrative label width is independent of physical track size", () => {
     const decorator = makeNarrative("vertical");
     decorator._labelFlow = "orthogonal";
     decorator._trackOffset = 32;
     decorator._trackSize = 40;
     decorator._trackGap = 8;
-    decorator._labelLength = 120;
+    decorator._labelWidth = 120;
     const first = narrativeRange(decorator, 0, 0, 240, 90, 10, {
         item: { track: 0 }
     });

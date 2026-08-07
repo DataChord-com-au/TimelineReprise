@@ -182,7 +182,7 @@ var visualThemes = Timeline.loadVisualThemes([{
             stickyInset: 6,
             toRangeGap: 4,
             toInstantGap: 4,
-            length: 120,
+            width: 120,
             routingGap: 4
         }
     },
@@ -289,7 +289,7 @@ Outer offset before the first narrative track.
 Track size across the band. On horizontal timelines this is the label row height.
 On vertical timelines this is the physical label column width. With
 `label.flow: "orthogonal"`, it remains the physical left-to-right lane width;
-use `visualTheme.label.vertical.length` to control the rotated up/down label
+use `visualTheme.label.vertical.width` to control the rotated up/down label
 length.
 
 If omitted, a fixed intrinsic default is used instead of being derived from the band's rendered size: `18` on horizontal timelines, `120` on vertical timelines.
@@ -366,8 +366,8 @@ Horizontal gap between an instant divider line and its label. Defaults to `4`.
 ### `visualTheme.label.vertical.toInstantGap`
 Vertical gap between an instant divider line and its label. Defaults to `4`.
 
-### `visualTheme.label.vertical.length`
-Optional pre-rotation inline length for vertical orthogonal labels. This sets
+### `visualTheme.label.vertical.width`
+Optional pre-rotation inline width for vertical orthogonal labels. This sets
 the visible up/down label length independently from `track.vertical.size`, so
 `track.vertical.size` can stay a physical lane width. If omitted, Narrative
 uses the rendered text length.

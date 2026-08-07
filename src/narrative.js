@@ -256,6 +256,27 @@ import {
             : source;
     }
 
+    function hasConfiguredLabelWidth(visualTheme, timeline) {
+        const orientation = getOrientation(timeline);
+        const hasConfigured = visualTheme?._hasConfigured;
+
+        if (typeof hasConfigured === "function") {
+            if (orientation != null) {
+                return hasConfigured.call(visualTheme, ["label", orientation, "width"]);
+            }
+
+            return hasConfigured.call(visualTheme, ["label", "width"]);
+        }
+
+        const label = visualTheme?.label;
+        if (!isObject(label)) return false;
+        if (orientation != null && isObject(label[orientation])) {
+            return Object.prototype.hasOwnProperty.call(label[orientation], "width");
+        }
+
+        return Object.prototype.hasOwnProperty.call(label, "width");
+    }
+
     function cycleValue(values, index) {
         return Array.isArray(values) && values.length > 0
             ? values[index % values.length]
@@ -341,7 +362,9 @@ import {
         this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
         this._stickyGap = themedFinite({}, labelTheme, "routingGap", 4);
         this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
-        this._labelLength = themedFiniteOrNull({}, labelTheme, "length");
+        this._labelWidth = hasConfiguredLabelWidth(visualTheme, this._timeline)
+            ? themedFiniteOrNull({}, labelTheme, "width")
+            : null;
         this._labelFlow = normalizeLabelFlow(
             themedValue({}, labelTheme, "flow", "normal")
         );
@@ -728,14 +751,14 @@ import {
             }
         } else {
             if (this._labelFlow === "orthogonal") {
-                const labelLength = this._labelLength;
+                const labelWidth = this._labelWidth;
                 record.labelElmt.style.top = Math.round(adjustedMainStart) + "px";
                 record.labelElmt.style.left = Math.round(trackStart) + "px";
-                record.labelElmt.style.width = labelLength == null
+                record.labelElmt.style.width = labelWidth == null
                     ? ""
-                    : Math.round(labelLength) + "px";
+                    : Math.round(labelWidth) + "px";
                 record.labelElmt.style.height = Math.round(trackSize) + "px";
-                if (labelLength != null) record.rawWidth = labelLength;
+                if (labelWidth != null) record.rawWidth = labelWidth;
                 record.rawHeight = trackSize;
                 record.width = trackSize;
                 this._updateLabelFlow(record);

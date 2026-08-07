@@ -272,6 +272,90 @@ test("events and Narrative on one band can use different named and instance them
     assert.equal(bandInfo.theme.visualTheme, bandTheme);
 });
 
+test("attachEvents and attachNarrativeDecorators share label.vertical.width", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const visualTheme = new Timeline.VisualTheme({
+        label: {
+            flow: "orthogonal",
+            vertical: {
+                width: 144,
+                length: 333
+            }
+        },
+        track: {
+            vertical: {
+                size: 40,
+                gap: 8
+            }
+        }
+    });
+    const { bandInfo, eventPainter, records, theme } = makeBand(
+        Timeline,
+        unit,
+        visualTheme
+    );
+    const band = {
+        _theme: theme,
+        getLabeller: () => unit.createLabeller()
+    };
+    const timeline = {
+        getUnit: () => unit,
+        isHorizontal: () => false,
+        isVertical: () => true
+    };
+
+    Timeline.attachEvents(
+        bandInfo,
+        [{ start: 1, end: 2, title: "Event" }]
+    );
+    Timeline.attachNarrativeDecorators(
+        bandInfo,
+        [{ start: 1, end: 2, title: "Narrative" }]
+    );
+
+    eventPainter.initialize(band, timeline);
+    bandInfo.decorators[0].initialize(band, timeline);
+
+    assert.equal(records[0].visualTheme.label.vertical.width, 144);
+    assert.equal(eventPainter._visualTheme.label.vertical.width, 144);
+    assert.equal(bandInfo.decorators[0]._labelWidth, 144);
+    assert.equal(bandInfo.decorators[0]._trackSize, 40);
+    assert.equal(bandInfo.decorators[0]._trackGap, 8);
+});
+
+test("attachNarrativeDecorators ignores label.vertical.length for label sizing", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const visualTheme = new Timeline.VisualTheme({
+        label: {
+            flow: "orthogonal",
+            vertical: {
+                length: 160
+            }
+        }
+    });
+    const { bandInfo, theme } = makeBand(Timeline, unit, visualTheme);
+    const band = {
+        _theme: theme,
+        getLabeller: () => unit.createLabeller()
+    };
+    const timeline = {
+        getUnit: () => unit,
+        isHorizontal: () => false,
+        isVertical: () => true
+    };
+
+    Timeline.attachNarrativeDecorators(
+        bandInfo,
+        [{ start: 1, end: 2, title: "Narrative" }]
+    );
+
+    bandInfo.decorators[0].initialize(band, timeline);
+
+    assert.equal(bandInfo.decorators[0]._labelWidth, null);
+});
+
 test("attachEvents accepts one band or an array of bands", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
