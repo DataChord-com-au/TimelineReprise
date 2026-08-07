@@ -754,11 +754,13 @@ import {
                 const labelWidth = this._labelWidth;
                 record.labelElmt.style.top = Math.round(adjustedMainStart) + "px";
                 record.labelElmt.style.left = Math.round(trackStart) + "px";
-                record.labelElmt.style.width = labelWidth == null
+                record.labelElmt.style.width = "";
+                record.labelElmt.style.maxWidth = labelWidth == null
                     ? ""
                     : Math.round(labelWidth) + "px";
                 record.labelElmt.style.height = Math.round(trackSize) + "px";
-                if (labelWidth != null) record.rawWidth = labelWidth;
+                record.labelElmt.style.whiteSpace = "normal";
+                record.labelElmt.style.overflowWrap = "break-word";
                 record.rawHeight = trackSize;
                 record.width = trackSize;
                 this._updateLabelFlow(record);
