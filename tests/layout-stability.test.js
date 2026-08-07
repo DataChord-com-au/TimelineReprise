@@ -54,8 +54,8 @@ function testVisualTheme(overrides = {}) {
             height: 9,
             tickWidth: 1,
             lineWidth: 1,
-            horizontal: { toLabelGap: 4 },
-            vertical: { toLabelGap: 4 }
+            horizontal: {},
+            vertical: {}
         },
         range: {
             iconColor: "blue",
@@ -64,30 +64,38 @@ function testVisualTheme(overrides = {}) {
             horizontal: {
                 eventRoutingThreshold: 28,
                 tapeGap: 6,
-                toLabelGap: 4,
-                minLabelGap: 15,
-                labelRoutingGap: 8,
-                labelTrackGap: 2,
-                sparklineStagger: 8,
-                stickyLeftInset: 2
+                sparklineStagger: 8
             },
             vertical: {
                 eventRoutingThreshold: 28,
                 tapeGap: 6,
-                toLabelGap: 4,
-                minLabelGap: 15,
-                labelWidth: 120,
-                labelRoutingGap: 4,
-                labelTrackGap: 2,
-                stickyTopInset: 2,
                 toEventGap: 12
             }
         },
         label: {
             flow: "normal",
             colorSource: "graphic",
-            horizontal: { stickyInset: 2, stickyGap: 4, offset: 0 },
-            vertical: { stickyInset: 2, stickyGap: 4, offset: 0 }
+            rangeCssClass: "",
+            instantCssClass: "",
+            horizontal: {
+                stickyInset: 2,
+                offset: 0,
+                toRangeGap: 4,
+                toInstantGap: 4,
+                toRangeBlockGap: 15,
+                routingGap: 8,
+                trackGap: 2
+            },
+            vertical: {
+                stickyInset: 2,
+                offset: 0,
+                toRangeGap: 4,
+                toInstantGap: 4,
+                toRangeBlockGap: 15,
+                routingGap: 4,
+                trackGap: 2,
+                width: 120
+            }
         },
         bubble: { width: 320, maxHeight: null },
         layer: { zIndex: 5, dividerZIndex: 101, labelZIndex: 114 },
@@ -335,21 +343,27 @@ function visualTheme() {
                 horizontal: {
                     eventRoutingThreshold: 28,
                     tapeGap: 2,
-                    toLabelGap: 2,
-                    labelRoutingGap: 10,
-                    labelTrackGap: 2,
-                    sparklineStagger: 8,
-                    stickyLeftInset: 0
+                    sparklineStagger: 8
                 },
                 vertical: {
                     eventRoutingThreshold: 28,
                     tapeGap: 2,
-                    toLabelGap: 2,
-                    labelWidth: 80,
-                    labelRoutingGap: 5,
-                    labelTrackGap: 5,
-                    stickyTopInset: 0,
                     toEventGap: 10
+                }
+            },
+            label: {
+                horizontal: {
+                    toRangeGap: 2,
+                    routingGap: 10,
+                    trackGap: 2,
+                    stickyInset: 0
+                },
+                vertical: {
+                    toRangeGap: 2,
+                    width: 80,
+                    routingGap: 5,
+                    trackGap: 5,
+                    stickyInset: 0
                 }
             }
         }),
@@ -767,9 +781,11 @@ function visualThemeWithTrackGap(trackGap) {
                 short: { minDisplayLength: 4 },
                 horizontal: {
                     eventRoutingThreshold: 28,
-                    sparklineStagger: 8,
-                    stickyLeftInset: 0
+                    sparklineStagger: 8
                 }
+            },
+            label: {
+                horizontal: { stickyInset: 0 }
             }
         }),
         event: {
@@ -780,7 +796,7 @@ function visualThemeWithTrackGap(trackGap) {
                     eventRoutingThreshold: 28,
                     sparklineStagger: 8,
                     stickyLeftInset: 0
-                    // tapeGap, toLabelGap, labelRoutingGap and labelTrackGap are
+                    // tapeGap, toRangeGap, routingGap and trackGap are
                     // deliberately left unset so each exercises its own independent
                     // default instead of falling back to track.gap.
                 },
@@ -822,7 +838,7 @@ function buildImpreciseRangeItems() {
     );
 }
 
-test("customizing track.gap does not change the tapeGap/toLabelGap defaults for overlapping tape lanes", () => {
+test("customizing track.gap does not change the tapeGap/toRangeGap defaults for overlapping tape lanes", () => {
     function buildItems() {
         return [
             tapeLabel(untrackedEvent("p", 0, 200), 0, 40, 16),
@@ -846,7 +862,7 @@ test("customizing track.gap does not change the tapeGap/toLabelGap defaults for 
     assert.equal(detunedItems[1].data.top, baselineItems[1].data.top);
 });
 
-test("customizing track.gap does not change the toLabelGap/labelTrackGap defaults across routed label rows", () => {
+test("customizing track.gap does not change the toRangeGap/trackGap defaults across routed label rows", () => {
     const baseline = makePainterWithTrackGap("horizontal", 2, 900);
     const baselineItems = buildImpreciseRangeItems();
     baseline._repriseTapeLabels.push(...baselineItems);
@@ -875,7 +891,7 @@ test("customizing track.gap does not change the toLabelGap/labelTrackGap default
     }
 });
 
-test("customizing track.gap does not change the labelRoutingGap default used to decide whether adjacent labels share a row", () => {
+test("customizing track.gap does not change the routingGap default used to decide whether adjacent labels share a row", () => {
     function buildItems() {
         return [
             tapeLabel(event("d", 0, 10), 0, 30, 16),
@@ -901,13 +917,13 @@ test("customizing track.gap does not change the labelRoutingGap default used to 
     assert.equal(
         detunedItems[0].data.top,
         detunedItems[1].data.top,
-        "a large track.gap must not force these labels into separate rows once labelRoutingGap has its own default"
+        "a large track.gap must not force these labels into separate rows once routingGap has its own default"
     );
 });
 
-function buildPointLabelGapFixture({ labelRoutingGap, labelTrackGap, overlap }) {
+function buildPointLabelGapFixture({ routingGap, trackGap, overlap }) {
     const painter = makeEventPainter("horizontal", 300);
-    const tapeSpec = painter._visualTheme.range.horizontal;
+    const labelSpec = painter._visualTheme.label.horizontal;
     const secondLeft = overlap ? 0 : 50;
     const labels = [
         {
@@ -930,23 +946,23 @@ function buildPointLabelGapFixture({ labelRoutingGap, labelTrackGap, overlap }) 
         }
     ];
 
-    tapeSpec.labelRoutingGap = labelRoutingGap;
-    tapeSpec.labelTrackGap = labelTrackGap;
+    labelSpec.routingGap = routingGap;
+    labelSpec.trackGap = trackGap;
     painter._reprisePointLabels.push(...labels);
     painter.paint();
 
     return labels;
 }
 
-test("labelRoutingGap controls whether nearby horizontal labels use another row", () => {
+test("label routingGap controls whether nearby horizontal labels use another row", () => {
     const close = buildPointLabelGapFixture({
-        labelRoutingGap: 10,
-        labelTrackGap: 2,
+        routingGap: 10,
+        trackGap: 2,
         overlap: false
     });
     const separated = buildPointLabelGapFixture({
-        labelRoutingGap: 25,
-        labelTrackGap: 2,
+        routingGap: 25,
+        trackGap: 2,
         overlap: false
     });
 
@@ -954,33 +970,33 @@ test("labelRoutingGap controls whether nearby horizontal labels use another row"
     assert.notEqual(separated[0].data.top, separated[1].data.top);
 });
 
-test("labelTrackGap controls the vertical gap between routed horizontal label rows", () => {
-    for (const labelTrackGap of [2, 9]) {
+test("label trackGap controls the vertical gap between routed horizontal label rows", () => {
+    for (const trackGap of [2, 9]) {
         const labels = buildPointLabelGapFixture({
-            labelRoutingGap: 0,
-            labelTrackGap,
+            routingGap: 0,
+            trackGap,
             overlap: true
         });
 
         assert.equal(
             Math.abs(labels[1].data.top - labels[0].data.top) - 20,
-            labelTrackGap
+            trackGap
         );
     }
 });
 
-test("vertical labelRoutingGap controls spacing between labels in a column", () => {
-    for (const [labelRoutingGap, expected] of [[undefined, 4], [9, 9]]) {
+test("vertical label routingGap controls spacing between labels in a column", () => {
+    for (const [routingGap, expected] of [[undefined, 4], [9, 9]]) {
         const painter = makeEventPainter("vertical", 300);
         const labels = [
             tapeLabel(event("vertical-a", 0, 100), 0, 80, 20),
             tapeLabel(event("vertical-b", 21, 120), 21, 80, 20)
         ];
 
-        if (labelRoutingGap === undefined) {
-            delete painter._visualTheme.range.vertical.labelRoutingGap;
+        if (routingGap === undefined) {
+            delete painter._visualTheme.label.vertical.routingGap;
         } else {
-            painter._visualTheme.range.vertical.labelRoutingGap = labelRoutingGap;
+            painter._visualTheme.label.vertical.routingGap = routingGap;
         }
         painter._repriseTapeLabels.push(...labels);
         painter.paint();
@@ -989,8 +1005,8 @@ test("vertical labelRoutingGap controls spacing between labels in a column", () 
     }
 });
 
-test("vertical labelTrackGap controls spacing between routed side columns", () => {
-    function columnPitch(labelTrackGap) {
+test("vertical label trackGap controls spacing between routed side columns", () => {
+    function columnPitch(trackGap) {
         const painter = makeEventPainter("vertical", 300);
         const first = {
             evt: { ...untrackedEvent("vertical-point-a", 20, 20), isInstant: () => true },
@@ -1005,7 +1021,7 @@ test("vertical labelTrackGap controls spacing between routed side columns", () =
             height: 20
         };
 
-        painter._visualTheme.range.vertical.labelTrackGap = labelTrackGap;
+        painter._visualTheme.label.vertical.trackGap = trackGap;
         painter._reprisePointLabels.push(first, second);
         painter.paint();
 
@@ -1017,11 +1033,12 @@ test("vertical labelTrackGap controls spacing between routed side columns", () =
 
 function buildRangeGapFixture(
     orientation,
-    { toLabelGap, minLabelGap, tapeGap = 6, tapeWidth = 4, trackGap = 2 } = {}
+    { toRangeGap, toRangeBlockGap, tapeGap = 6, tapeWidth = 4, trackGap = 2 } = {}
 ) {
     const painter = makeEventPainter(orientation, 400);
     const theme = painter._params.theme;
     const tapeSpec = painter._visualTheme.range[orientation];
+    const labelSpec = painter._visualTheme.label[orientation];
     const evt = eventOnLane("range", 20, 200, 0);
     const label = tapeLabel(evt, 20, 40, 16);
     const tape = {
@@ -1036,15 +1053,15 @@ function buildRangeGapFixture(
     painter._visualTheme.track[orientation].gap = trackGap;
     painter._repriseMetrics.trackGap = trackGap;
     tapeSpec.tapeGap = tapeGap;
-    if (minLabelGap === undefined) {
-        delete tapeSpec.minLabelGap;
+    if (toRangeBlockGap === undefined) {
+        delete labelSpec.toRangeBlockGap;
     } else {
-        tapeSpec.minLabelGap = minLabelGap;
+        labelSpec.toRangeBlockGap = toRangeBlockGap;
     }
-    if (toLabelGap === undefined) {
-        delete tapeSpec.toLabelGap;
+    if (toRangeGap === undefined) {
+        delete labelSpec.toRangeGap;
     } else {
-        tapeSpec.toLabelGap = toLabelGap;
+        labelSpec.toRangeGap = toRangeGap;
     }
 
     painter._repriseTapeLabels.push(label);
@@ -1073,13 +1090,13 @@ function sparklineTapeCenterPosition(orientation, label) {
 }
 
 for (const orientation of ["horizontal", "vertical"]) {
-    test(`${orientation} range toLabelGap changes only the visible sparkline endpoint gap`, () => {
+    test(`${orientation} label toRangeGap changes only the visible sparkline endpoint gap`, () => {
         const baseline = buildRangeGapFixture(orientation, {
-            toLabelGap: 1,
+            toRangeGap: 1,
             tapeGap: 8
         });
         const changed = buildRangeGapFixture(orientation, {
-            toLabelGap: 6,
+            toRangeGap: 6,
             tapeGap: 8
         });
         const defaulted = buildRangeGapFixture(orientation, { tapeGap: 8 });
@@ -1090,22 +1107,22 @@ for (const orientation of ["horizontal", "vertical"]) {
         assert.equal(
             crossAxisPosition(orientation, changed.label.data),
             crossAxisPosition(orientation, baseline.label.data),
-            "toLabelGap must not move the label row/column"
+            "toRangeGap must not move the label row/column"
         );
         assert.deepEqual(
             { left: changed.label.data.left, top: changed.label.data.top },
             { left: baseline.label.data.left, top: baseline.label.data.top },
-            "toLabelGap must not move the label"
+            "toRangeGap must not move the label"
         );
         assert.equal(
             crossAxisPosition(orientation, changed.tape.data),
             crossAxisPosition(orientation, baseline.tape.data),
-            "toLabelGap must not move the tape"
+            "toRangeGap must not move the tape"
         );
         assert.deepEqual(
             { left: changed.tape.data.left, top: changed.tape.data.top },
             { left: baseline.tape.data.left, top: baseline.tape.data.top },
-            "toLabelGap must not move the tape"
+            "toRangeGap must not move the tape"
         );
     });
 
@@ -1120,7 +1137,7 @@ for (const orientation of ["horizontal", "vertical"]) {
         for (const variant of variants) {
             const { label } = buildRangeGapFixture(orientation, {
                 ...variant,
-                toLabelGap: 1
+                toRangeGap: 1
             });
             assert.equal(
                 visibleSparklineToLabelGap(orientation, label),
@@ -1133,8 +1150,8 @@ for (const orientation of ["horizontal", "vertical"]) {
     test(`${orientation} range sparkline starts at the tape center`, () => {
         const { label, tape } = buildRangeGapFixture(orientation, {
             tapeWidth: 6,
-            minLabelGap: 15,
-            toLabelGap: 4
+            toRangeBlockGap: 15,
+            toRangeGap: 4
         });
         const tapeCenter = crossAxisPosition(orientation, tape.data) +
             Math.round(crossAxisSize(orientation, tape.data) / 2);
@@ -1142,10 +1159,11 @@ for (const orientation of ["horizontal", "vertical"]) {
         assert.equal(sparklineTapeCenterPosition(orientation, label), tapeCenter);
     });
 
-    test(`${orientation} range tapeGap controls tape lanes and minLabelGap controls label spacing`, () => {
-        function build(tapeGap, minLabelGap) {
+    test(`${orientation} range tapeGap controls tape lanes and label toRangeBlockGap controls label spacing`, () => {
+        function build(tapeGap, toRangeBlockGap) {
             const painter = makeEventPainter(orientation, 500);
             const tapeSpec = painter._visualTheme.range[orientation];
+            const labelSpec = painter._visualTheme.label[orientation];
             const events = [
                 eventOnLane("lane-0", 20, 140, 0),
                 eventOnLane("lane-1", 180, 320, 1)
@@ -1160,8 +1178,8 @@ for (const orientation of ["horizontal", "vertical"]) {
             }));
 
             tapeSpec.tapeGap = tapeGap;
-            tapeSpec.minLabelGap = minLabelGap;
-            tapeSpec.toLabelGap = 0;
+            labelSpec.toRangeBlockGap = toRangeBlockGap;
+            labelSpec.toRangeGap = 0;
             painter._repriseTapeLabels.push(...labels);
             painter._repriseTapeBars.push(...tapes);
             painter.paint();
@@ -1169,8 +1187,8 @@ for (const orientation of ["horizontal", "vertical"]) {
             return { labels, tapes };
         }
 
-        for (const [tapeGap, minLabelGap] of [[2, 15], [9, 18]]) {
-            const { labels, tapes } = build(tapeGap, minLabelGap);
+        for (const [tapeGap, toRangeBlockGap] of [[2, 15], [9, 18]]) {
+            const { labels, tapes } = build(tapeGap, toRangeBlockGap);
             const firstTapeEnd = crossAxisPosition(orientation, tapes[0].data) +
                 crossAxisSize(orientation, tapes[0].data);
             const secondTapeEnd = crossAxisPosition(orientation, tapes[1].data) +
@@ -1183,8 +1201,8 @@ for (const orientation of ["horizontal", "vertical"]) {
             );
             assert.equal(
                 crossAxisPosition(orientation, labels[0].data) - secondTapeEnd,
-                minLabelGap,
-                "the tape block must use minLabelGap before the first label row/column"
+                toRangeBlockGap,
+                "the tape block must use toRangeBlockGap before the first label row/column"
             );
         }
     });
@@ -1209,9 +1227,9 @@ for (const orientation of ["horizontal", "vertical"]) {
         assert.deepEqual(assignedLanes(50), [0, 0]);
     });
 
-    test(`${orientation} range excessive toLabelGap clamps sparkline length to zero`, () => {
+    test(`${orientation} label excessive toRangeGap clamps sparkline length to zero`, () => {
         const { label } = buildRangeGapFixture(orientation, {
-            toLabelGap: 100,
+            toRangeGap: 100,
             tapeGap: 2
         });
 
@@ -1248,8 +1266,8 @@ function buildShortRangeGapFixture(
     const theme = painter._params.theme;
     const short = eventOnLane("short", 20, 30, 0);
 
-    painter._visualTheme.range.horizontal.toLabelGap = horizontalGap;
-    painter._visualTheme.range.vertical.toLabelGap = verticalGap;
+    painter._visualTheme.label.horizontal.toRangeGap = horizontalGap;
+    painter._visualTheme.label.vertical.toRangeGap = verticalGap;
 
     const tape = painter._paintEventTape(
         short,
@@ -1284,7 +1302,7 @@ function visibleShortRangeLabelGap(orientation, fixture) {
 }
 
 for (const orientation of ["horizontal", "vertical"]) {
-    test(`${orientation} short ranges use the orientation-specific range toLabelGap`, () => {
+    test(`${orientation} short ranges use the orientation-specific label toRangeGap`, () => {
         const fixture = buildShortRangeGapFixture(orientation, {
             horizontalGap: 4,
             verticalGap: 9
@@ -1607,10 +1625,12 @@ test("event tape and label DOM receive visual theme classes", () => {
 
     painter._visualTheme = testVisualTheme({
         id: "editorial",
-        instant: { labelCssClass: "instant-theme-label" },
+        label: {
+            instantCssClass: "instant-theme-label",
+            rangeCssClass: "range-theme-label"
+        },
         range: {
-            cssClass: "range-theme",
-            labelCssClass: "range-theme-label"
+            cssClass: "range-theme"
         }
     });
 
@@ -1806,11 +1826,11 @@ test("event instant labels use orthogonal visual dimensions", () => {
     assert.equal(painter._reprisePointLabels[0].height, 50);
 });
 
-test("horizontal instant toLabelGap is the exact visible dot-to-label gap", () => {
+test("horizontal label toInstantGap is the exact visible dot-to-label gap", () => {
     const painter = makeEventPainter("horizontal");
     const evt = instantEvent("instant", 20);
     const theme = painter._params.theme;
-    painter._visualTheme.instant.horizontal.toLabelGap = 6;
+    painter._visualTheme.label.horizontal.toInstantGap = 6;
 
     const iconData = paintedData(20, 10, 10, 10);
     painter._reprisePointIcons.push({
@@ -1839,7 +1859,7 @@ test("horizontal instant toLabelGap is the exact visible dot-to-label gap", () =
     assert.equal(painter._reprisePointLabels[0].naturalLeft, 36);
 });
 
-test("horizontal instant toLabelGap defaults to 4px", () => {
+test("horizontal label toInstantGap defaults to 4px", () => {
     const painter = makeEventPainter("horizontal");
     const evt = instantEvent("instant", 20);
     const iconData = paintedData(20, 10, 10, 10);
@@ -1887,15 +1907,15 @@ test("horizontal instant event icon and label sit 3px above the routed row basel
     assert.equal(label.top, 8);
 });
 
-test("vertical instant toLabelGap is exact and defaults to 4px", () => {
-    function measure(toLabelGap) {
+test("vertical label toInstantGap is exact and defaults to 4px", () => {
+    function measure(toInstantGap) {
         const painter = makeEventPainter("vertical");
         const evt = instantEvent("instant", 20);
         const theme = painter._params.theme;
         const iconData = paintedData(10, 20, 10, 10);
 
-        if (toLabelGap !== undefined) {
-            painter._visualTheme.instant.vertical.toLabelGap = toLabelGap;
+        if (toInstantGap !== undefined) {
+            painter._visualTheme.label.vertical.toInstantGap = toInstantGap;
         }
         painter._reprisePointIcons.push({ evt, lane: 0, data: iconData, width: 10, height: 10 });
         const label = painter._paintEventLabel(
@@ -2265,7 +2285,7 @@ test("horizontal narrative labels keep their existing themed routing without ite
     ]);
 });
 
-test("horizontal narrative range labels use range toLabelGap at the range edge", () => {
+test("horizontal narrative range labels use label toRangeGap at the range edge", () => {
     const decorator = makeNarrative("horizontal");
     decorator._rangeToLabelGap = 6;
     const range = narrativeRange(decorator, 0, 20, 100, 30, 16);
@@ -2276,7 +2296,7 @@ test("horizontal narrative range labels use range toLabelGap at the range edge",
     assert.equal(range.labelElmt.style.left, "26px");
 });
 
-test("vertical narrative range labels use range toLabelGap at the range edge", () => {
+test("vertical narrative range labels use label toRangeGap at the range edge", () => {
     const decorator = makeNarrative("vertical");
     decorator._rangeToLabelGap = 6;
     const range = narrativeRange(decorator, 0, 20, 100, 30, 16);
@@ -2331,6 +2351,60 @@ test("horizontal narrative instant labels route with the orthogonal visual footp
     assert.equal(first.labelElmt.style.textAlign, "right");
     assert.equal(first.labelElmt.style.transform, "translateY(60px) rotate(-90deg)");
     assert.deepEqual([first.track, second.track], [0, 0]);
+});
+
+test("vertical narrative range labels route with the orthogonal text-length footprint", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+    const first = narrativeRange(decorator, 0, 0, 200, 90, 10);
+    const second = narrativeRange(decorator, 1, 50, 250, 90, 10);
+
+    decorator._setLabelPosition(first, -100000);
+    decorator._measureLabel(first);
+    decorator._setLabelPosition(second, -100000);
+    decorator._measureLabel(second);
+    decorator._rangeRecords = [first, second];
+
+    decorator.softPaint();
+
+    assert.equal(first.width, 40);
+    assert.equal(first.height, 90);
+    assert.equal(first.labelElmt.style.top, "4px");
+    assert.equal(first.labelElmt.style.height, "40px");
+    assert.equal(first.labelElmt.style.width, "");
+    assert.equal(first.labelElmt.style.transform, "translateY(90px) rotate(-90deg)");
+    assert.equal(second.labelElmt.style.top, "99px");
+    assert.deepEqual([first.track, second.track], [0, 0]);
+});
+
+test("vertical orthogonal narrative label length is independent of physical track size", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+    decorator._trackOffset = 32;
+    decorator._trackSize = 40;
+    decorator._trackGap = 8;
+    decorator._labelLength = 120;
+    const first = narrativeRange(decorator, 0, 0, 240, 90, 10, {
+        item: { track: 0 }
+    });
+    const second = narrativeRange(decorator, 1, 60, 260, 90, 10, {
+        item: { track: 1 }
+    });
+
+    decorator._setLabelPosition(first, 4);
+    decorator._measureLabel(first);
+    decorator._setLabelPosition(second, 64);
+    decorator._measureLabel(second);
+
+    assert.equal(decorator._trackStart(0), 32);
+    assert.equal(decorator._trackStart(1), 80);
+    assert.equal(first.labelElmt.style.left, "32px");
+    assert.equal(second.labelElmt.style.left, "80px");
+    assert.equal(first.labelElmt.style.width, "120px");
+    assert.equal(first.labelElmt.style.height, "40px");
+    assert.equal(first.width, 40);
+    assert.equal(first.height, 120);
+    assert.equal(first.labelElmt.style.transform, "translateY(120px) rotate(-90deg)");
 });
 
 test("horizontal narrative persistence includes the sticky edge inset in its contact threshold", () => {
@@ -2517,9 +2591,11 @@ test("narrative instant lineWidth is separate from event icon width", () => {
             visualTheme: testVisualTheme({
                 instant: {
                     width: 12,
-                    lineWidth: 2,
+                    lineWidth: 2
+                },
+                label: {
                     horizontal: {
-                        toLabelGap: 3
+                        toInstantGap: 3
                     }
                 }
             })
@@ -2531,16 +2607,16 @@ test("narrative instant lineWidth is separate from event icon width", () => {
     assert.equal(decorator._instantToLabelGap, 3);
 });
 
-test("narrative range toLabelGap resolves from the oriented range theme", () => {
+test("narrative range toRangeGap resolves from the oriented label theme", () => {
     const decorator = makeConfiguredNarrative(
         "horizontal",
         200,
         { count: 1, offset: 0, gap: 4 },
         {
             visualTheme: testVisualTheme({
-                range: {
+                label: {
                     horizontal: {
-                        toLabelGap: 7
+                        toRangeGap: 7
                     }
                 }
             })

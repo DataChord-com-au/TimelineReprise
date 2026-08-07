@@ -128,9 +128,7 @@ const _INSTANT_FIELDS = new Set([
     'height',
     'tickWidth',
     'lineWidth',
-    'toLabelGap',
     'cssClass',
-    'labelCssClass',
     ..._ORIENTATION_FIELDS
 ]);
 const _RANGE_FIELDS = new Set([
@@ -141,17 +139,9 @@ const _RANGE_FIELDS = new Set([
     'size',
     'eventRoutingThreshold',
     'tapeGap',
-    'toLabelGap',
-    'minLabelGap',
-    'labelRoutingGap',
-    'labelTrackGap',
-    'labelWidth',
     'sparklineStagger',
-    'stickyLeftInset',
-    'stickyTopInset',
     'toEventGap',
     'cssClass',
-    'labelCssClass',
     'short',
     ..._ORIENTATION_FIELDS
 ]);
@@ -160,8 +150,16 @@ const _SHORT_RANGE_FIELDS = new Set([
 ]);
 const _LABEL_FIELDS = new Set([
     'stickyInset',
-    'stickyGap',
     'offset',
+    'toRangeGap',
+    'toInstantGap',
+    'toRangeBlockGap',
+    'routingGap',
+    'trackGap',
+    'width',
+    'length',
+    'rangeCssClass',
+    'instantCssClass',
     'color',
     'colorSource',
     'flow',
@@ -207,9 +205,8 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         tickWidth: 1,
         lineWidth: 1,
         cssClass: '',
-        labelCssClass: '',
-        horizontal: { toLabelGap: 4 },
-        vertical: { toLabelGap: 4 }
+        horizontal: {},
+        vertical: {}
     },
     range: {
         iconColor: 'blue',
@@ -217,42 +214,42 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         width: 4,
         offset: 0,
         cssClass: '',
-        labelCssClass: '',
         short: { minDisplayLength: 4 },
         horizontal: {
             eventRoutingThreshold: 28,
             tapeGap: 6,
-            toLabelGap: 4,
-            minLabelGap: 15,
-            labelRoutingGap: 8,
-            labelTrackGap: 2,
-            sparklineStagger: 8,
-            stickyLeftInset: 2
+            sparklineStagger: 8
         },
         vertical: {
             eventRoutingThreshold: 28,
             tapeGap: 6,
-            toLabelGap: 4,
-            minLabelGap: 15,
-            labelWidth: 120,
-            labelRoutingGap: 4,
-            labelTrackGap: 2,
-            stickyTopInset: 2,
             toEventGap: 12
         }
     },
     label: {
         flow: 'normal',
         colorSource: 'graphic',
+        rangeCssClass: '',
+        instantCssClass: '',
         horizontal: {
             stickyInset: 2,
-            stickyGap: 4,
-            offset: 0
+            offset: 0,
+            toRangeGap: 4,
+            toInstantGap: 4,
+            toRangeBlockGap: 15,
+            routingGap: 8,
+            trackGap: 2
         },
         vertical: {
             stickyInset: 2,
-            stickyGap: 4,
-            offset: 0
+            offset: 0,
+            toRangeGap: 4,
+            toInstantGap: 4,
+            toRangeBlockGap: 15,
+            routingGap: 4,
+            trackGap: 2,
+            width: 120,
+            length: null
         }
     },
     bubble: {
@@ -364,9 +361,7 @@ class VisualTheme {
         this.#assertNumber(spec.height, `${caller}.height`, { positive: true });
         this.#assertNumber(spec.tickWidth, `${caller}.tickWidth`, { positive: true });
         this.#assertNumber(spec.lineWidth, `${caller}.lineWidth`, { positive: true });
-        this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
-        this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
     }
 
     static #assertRangeSpec(spec, caller) {
@@ -380,17 +375,9 @@ class VisualTheme {
         this.#assertNumber(spec.size, `${caller}.size`, { positive: true });
         this.#assertNumber(spec.eventRoutingThreshold, `${caller}.eventRoutingThreshold`, { positive: true });
         this.#assertNumber(spec.tapeGap, `${caller}.tapeGap`, { nonNegative: true });
-        this.#assertNumber(spec.toLabelGap, `${caller}.toLabelGap`, { nonNegative: true });
-        this.#assertNumber(spec.minLabelGap, `${caller}.minLabelGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelRoutingGap, `${caller}.labelRoutingGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelTrackGap, `${caller}.labelTrackGap`, { nonNegative: true });
-        this.#assertNumber(spec.labelWidth, `${caller}.labelWidth`, { positive: true });
         this.#assertNumber(spec.sparklineStagger, `${caller}.sparklineStagger`, { nonNegative: true });
-        this.#assertNumber(spec.stickyLeftInset, `${caller}.stickyLeftInset`, { nonNegative: true });
-        this.#assertNumber(spec.stickyTopInset, `${caller}.stickyTopInset`, { nonNegative: true });
         this.#assertNumber(spec.toEventGap, `${caller}.toEventGap`, { nonNegative: true });
         this.#assertString(spec.cssClass, `${caller}.cssClass`);
-        this.#assertString(spec.labelCssClass, `${caller}.labelCssClass`);
 
         if (spec.short !== undefined) {
             this.#assertPlainObject(spec.short, `${caller}.short`);
@@ -404,8 +391,18 @@ class VisualTheme {
         this.#assertKnownFields(spec, _LABEL_FIELDS, caller);
 
         this.#assertNumber(spec.stickyInset, `${caller}.stickyInset`, { nonNegative: true });
-        this.#assertNumber(spec.stickyGap, `${caller}.stickyGap`, { nonNegative: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
+        this.#assertNumber(spec.toRangeGap, `${caller}.toRangeGap`, { nonNegative: true });
+        this.#assertNumber(spec.toInstantGap, `${caller}.toInstantGap`, { nonNegative: true });
+        this.#assertNumber(spec.toRangeBlockGap, `${caller}.toRangeBlockGap`, { nonNegative: true });
+        this.#assertNumber(spec.routingGap, `${caller}.routingGap`, { nonNegative: true });
+        this.#assertNumber(spec.trackGap, `${caller}.trackGap`, { nonNegative: true });
+        this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
+        if (spec.length !== null) {
+            this.#assertNumber(spec.length, `${caller}.length`, { positive: true });
+        }
+        this.#assertString(spec.rangeCssClass, `${caller}.rangeCssClass`);
+        this.#assertString(spec.instantCssClass, `${caller}.instantCssClass`);
         this.#assertColor(spec.color, `${caller}.color`);
 
         if (spec.colorSource !== undefined && !_LABEL_COLOR_SOURCES.includes(spec.colorSource)) {

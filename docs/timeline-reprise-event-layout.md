@@ -41,13 +41,7 @@ var visualThemes = Timeline.loadVisualThemes([{
     },
     instant: {
         width: 6,
-        iconColor: "orange",
-        horizontal: {
-            toLabelGap: 4
-        },
-        vertical: {
-            toLabelGap: 4
-        }
+        iconColor: "orange"
     },
     range: {
         width: 4,
@@ -57,24 +51,32 @@ var visualThemes = Timeline.loadVisualThemes([{
         },
         horizontal: {
             eventRoutingThreshold: 36,
-            toLabelGap: 4,
-            minLabelGap: 15,
-            labelRoutingGap: 8,
-            labelTrackGap: 5,
             tapeGap: 5,
-            sparklineStagger: 8,
-            stickyLeftInset: 4
+            sparklineStagger: 8
         },
         vertical: {
             eventRoutingThreshold: 36,
-            toLabelGap: 4,
-            minLabelGap: 15,
             tapeGap: 5,
-            labelWidth: 120,
-            labelRoutingGap: 4,
-            labelTrackGap: 5,
-            stickyTopInset: 4,
             toEventGap: 12
+        }
+    },
+    label: {
+        horizontal: {
+            stickyInset: 4,
+            toRangeGap: 4,
+            toInstantGap: 4,
+            toRangeBlockGap: 15,
+            routingGap: 8,
+            trackGap: 5
+        },
+        vertical: {
+            stickyInset: 4,
+            toRangeGap: 4,
+            toInstantGap: 4,
+            toRangeBlockGap: 15,
+            routingGap: 4,
+            trackGap: 5,
+            width: 120
         }
     }
 }]);
@@ -201,7 +203,7 @@ spacing properties instead.
 
 ### `visualTheme.track.vertical.gap`
 Currently has no meaningful visual effect in the Reprise vertical event
-layout and should normally be omitted. Use `range.vertical.labelTrackGap` for
+layout and should normally be omitted. Use `label.vertical.trackGap` for
 side-column spacing and `range.vertical.tapeGap` for tape-lane spacing.
 
 ### `visualTheme.track.*.size`
@@ -209,7 +211,7 @@ Sets the requested Reprise track size. In a horizontal layout, the effective row
 height is the largest of this value, the instant icon height, the range
 thickness plus the rendered label line height, and the actual routed content.
 In a vertical Reprise layout, routed column width and spacing come from the
-rendered content and targeted `range.vertical` properties.
+rendered content and targeted `range.vertical` and `label.vertical` properties.
 
 ## `visualTheme.instant`
 
@@ -239,11 +241,11 @@ event field and therefore wins over `color`.
 An authored event `icon` URL is preserved instead of applying the theme/default
 dot colour, but an event or emphasis `iconColor` deliberately replaces it.
 
-### `visualTheme.instant.horizontal.toLabelGap`
+### `visualTheme.label.horizontal.toInstantGap`
 Sets the visible horizontal gap between an instant dot and its label. Defaults
 to `4` pixels.
 
-### `visualTheme.instant.vertical.toLabelGap`
+### `visualTheme.label.vertical.toInstantGap`
 Sets the visible vertical gap between an instant dot and its label. Defaults to
 `4` pixels.
 
@@ -267,8 +269,8 @@ rather than long-range tape-label routing.
 Minimum visible time-axis length for short-duration tapes. Defaults to
 `range.width`, or `4` if no range width is available.
 
-Short ranges use the active orientation's `range.*.toLabelGap`; there is no
-separate `range.short.toLabelGap` setting.
+Short ranges use the active orientation's `label.*.toRangeGap`; there is no
+separate `range.short.toRangeGap` setting.
 
 ## `visualTheme.range.horizontal`
 
@@ -280,7 +282,7 @@ Defaults to `28`. A duration exactly equal to the threshold is long.
 Vertical-axis gap between long-duration tape lanes. Defaults to `6` pixels. It
 does not affect time-axis lane assignment.
 
-### `visualTheme.range.horizontal.toLabelGap`
+### `visualTheme.label.horizontal.toRangeGap`
 Visible vertical gap between a long-range sparkline endpoint and its label. For
 long ranges it does not move tape lanes or routed label rows. Short-duration
 labels use the same value by moving the label below its tape; that offset is
@@ -288,16 +290,16 @@ included when the short event's routed-row height is measured. Defaults to `4`.
 If a long-range value exceeds the available connector distance, the sparkline
 length clamps to zero.
 
-### `visualTheme.range.horizontal.minLabelGap`
+### `visualTheme.label.horizontal.toRangeBlockGap`
 Minimum vertical-axis gap between the complete tape block and the first routed
 label row. Defaults to `15`.
 
-### `visualTheme.range.horizontal.labelRoutingGap`
+### `visualTheme.label.horizontal.routingGap`
 Minimum time-axis clearance used when assigning long-range labels and
 point/short-duration event groups to routed rows. Increasing it can move a
 group to another row. Defaults to `8`.
 
-### `visualTheme.range.horizontal.labelTrackGap`
+### `visualTheme.label.horizontal.trackGap`
 Vertical-axis gap between routed event rows. It does not control tape-lane
 spacing or tape-block-to-label-row separation. Defaults to `2`.
 
@@ -305,7 +307,7 @@ spacing or tape-block-to-label-row separation. Defaults to `2`.
 Time-axis stagger applied to long-range sparkline attachment points on
 successive routed rows. Defaults to `8`.
 
-### `visualTheme.range.horizontal.stickyLeftInset`
+### `visualTheme.label.horizontal.stickyInset`
 Viewport inset used when long-range labels stick at the left or right edge.
 Defaults to `2`.
 
@@ -319,7 +321,7 @@ Defaults to `28`. A duration exactly equal to the threshold is long.
 Horizontal-axis gap between long-duration tape lanes. Defaults to `6` pixels.
 It does not affect time-axis lane assignment.
 
-### `visualTheme.range.vertical.toLabelGap`
+### `visualTheme.label.vertical.toRangeGap`
 Visible horizontal gap between a long-range sparkline endpoint and its label.
 For long ranges it does not move tape lanes or routed label columns.
 Short-duration labels use the same value by moving the label to the right of
@@ -327,17 +329,17 @@ its tape, and that offset is included in the computed event-column pitch.
 Defaults to `4`. If a long-range value exceeds the available connector
 distance, the sparkline length clamps to zero.
 
-### `visualTheme.range.vertical.minLabelGap`
+### `visualTheme.label.vertical.toRangeBlockGap`
 Minimum horizontal-axis gap between the complete tape block and the first routed
 label column. Defaults to `15`.
 
-### `visualTheme.range.vertical.labelWidth`
+### `visualTheme.label.vertical.width`
 Width applied to all vertical event labels. If omitted, event layout uses 36%
 of the band width, clamped to the range `80`–`140`. If no band width is
 available, it derives the value from the native track increment and applies
 the same clamp.
 
-### `visualTheme.range.vertical.labelRoutingGap`
+### `visualTheme.label.vertical.routingGap`
 Minimum time-axis clearance used when routing long-range labels and
 point/short-duration event groups. It separates vertically adjacent labels
 within a column and can force a group into another column. Defaults to `4`.
@@ -345,12 +347,12 @@ The primary long-range label column is also available to automatic point and
 short-duration events when their rendered groups do not collide with a label
 or short-duration tape already occupying that part of the column.
 
-### `visualTheme.range.vertical.labelTrackGap`
+### `visualTheme.label.vertical.trackGap`
 Horizontal-axis gap between routed side columns. The transition from the
 primary long-range label column to the first side column uses `toEventGap`.
 Defaults to `2`.
 
-### `visualTheme.range.vertical.stickyTopInset`
+### `visualTheme.label.vertical.stickyInset`
 Viewport inset used when long-range labels stick at the top edge. Defaults to
 `2`.
 

@@ -685,10 +685,12 @@ test("attached event tape and label DOM receive selected visual theme classes", 
     const Timeline = loadTimeline(unit);
     const attachmentTheme = new Timeline.VisualTheme({
         id: "attachment",
-        instant: { labelCssClass: "attachment-instant-label" },
+        label: {
+            instantCssClass: "attachment-instant-label",
+            rangeCssClass: "attachment-range-label"
+        },
         range: {
-            cssClass: "attachment-range",
-            labelCssClass: "attachment-range-label"
+            cssClass: "attachment-range"
         }
     });
     const { bandInfo, eventPainter, records, theme } = makeBand(

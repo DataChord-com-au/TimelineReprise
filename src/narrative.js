@@ -334,13 +334,14 @@ import {
 
         this._spanOffset = themedFinite({}, rangeTheme, "offset", 0);
         this._spanSize = themedFiniteOrNull({}, rangeTheme, "size");
-        this._rangeToLabelGap = themedFinite({}, rangeTheme, "toLabelGap", 4);
+        this._rangeToLabelGap = themedFinite({}, labelTheme, "toRangeGap", 4);
         this._dividerWidth = themedFinite({}, instantTheme, "lineWidth", 1);
-        this._instantToLabelGap = themedFinite({}, instantTheme, "toLabelGap", 4);
+        this._instantToLabelGap = themedFinite({}, labelTheme, "toInstantGap", 4);
 
         this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
-        this._stickyGap = themedFinite({}, labelTheme, "stickyGap", 4);
+        this._stickyGap = themedFinite({}, labelTheme, "routingGap", 4);
         this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
+        this._labelLength = themedFiniteOrNull({}, labelTheme, "length");
         this._labelFlow = normalizeLabelFlow(
             themedValue({}, labelTheme, "flow", "normal")
         );
@@ -372,9 +373,9 @@ import {
         this._instantIconColor = themedValue({}, instantTheme, "iconColor", null);
 
         this._spanCssClass = themedValue({}, rangeTheme, "cssClass", "");
-        this._spanLabelCssClass = themedValue({}, rangeTheme, "labelCssClass", "");
+        this._spanLabelCssClass = themedValue({}, labelTheme, "rangeCssClass", "");
         this._dividerCssClass = themedValue({}, instantTheme, "cssClass", "");
-        this._dividerLabelCssClass = themedValue({}, instantTheme, "labelCssClass", "");
+        this._dividerLabelCssClass = themedValue({}, labelTheme, "instantCssClass", "");
         this._themeId = visualTheme.id ?? null;
         this._themeCssPrefix = typeof this._themeId === "string" && this._themeId.trim() !== ""
             ? "timeline-narrative-" + this._themeId.trim()
@@ -638,29 +639,35 @@ import {
     };
 
     Timeline.NarrativeDecorator.prototype._measureLabel = function (record) {
-        const rect = record.labelElmt.getBoundingClientRect();
         if (this._labelFlow === "orthogonal") {
-            const measuredRawWidth = Math.max(
-                record.rawWidth || 0,
+            const rawWidth = Math.max(
+                record.labelElmt.scrollWidth || 0,
                 record.labelElmt.offsetWidth || 0,
-                record.labelElmt.scrollWidth || 0
+                record.rawWidth || 0
             );
-            const measuredRawHeight = Math.max(
-                record.rawHeight || 0,
+            const rawHeight = Math.max(
+                record.labelElmt.scrollHeight || 0,
                 record.labelElmt.offsetHeight || 0,
-                record.labelElmt.scrollHeight || 0
+                record.rawHeight || 0
             );
-            const rawWidth = measuredRawWidth || rect.height || 0;
-            const rawHeight = measuredRawHeight || rect.width || 0;
+            const rect = record.labelElmt.getBoundingClientRect();
+            const unrotatedDelta = Math.abs((rect.width || 0) - rawWidth) +
+                Math.abs((rect.height || 0) - rawHeight);
+            const rotatedDelta = Math.abs((rect.width || 0) - rawHeight) +
+                Math.abs((rect.height || 0) - rawWidth);
+            const useRect = rect.width > 0 &&
+                rect.height > 0 &&
+                rotatedDelta <= unrotatedDelta;
 
             record.rawWidth = rawWidth;
             record.rawHeight = rawHeight;
-            record.width = rawHeight;
-            record.height = rawWidth;
             this._updateLabelFlow(record);
+            record.width = useRect ? rect.width : rawHeight;
+            record.height = useRect ? rect.height : rawWidth;
             return;
         }
 
+        const rect = record.labelElmt.getBoundingClientRect();
         const visibleWidth = Math.max(
             rect.width || 0,
             record.labelElmt.offsetWidth || 0
@@ -720,18 +727,27 @@ import {
                 this._updateLabelFlow(record);
             }
         } else {
-            this._setRect(record.labelElmt, {
-                top: adjustedMainStart,
-                left: trackStart,
-                width: trackSize
-            });
             if (this._labelFlow === "orthogonal") {
-                record.rawWidth = trackSize;
-                record.height = trackSize;
+                const labelLength = this._labelLength;
+                record.labelElmt.style.top = Math.round(adjustedMainStart) + "px";
+                record.labelElmt.style.left = Math.round(trackStart) + "px";
+                record.labelElmt.style.width = labelLength == null
+                    ? ""
+                    : Math.round(labelLength) + "px";
+                record.labelElmt.style.height = Math.round(trackSize) + "px";
+                if (labelLength != null) record.rawWidth = labelLength;
+                record.rawHeight = trackSize;
+                record.width = trackSize;
                 this._updateLabelFlow(record);
+            } else {
+                this._setRect(record.labelElmt, {
+                    top: adjustedMainStart,
+                    left: trackStart,
+                    width: trackSize
+                });
+                record.labelElmt.style.whiteSpace = "normal";
+                record.labelElmt.style.overflowWrap = "break-word";
             }
-            record.labelElmt.style.whiteSpace = "normal";
-            record.labelElmt.style.overflowWrap = "break-word";
         }
     };
 

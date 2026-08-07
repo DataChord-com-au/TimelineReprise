@@ -168,15 +168,22 @@ var visualThemes = Timeline.loadVisualThemes([{
     },
     label: {
         colorSource: "graphic",
+        rangeCssClass: "range-label",
+        instantCssClass: "instant-label",
         horizontal: {
             offset: 2,
             stickyInset: 6,
-            stickyGap: 4
+            toRangeGap: 4,
+            toInstantGap: 4,
+            routingGap: 4
         },
         vertical: {
             offset: 2,
             stickyInset: 6,
-            stickyGap: 4
+            toRangeGap: 4,
+            toInstantGap: 4,
+            length: 120,
+            routingGap: 4
         }
     },
     bubble: {
@@ -279,7 +286,11 @@ Initial number of label tracks. Extra tracks can be used if routed labels need m
 Outer offset before the first narrative track.
 
 ### `track.size`
-Track size across the band. On horizontal timelines this is the label row height. On vertical timelines this is the label column width, and labels wrap to fit it.
+Track size across the band. On horizontal timelines this is the label row height.
+On vertical timelines this is the physical label column width. With
+`label.flow: "orthogonal"`, it remains the physical left-to-right lane width;
+use `visualTheme.label.vertical.length` to control the rotated up/down label
+length.
 
 If omitted, a fixed intrinsic default is used instead of being derived from the band's rendered size: `18` on horizontal timelines, `120` on vertical timelines.
 
@@ -306,15 +317,6 @@ Array of fallback span colours, cycled by range index.
 ### `visualTheme.range.cssClass`
 Extra class added to range span elements.
 
-### `visualTheme.range.labelCssClass`
-Extra class added to range label elements.
-
-### `visualTheme.range.horizontal.toLabelGap`
-Horizontal inset between a range start edge and its label. Defaults to `4`.
-
-### `visualTheme.range.vertical.toLabelGap`
-Vertical inset between a range start edge and its label. Defaults to `4`.
-
 ## Instant Theme
 
 ### `visualTheme.instant.lineWidth`
@@ -322,21 +324,12 @@ Width of narrative instant divider lines. Defaults to `1`.
 
 Item-level `lineWidth` overrides this value for a single instant.
 
-### `visualTheme.instant.horizontal.toLabelGap`
-Horizontal gap between an instant divider line and its label. Defaults to `4`.
-
-### `visualTheme.instant.vertical.toLabelGap`
-Vertical gap between an instant divider line and its label. Defaults to `4`.
-
 ### `visualTheme.instant.iconColor`
 Default colour of instant graphics. Event layout uses it for event dots;
 narrative decorators use it for instant divider lines.
 
 ### `visualTheme.instant.cssClass`
 Extra class added to instant divider-line elements.
-
-### `visualTheme.instant.labelCssClass`
-Extra class added to instant label elements.
 
 ## Label Theme
 
@@ -352,8 +345,32 @@ colour and a scoped item `color` does not apply to the label.
 ### `visualTheme.label.color`
 Theme label colour used when `colorSource` is `theme`.
 
+### `visualTheme.label.rangeCssClass`
+Extra class added to range label elements.
+
+### `visualTheme.label.instantCssClass`
+Extra class added to instant label elements.
+
 ### `visualTheme.label.*.offset`
 Offset applied along the timeline axis when placing labels.
+
+### `visualTheme.label.horizontal.toRangeGap`
+Horizontal inset between a range start edge and its label. Defaults to `4`.
+
+### `visualTheme.label.vertical.toRangeGap`
+Vertical inset between a range start edge and its label. Defaults to `4`.
+
+### `visualTheme.label.horizontal.toInstantGap`
+Horizontal gap between an instant divider line and its label. Defaults to `4`.
+
+### `visualTheme.label.vertical.toInstantGap`
+Vertical gap between an instant divider line and its label. Defaults to `4`.
+
+### `visualTheme.label.vertical.length`
+Optional pre-rotation inline length for vertical orthogonal labels. This sets
+the visible up/down label length independently from `track.vertical.size`, so
+`track.vertical.size` can stay a physical lane width. If omitted, Narrative
+uses the rendered text length.
 
 ### `visualTheme.label.*.stickyInset`
 Inset from the visible viewport edge used by sticky range labels.
@@ -361,7 +378,7 @@ It also contributes to the span-contact release threshold. The effective
 threshold is `12px + stickyInset` horizontally and `6px + stickyInset`
 vertically.
 
-### `visualTheme.label.*.stickyGap`
+### `visualTheme.label.*.routingGap`
 Minimum gap used between routed labels.
 
 ## Bubble Theme

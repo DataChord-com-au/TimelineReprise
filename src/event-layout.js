@@ -546,6 +546,13 @@ import {
         ) || {};
     }
 
+    function getLabelSpec(painter) {
+        return getOrientationSpec(
+            painter._visualTheme?.label,
+            painter._timeline
+        ) || {};
+    }
+
     function getInstantSpec(painter) {
         return getOrientationSpec(
             painter._visualTheme?.instant,
@@ -606,9 +613,9 @@ import {
                 instant ? "instant-label" : "range-label"
             ),
             getThemedClass(
-                instant ? visualTheme?.instant : visualTheme?.range,
-                instant ? getInstantSpec(painter) : getTapeSpec(painter),
-                "labelCssClass"
+                visualTheme?.label,
+                getLabelSpec(painter),
+                instant ? "instantCssClass" : "rangeCssClass"
             ),
             stringValue(evt?.getProperty?.("labelCssClass"))
         ]);
@@ -622,17 +629,17 @@ import {
         return finiteOr(getTapeSpec(painter).tapeGap, 6);
     }
 
-    function getTapeToLabelGap(painter) {
-        return finiteOr(getTapeSpec(painter).toLabelGap, 4);
+    function getLabelToRangeGap(painter) {
+        return finiteOr(getLabelSpec(painter).toRangeGap, 4);
     }
 
     function getMinTapeLabelGap(painter) {
-        return finiteOr(getTapeSpec(painter).minLabelGap, 15);
+        return finiteOr(getLabelSpec(painter).toRangeBlockGap, 15);
     }
 
     function getLabelRoutingGap(painter) {
         return finiteOr(
-            getTapeSpec(painter).labelRoutingGap,
+            getLabelSpec(painter).routingGap,
             isVertical(painter) ? 4 : 8
         );
     }
@@ -649,18 +656,15 @@ import {
     }
 
     function getLabelTrackGap(painter) {
-        return finiteOr(getTapeSpec(painter).labelTrackGap, 2);
+        return finiteOr(getLabelSpec(painter).trackGap, 2);
     }
 
     function getStickyLeftInset(painter) {
-        return finiteOr(getTapeSpec(painter).stickyLeftInset, 2);
+        return finiteOr(getLabelSpec(painter).stickyInset, 2);
     }
 
     function getStickyTopInset(painter) {
-        return finiteOr(
-            getTapeSpec(painter).stickyTopInset,
-            getStickyLeftInset(painter)
-        );
+        return finiteOr(getLabelSpec(painter).stickyInset, 2);
     }
 
     function getSparklineStagger(painter) {
@@ -668,7 +672,7 @@ import {
     }
 
     function getInstantToLabelGap(painter) {
-        return finiteOr(getInstantSpec(painter).toLabelGap, 4);
+        return finiteOr(getLabelSpec(painter).toInstantGap, 4);
     }
 
     function getEventDurationWidth(painter, evt) {
@@ -957,7 +961,7 @@ import {
     function getVerticalTapeLabelWidth(painter, metrics) {
         const bandWidth = painter._band?.getViewWidth?.() || 0;
         return finiteOr(
-            getTapeSpec(painter).labelWidth,
+            getLabelSpec(painter).width,
             Math.max(80, Math.min(140, bandWidth * 0.36 || metrics.trackIncrement * 7))
         );
     }
@@ -979,7 +983,7 @@ import {
         return Math.max(
             markerWidth,
             labelWidth,
-            getRangeWidth(painter) + getTapeToLabelGap(painter) + labelWidth
+            getRangeWidth(painter) + getLabelToRangeGap(painter) + labelWidth
         );
     }
 
@@ -1037,7 +1041,7 @@ import {
 
         return laneLeft +
             getRangeWidth(painter) +
-            getTapeToLabelGap(painter);
+            getLabelToRangeGap(painter);
     }
 
     function setPaintedRect(data, rect) {
@@ -1187,7 +1191,7 @@ import {
         const sparkTop = tapeCenter;
         const sparkHeight = Math.max(
             0,
-            item.data.top - tapeCenter - getTapeToLabelGap(painter)
+            item.data.top - tapeCenter - getLabelToRangeGap(painter)
         );
         const sparkLeft = Math.round(
             Number.isFinite(item._repriseSparkLeft)
@@ -1222,7 +1226,7 @@ import {
         const sparkTop = Math.round(item.data.top + fontSize / 2);
         const sparkWidth = Math.max(
             0,
-            item.data.left - tapeCenter - getTapeToLabelGap(painter)
+            item.data.left - tapeCenter - getLabelToRangeGap(painter)
         );
 
         setPaintedRect(item.spark, {
@@ -2344,7 +2348,7 @@ import {
         item.width = getDataWidth(data, width);
         item.height = getDataHeight(data, height);
         if (!evt.isInstant()) {
-            item.trackTopOffset += getTapeToLabelGap(this);
+            item.trackTopOffset += getLabelToRangeGap(this);
         }
         alignInstantLabelToIcon(this, item, metrics, theme);
         return data;

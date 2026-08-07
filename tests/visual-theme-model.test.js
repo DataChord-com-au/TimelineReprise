@@ -120,6 +120,77 @@ test("VisualTheme validates label flow and defaults to normal", () => {
     );
 });
 
+test("VisualTheme resolves label placement fields from label specs", () => {
+    const Timeline = loadTimeline();
+    const theme = new Timeline.VisualTheme({
+        label: {
+            rangeCssClass: "range-label",
+            instantCssClass: "instant-label",
+            horizontal: {
+                toRangeGap: 7,
+                toInstantGap: 8,
+                toRangeBlockGap: 15,
+                routingGap: 10,
+                trackGap: 3
+            },
+            vertical: {
+                toRangeGap: 9,
+                toInstantGap: 11,
+                width: 120,
+                length: 121
+            }
+        }
+    });
+
+    assert.equal(new Timeline.VisualTheme().label.horizontal.toRangeGap, 4);
+    assert.equal(new Timeline.VisualTheme().label.horizontal.toInstantGap, 4);
+    assert.equal(theme.label.horizontal.toRangeGap, 7);
+    assert.equal(theme.label.horizontal.toInstantGap, 8);
+    assert.equal(theme.label.horizontal.routingGap, 10);
+    assert.equal(theme.label.horizontal.trackGap, 3);
+    assert.equal(theme.label.vertical.toRangeGap, 9);
+    assert.equal(theme.label.vertical.width, 120);
+    assert.equal(theme.label.vertical.length, 121);
+    assert.equal(theme.label.rangeCssClass, "range-label");
+    assert.equal(theme.label.instantCssClass, "instant-label");
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            range: { horizontal: { toLabelGap: 7 } }
+        }),
+        /range\.horizontal\.toLabelGap is not supported/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            instant: { horizontal: { toLabelGap: 7 } }
+        }),
+        /instant\.horizontal\.toLabelGap is not supported/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            range: { horizontal: { labelRoutingGap: 7 } }
+        }),
+        /range\.horizontal\.labelRoutingGap is not supported/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            instant: { labelCssClass: "instant-label" }
+        }),
+        /instant\.labelCssClass is not supported/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            label: { horizontal: { toRangeGap: -1 } }
+        }),
+        /label\.horizontal\.toRangeGap must be a non-negative finite number/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            label: { vertical: { length: 0 } }
+        }),
+        /label\.vertical\.length must be a positive finite number/
+    );
+});
+
 test("interval line visibility belongs to band construction", () => {
     const Timeline = loadTimeline();
 

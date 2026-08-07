@@ -23,9 +23,7 @@ declare namespace Timeline {
         height?: number;
         tickWidth?: number;
         lineWidth?: number;
-        toLabelGap?: number;
         cssClass?: string;
-        labelCssClass?: string;
     }
 
     interface OrientableInstantSpec extends InstantSpec {
@@ -45,17 +43,9 @@ declare namespace Timeline {
         size?: number;
         eventRoutingThreshold?: number;
         tapeGap?: number;
-        toLabelGap?: number;
-        minLabelGap?: number;
-        labelRoutingGap?: number;
-        labelTrackGap?: number;
-        labelWidth?: number;
         sparklineStagger?: number;
-        stickyLeftInset?: number;
-        stickyTopInset?: number;
         toEventGap?: number;
         cssClass?: string;
-        labelCssClass?: string;
         short?: ShortRangeSpec;
     }
 
@@ -66,8 +56,16 @@ declare namespace Timeline {
 
     interface LabelSpec {
         stickyInset?: number;
-        stickyGap?: number;
         offset?: number;
+        toRangeGap?: number;
+        toInstantGap?: number;
+        toRangeBlockGap?: number;
+        routingGap?: number;
+        trackGap?: number;
+        width?: number;
+        length?: number | null;
+        rangeCssClass?: string;
+        instantCssClass?: string;
         color?: string;
         colorSource?: LabelColorSource;
         flow?: LabelFlow;
