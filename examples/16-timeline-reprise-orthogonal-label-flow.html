@@ -1,0 +1,257 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SIMILE Timeline Reprise: Orthogonal Label Flow</title>
+
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_ajax/simile-ajax-api.js?bundle=true"></script>
+  <script src="../vendor/SIMILE/timeline-2.3.1/timeline_js/timeline-api.js?bundle=true"></script>
+  <link rel="stylesheet" href="../dist/timeline-reprise.css">
+  <script src="../dist/timeline-reprise.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202124;
+        color: #e8eaed;
+      }
+    }
+
+    #timeline-horizontal .timeline-event-label,
+    #timeline-horizontal .timeline-narrative-label,
+    #timeline-vertical .timeline-event-label,
+    #timeline-vertical .timeline-narrative-label {
+      font-family: Verdana, Geneva, sans-serif;
+      font-size: 12px;
+      line-height: 1.15;
+      font-stretch: expanded;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>SIMILE Timeline Reprise: Orthogonal Label Flow</h1>
+  <p>
+    This example uses the narrative setup from example 11 with
+    <code>label.flow: "orthogonal"</code>, so labels read up the page.
+  </p>
+
+  <section style="margin-top: 28px;">
+    <h2>Horizontal Timeline</h2>
+    <ul>
+      <li>the main band shows normal timeline events and ranges</li>
+      <li>the lower band uses chapter spans as decorator data</li>
+      <li>event and Narrative labels share the orthogonal page-space label flow</li>
+    </ul>
+    <div id="timeline-horizontal" style="height: 420px;"></div>
+  </section>
+
+  <section style="margin-top: 28px;">
+    <h2>Vertical Timeline</h2>
+    <ul>
+      <li>the same main events and narrative data are shown vertically</li>
+      <li>the narrative band is still a separate decorator band</li>
+      <li>orthogonal labels keep reading up the page, independent of timeline orientation</li>
+    </ul>
+    <div id="timeline-vertical" style="width: 800px; max-width: 100%; height: 620px;"></div>
+  </section>
+
+  <script>
+    var narrativeEvents = [
+      {
+        startDate: "2020-01-15",
+        endDate: "2020-02-01",
+        title: "Chapter 1: Frame",
+        caption: "Set the question and map the source material.",
+        description: "Narrative text stays below the image without wrapping around it.",
+        image: "images/bubble-image-wide.svg"
+      },
+      {
+        startDate: "2020-02-01",
+        endDate: "2020-03-15",
+        title: "Chapter 2: Build",
+        caption: "Turn the source material into a working timeline."
+      },
+      {
+        startDate: "2020-03-15",
+        endDate: "2020-04-25",
+        title: "Chapter 3: Test",
+        caption: "Review the sequence and tune the presentation."
+      },
+      {
+        startDate: "2020-04-25",
+        endDate: "2020-05-25",
+        title: "Chapter 4: Publish",
+        caption: "Prepare the final narrative view."
+      },
+      {
+        date: "2020-03-02",
+        title: "Narrative turn",
+        caption: "A single event-line decorator inside the chapter flow."
+      }
+    ];
+
+    var events = [
+      {
+        start: "2020-01-10",
+        title: "Source pack received",
+        description: "",
+        iconColor: "blue"
+      },
+      {
+        start: "2020-02-18",
+        title: "Prototype review",
+        description: "",
+        iconColor: "orange"
+      },
+      {
+        start: "2020-02-20",
+        end: "2020-03-24",
+        title: "Build phase",
+        description: "",
+        color: "green"
+      },
+      {
+        start: "2020-03-28",
+        title: "Editorial pass",
+        description: "",
+        iconColor: "red"
+      },
+      {
+        start: "2020-05-08",
+        title: "Release",
+        description: "",
+        iconColor: "green"
+      }
+    ];
+
+    Timeline.loadVisualThemes([
+      {
+        id: "orthogonalNarrative",
+        track: {
+          horizontal: {
+            count: 2,
+            offset: 12,
+            size: 22,
+            gap: 4
+          },
+          vertical: {
+            count: 2,
+            offset: 10,
+            size: 90,
+            gap: 4
+          }
+        },
+        instant: {
+          lineWidth: 3,
+          iconColor: "orange"
+        },
+        range: {
+          width: 5,
+          iconColor: "green",
+          offset: 0,
+          colors: [
+            "rgba(76, 175, 80, 0.2)",
+            "rgba(66, 133, 244, 0.2)",
+            "rgba(251, 188, 5, 0.2)",
+            "rgba(217, 48, 37, 0.2)"
+          ]
+        },
+        label: {
+          flow: "orthogonal",
+          horizontal: {
+            offset: 2,
+            stickyInset: 6,
+            stickyGap: 4
+          },
+          vertical: {
+            offset: 2,
+            stickyInset: 6,
+            stickyGap: 4
+          }
+        }
+      }
+    ]);
+
+    var horizontalBandSet = Timeline.createBandSet({
+      orientation: "horizontal",
+      initialDate: "2020-03-01",
+      syncTarget: "main",
+      highlight: "narrative",
+
+      bands: [
+        {
+          id: "main",
+          width: "70%",
+          intervalUnit: "month",
+          intervalPixels: 200,
+          visualTheme: "orthogonalNarrative"
+        },
+        {
+          id: "narrative",
+          width: "30%",
+          intervalUnit: "month",
+          intervalPixels: 100,
+          visualTheme: "orthogonalNarrative"
+        }
+      ]
+    });
+
+    Timeline.attachEvents(
+      horizontalBandSet.byId.main,
+      events
+    );
+    Timeline.attachNarrativeDecorators(
+      horizontalBandSet.byId.narrative,
+      narrativeEvents
+    );
+    Timeline.createTimeline(
+      document.getElementById("timeline-horizontal"),
+      horizontalBandSet
+    );
+
+    var verticalBandSet = Timeline.createBandSet({
+      orientation: "vertical",
+      initialDate: "2020-03-01",
+      syncTarget: "main",
+      highlight: "narrative",
+
+      bands: [
+        {
+          id: "main",
+          width: "*",
+          intervalUnit: "month",
+          intervalPixels: 200,
+          visualTheme: "orthogonalNarrative"
+        },
+        {
+          id: "narrative",
+          width: 240,
+          intervalUnit: "month",
+          intervalPixels: 100,
+          visualTheme: "orthogonalNarrative"
+        }
+      ]
+    });
+
+    Timeline.attachEvents(
+      verticalBandSet.byId.main,
+      events
+    );
+    Timeline.attachNarrativeDecorators(
+      verticalBandSet.byId.narrative,
+      narrativeEvents
+    );
+    Timeline.createTimeline(
+      document.getElementById("timeline-vertical"),
+      verticalBandSet
+    );
+  </script>
+</body>
+</html>

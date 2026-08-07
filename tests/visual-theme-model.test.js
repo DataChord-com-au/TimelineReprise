@@ -106,6 +106,20 @@ test("VisualTheme validates tooltips and enables them by default", () => {
     );
 });
 
+test("VisualTheme validates label flow and defaults to normal", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(new Timeline.VisualTheme().label.flow, "normal");
+    assert.equal(
+        new Timeline.VisualTheme({ label: { flow: "orthogonal" } }).label.flow,
+        "orthogonal"
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({ label: { flow: "sideways" } }),
+        /label\.flow must be 'normal' or 'orthogonal'/
+    );
+});
+
 test("interval line visibility belongs to band construction", () => {
     const Timeline = loadTimeline();
 

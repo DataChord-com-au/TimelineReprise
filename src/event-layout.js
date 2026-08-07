@@ -340,6 +340,21 @@ import {
             : value;
     }
 
+    function normalizeLabelFlow(value, fallback = "normal") {
+        const flow = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return flow === "normal" || flow === "orthogonal"
+            ? flow
+            : fallback;
+    }
+
+    function getLabelFlow(painter, visualTheme = painter._visualTheme) {
+        const oriented = getOrientationSpec(visualTheme?.label, painter._timeline);
+        return normalizeLabelFlow(oriented?.flow ?? visualTheme?.label?.flow);
+    }
+
     function resolvePainterVisualTheme(painter, band) {
         const nativeTheme = band?._theme || painter._params?.theme || null;
         const visualTheme = Timeline.resolveVisualTheme(
@@ -707,6 +722,10 @@ import {
     }
 
     function measureVerticalEventLabelHeight(painter, evt, width, fallback) {
+        if (getLabelFlow(painter, getPainterVisualTheme(painter, evt)) === "orthogonal") {
+            return width;
+        }
+
         const doc = painter._timeline?.getDocument?.();
         const layer = painter._backLayer || painter._eventLayer;
         if (!doc || !layer) return fallback;
@@ -1032,6 +1051,20 @@ import {
             data.top = rect.top;
             data.elmt.style.top = rect.top + "px";
         }
+        if (data._repriseLabelFlow === "orthogonal") {
+            if ("width" in rect) {
+                data.width = rect.width;
+                data._repriseRawHeight = rect.width;
+                data.elmt.style.height = rect.width + "px";
+            }
+            if ("height" in rect) {
+                data.height = rect.height;
+                data._repriseRawWidth = rect.height;
+                data.elmt.style.width = rect.height + "px";
+            }
+            updateOrthogonalLabelTransform(data);
+            return;
+        }
         if ("width" in rect) {
             data.width = rect.width;
             data.elmt.style.width = rect.width + "px";
@@ -1040,6 +1073,53 @@ import {
             data.height = rect.height;
             data.elmt.style.height = rect.height + "px";
         }
+    }
+
+    function getDataRawWidth(data, fallback = 0) {
+        return data?._repriseRawWidth ||
+            data?.elmt?.offsetWidth ||
+            data?.width ||
+            fallback;
+    }
+
+    function getDataRawHeight(data, fallback = 0) {
+        return data?._repriseRawHeight ||
+            data?.elmt?.offsetHeight ||
+            data?.height ||
+            fallback;
+    }
+
+    function updateOrthogonalLabelTransform(data) {
+        if (!data?.elmt) return;
+
+        const rawWidth = getDataRawWidth(data, data.height || 0);
+        data.elmt.style.transformOrigin = "0 0";
+        data.elmt.style.transform =
+            "translateY(" + rawWidth + "px) rotate(-90deg)";
+    }
+
+    function applyLabelFlow(data, flow) {
+        if (!data?.elmt) return data;
+
+        const labelFlow = normalizeLabelFlow(flow);
+        data._repriseLabelFlow = labelFlow;
+
+        if (labelFlow !== "orthogonal") {
+            delete data._repriseRawWidth;
+            delete data._repriseRawHeight;
+            data.elmt.style.transform = "";
+            data.elmt.style.transformOrigin = "";
+            data.elmt.style.textAlign = "";
+            return data;
+        }
+
+        data._repriseRawWidth = getDataRawWidth(data, data.width || 0);
+        data._repriseRawHeight = getDataRawHeight(data, data.height || 0);
+        data.width = data._repriseRawHeight;
+        data.height = data._repriseRawWidth;
+        data.elmt.style.textAlign = "right";
+        updateOrthogonalLabelTransform(data);
+        return data;
     }
 
     function getEventTapeColor(evt, fallback, theme, visualTheme) {
@@ -1135,7 +1215,10 @@ import {
 
         const tapeCenter = getVerticalTapeLaneLeft(painter, metrics, theme, item.lane) +
             Math.round(getRangeWidth(painter) / 2);
-        const fontSize = getLabelFontSize(item.data, getDataHeight(item.data, item.height || 12));
+        const fontSize = getLabelFontSize(
+            item.data,
+            getLabelLineBoxFallback(item.data, item.height || 12)
+        );
         const sparkTop = Math.round(item.data.top + fontSize / 2);
         const sparkWidth = Math.max(
             0,
@@ -1163,11 +1246,21 @@ import {
     }
 
     function getDataWidth(data, fallback = 0) {
-        return data?.elmt?.offsetWidth || data?.width || fallback;
+        return data?._repriseLabelFlow === "orthogonal"
+            ? getDataRawHeight(data, fallback)
+            : data?.elmt?.offsetWidth || data?.width || fallback;
     }
 
     function getDataHeight(data, fallback = 0) {
-        return data?.elmt?.offsetHeight || data?.height || fallback;
+        return data?._repriseLabelFlow === "orthogonal"
+            ? getDataRawWidth(data, fallback)
+            : data?.elmt?.offsetHeight || data?.height || fallback;
+    }
+
+    function getLabelLineBoxFallback(data, fallback = 12) {
+        return data?._repriseLabelFlow === "orthogonal"
+            ? getDataRawHeight(data, fallback)
+            : getDataHeight(data, fallback);
     }
 
     function getItemLeft(item) {
@@ -1277,7 +1370,10 @@ import {
         const iconWidth = getDataWidth(icon.data, metrics.iconWidth);
         const iconMetrics = getRenderedIconMetrics(icon, metrics);
         const iconCenterTop = icon.data.top + iconMetrics.topOffset + iconMetrics.height / 2;
-        const fontSize = getLabelFontSize(item.data, item.height || getDataHeight(item.data, 0));
+        const fontSize = getLabelFontSize(
+            item.data,
+            getLabelLineBoxFallback(item.data, item.height || 0)
+        );
         const lineHeight = getLabelLineHeight(item.data, fontSize);
         const left = icon.data.left +
             iconWidth +
@@ -2152,6 +2248,7 @@ import {
             const labelColor = getEventLabelColor(evt, theme, visualTheme);
             data.elmt.style.color = labelColor || "";
             applyEventLabelClasses(this, evt, data, visualTheme);
+            applyLabelFlow(data, getLabelFlow(this, visualTheme));
 
             if (!labelsEnabled(evt, theme, visualTheme)) {
                 hidePaintedLabel(data);
@@ -2171,8 +2268,8 @@ import {
                     evt,
                     lane: getTapeLane(this, evt),
                     data: verticalData,
-                    width: verticalData.width,
-                    height: verticalData.height,
+                    width: getDataWidth(verticalData, verticalData.width || 0),
+                    height: getDataHeight(verticalData, verticalData.height || 0),
                     naturalTop: verticalData.top,
                     startPixel: Math.min(startPixel, endPixel),
                     endPixel: Math.max(startPixel, endPixel),
@@ -2192,8 +2289,8 @@ import {
                 evt,
                 lane: getEventLane(this, evt),
                 data: verticalData,
-                width: verticalData.width,
-                height: verticalData.height
+                width: getDataWidth(verticalData, verticalData.width || 0),
+                height: getDataHeight(verticalData, verticalData.height || 0)
             });
 
             return verticalData;
@@ -2210,16 +2307,16 @@ import {
 
             setPaintedRect(data, {
                 top: getTapeLabelTop(this, metrics, theme),
-                width,
-                height
+                width: getDataWidth(data, width),
+                height: getDataHeight(data, height)
             });
 
             this._repriseTapeLabels.push({
                 evt,
                 lane,
                 data,
-                width,
-                height,
+                width: getDataWidth(data, width),
+                height: getDataHeight(data, height),
                 naturalLeft: left,
                 startPixel: Math.min(startPixel, endPixel),
                 endPixel: Math.max(startPixel, endPixel),
@@ -2244,8 +2341,8 @@ import {
             data
         );
         item.naturalLeft = left;
-        item.width = width;
-        item.height = height;
+        item.width = getDataWidth(data, width);
+        item.height = getDataHeight(data, height);
         if (!evt.isInstant()) {
             item.trackTopOffset += getTapeToLabelGap(this);
         }

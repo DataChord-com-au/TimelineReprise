@@ -95,6 +95,16 @@ import {
             : fallback;
     }
 
+    function normalizeLabelFlow(value, fallback = "normal") {
+        const flow = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return flow === "normal" || flow === "orthogonal"
+            ? flow
+            : fallback;
+    }
+
     function parseColorChannels(color) {
         const source = String(color ?? "").trim();
         const rgb = source.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
@@ -331,6 +341,9 @@ import {
         this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
         this._stickyGap = themedFinite({}, labelTheme, "stickyGap", 4);
         this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
+        this._labelFlow = normalizeLabelFlow(
+            themedValue({}, labelTheme, "flow", "normal")
+        );
         this._labelColorMode = normalizeLabelColorMode(
             themedValue({}, labelTheme, "colorSource", "graphic"),
             "graphic"
@@ -626,6 +639,28 @@ import {
 
     Timeline.NarrativeDecorator.prototype._measureLabel = function (record) {
         const rect = record.labelElmt.getBoundingClientRect();
+        if (this._labelFlow === "orthogonal") {
+            const measuredRawWidth = Math.max(
+                record.rawWidth || 0,
+                record.labelElmt.offsetWidth || 0,
+                record.labelElmt.scrollWidth || 0
+            );
+            const measuredRawHeight = Math.max(
+                record.rawHeight || 0,
+                record.labelElmt.offsetHeight || 0,
+                record.labelElmt.scrollHeight || 0
+            );
+            const rawWidth = measuredRawWidth || rect.height || 0;
+            const rawHeight = measuredRawHeight || rect.width || 0;
+
+            record.rawWidth = rawWidth;
+            record.rawHeight = rawHeight;
+            record.width = rawHeight;
+            record.height = rawWidth;
+            this._updateLabelFlow(record);
+            return;
+        }
+
         const visibleWidth = Math.max(
             rect.width || 0,
             record.labelElmt.offsetWidth || 0
@@ -636,6 +671,22 @@ import {
             record.labelElmt.offsetHeight || 0,
             record.labelElmt.scrollHeight || 0
         );
+    };
+
+    Timeline.NarrativeDecorator.prototype._updateLabelFlow = function (record) {
+        if (!record?.labelElmt) return;
+
+        if (this._labelFlow !== "orthogonal") {
+            record.labelElmt.style.transform = "";
+            record.labelElmt.style.transformOrigin = "";
+            record.labelElmt.style.textAlign = "";
+            return;
+        }
+
+        record.labelElmt.style.textAlign = "right";
+        record.labelElmt.style.transformOrigin = "0 0";
+        record.labelElmt.style.transform =
+            "translateY(" + (record.rawWidth || record.height || 0) + "px) rotate(-90deg)";
     };
 
     Timeline.NarrativeDecorator.prototype._labelMainSize = function (record) {
@@ -663,12 +714,22 @@ import {
                 top: trackStart,
                 height: trackSize
             });
+            if (this._labelFlow === "orthogonal") {
+                record.rawHeight = trackSize;
+                record.width = trackSize;
+                this._updateLabelFlow(record);
+            }
         } else {
             this._setRect(record.labelElmt, {
                 top: adjustedMainStart,
                 left: trackStart,
                 width: trackSize
             });
+            if (this._labelFlow === "orthogonal") {
+                record.rawWidth = trackSize;
+                record.height = trackSize;
+                this._updateLabelFlow(record);
+            }
             record.labelElmt.style.whiteSpace = "normal";
             record.labelElmt.style.overflowWrap = "break-word";
         }
@@ -825,6 +886,9 @@ import {
         elmt.style.boxSizing = "border-box";
         elmt.style.pointerEvents = bubbles || tooltip ? "auto" : "none";
         elmt.style.cursor = bubbles ? "pointer" : "default";
+        if (this._labelFlow === "orthogonal") {
+            elmt.style.textAlign = "right";
+        }
 
         if (hasRenderedContent(title)) {
             const titleElmt = doc.createElement("div");

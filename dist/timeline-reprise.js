@@ -808,6 +808,7 @@ function validateThemeSpecId(value, caller) {
 
 const _VISUAL_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'both']);
 const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
+const _LABEL_FLOWS = Object.freeze(['normal', 'orthogonal']);
 const _VISUAL_THEME_FIELDS = new Set([
     'id',
     'disableEmphasis',
@@ -878,6 +879,7 @@ const _LABEL_FIELDS = new Set([
     'offset',
     'color',
     'colorSource',
+    'flow',
     ..._ORIENTATION_FIELDS
 ]);
 const _BUBBLE_FIELDS = new Set([
@@ -955,6 +957,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         }
     },
     label: {
+        flow: 'normal',
         colorSource: 'graphic',
         horizontal: {
             stickyInset: 2,
@@ -1122,6 +1125,10 @@ class VisualTheme {
 
         if (spec.colorSource !== undefined && !_LABEL_COLOR_SOURCES.includes(spec.colorSource)) {
             throw new RangeError(`${caller}.colorSource must be 'graphic', 'theme', or 'inherit'.`);
+        }
+
+        if (spec.flow !== undefined && !_LABEL_FLOWS.includes(spec.flow)) {
+            throw new RangeError(`${caller}.flow must be 'normal' or 'orthogonal'.`);
         }
     }
 
@@ -7541,6 +7548,21 @@ const Reprise = Object.freeze({
             : value;
     }
 
+    function normalizeLabelFlow(value, fallback = "normal") {
+        const flow = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return flow === "normal" || flow === "orthogonal"
+            ? flow
+            : fallback;
+    }
+
+    function getLabelFlow(painter, visualTheme = painter._visualTheme) {
+        const oriented = getOrientationSpec(visualTheme?.label, painter._timeline);
+        return normalizeLabelFlow(oriented?.flow ?? visualTheme?.label?.flow);
+    }
+
     function resolvePainterVisualTheme(painter, band) {
         const nativeTheme = band?._theme || painter._params?.theme || null;
         const visualTheme = Timeline.resolveVisualTheme(
@@ -7908,6 +7930,10 @@ const Reprise = Object.freeze({
     }
 
     function measureVerticalEventLabelHeight(painter, evt, width, fallback) {
+        if (getLabelFlow(painter, getPainterVisualTheme(painter, evt)) === "orthogonal") {
+            return width;
+        }
+
         const doc = painter._timeline?.getDocument?.();
         const layer = painter._backLayer || painter._eventLayer;
         if (!doc || !layer) return fallback;
@@ -8233,6 +8259,20 @@ const Reprise = Object.freeze({
             data.top = rect.top;
             data.elmt.style.top = rect.top + "px";
         }
+        if (data._repriseLabelFlow === "orthogonal") {
+            if ("width" in rect) {
+                data.width = rect.width;
+                data._repriseRawHeight = rect.width;
+                data.elmt.style.height = rect.width + "px";
+            }
+            if ("height" in rect) {
+                data.height = rect.height;
+                data._repriseRawWidth = rect.height;
+                data.elmt.style.width = rect.height + "px";
+            }
+            updateOrthogonalLabelTransform(data);
+            return;
+        }
         if ("width" in rect) {
             data.width = rect.width;
             data.elmt.style.width = rect.width + "px";
@@ -8241,6 +8281,53 @@ const Reprise = Object.freeze({
             data.height = rect.height;
             data.elmt.style.height = rect.height + "px";
         }
+    }
+
+    function getDataRawWidth(data, fallback = 0) {
+        return data?._repriseRawWidth ||
+            data?.elmt?.offsetWidth ||
+            data?.width ||
+            fallback;
+    }
+
+    function getDataRawHeight(data, fallback = 0) {
+        return data?._repriseRawHeight ||
+            data?.elmt?.offsetHeight ||
+            data?.height ||
+            fallback;
+    }
+
+    function updateOrthogonalLabelTransform(data) {
+        if (!data?.elmt) return;
+
+        const rawWidth = getDataRawWidth(data, data.height || 0);
+        data.elmt.style.transformOrigin = "0 0";
+        data.elmt.style.transform =
+            "translateY(" + rawWidth + "px) rotate(-90deg)";
+    }
+
+    function applyLabelFlow(data, flow) {
+        if (!data?.elmt) return data;
+
+        const labelFlow = normalizeLabelFlow(flow);
+        data._repriseLabelFlow = labelFlow;
+
+        if (labelFlow !== "orthogonal") {
+            delete data._repriseRawWidth;
+            delete data._repriseRawHeight;
+            data.elmt.style.transform = "";
+            data.elmt.style.transformOrigin = "";
+            data.elmt.style.textAlign = "";
+            return data;
+        }
+
+        data._repriseRawWidth = getDataRawWidth(data, data.width || 0);
+        data._repriseRawHeight = getDataRawHeight(data, data.height || 0);
+        data.width = data._repriseRawHeight;
+        data.height = data._repriseRawWidth;
+        data.elmt.style.textAlign = "right";
+        updateOrthogonalLabelTransform(data);
+        return data;
     }
 
     function getEventTapeColor(evt, fallback, theme, visualTheme) {
@@ -8336,7 +8423,10 @@ const Reprise = Object.freeze({
 
         const tapeCenter = getVerticalTapeLaneLeft(painter, metrics, theme, item.lane) +
             Math.round(getRangeWidth(painter) / 2);
-        const fontSize = getLabelFontSize(item.data, getDataHeight(item.data, item.height || 12));
+        const fontSize = getLabelFontSize(
+            item.data,
+            getLabelLineBoxFallback(item.data, item.height || 12)
+        );
         const sparkTop = Math.round(item.data.top + fontSize / 2);
         const sparkWidth = Math.max(
             0,
@@ -8364,11 +8454,21 @@ const Reprise = Object.freeze({
     }
 
     function getDataWidth(data, fallback = 0) {
-        return data?.elmt?.offsetWidth || data?.width || fallback;
+        return data?._repriseLabelFlow === "orthogonal"
+            ? getDataRawHeight(data, fallback)
+            : data?.elmt?.offsetWidth || data?.width || fallback;
     }
 
     function getDataHeight(data, fallback = 0) {
-        return data?.elmt?.offsetHeight || data?.height || fallback;
+        return data?._repriseLabelFlow === "orthogonal"
+            ? getDataRawWidth(data, fallback)
+            : data?.elmt?.offsetHeight || data?.height || fallback;
+    }
+
+    function getLabelLineBoxFallback(data, fallback = 12) {
+        return data?._repriseLabelFlow === "orthogonal"
+            ? getDataRawHeight(data, fallback)
+            : getDataHeight(data, fallback);
     }
 
     function getItemLeft(item) {
@@ -8478,7 +8578,10 @@ const Reprise = Object.freeze({
         const iconWidth = getDataWidth(icon.data, metrics.iconWidth);
         const iconMetrics = getRenderedIconMetrics(icon, metrics);
         const iconCenterTop = icon.data.top + iconMetrics.topOffset + iconMetrics.height / 2;
-        const fontSize = getLabelFontSize(item.data, item.height || getDataHeight(item.data, 0));
+        const fontSize = getLabelFontSize(
+            item.data,
+            getLabelLineBoxFallback(item.data, item.height || 0)
+        );
         const lineHeight = getLabelLineHeight(item.data, fontSize);
         const left = icon.data.left +
             iconWidth +
@@ -9353,6 +9456,7 @@ const Reprise = Object.freeze({
             const labelColor = getEventLabelColor(evt, theme, visualTheme);
             data.elmt.style.color = labelColor || "";
             applyEventLabelClasses(this, evt, data, visualTheme);
+            applyLabelFlow(data, getLabelFlow(this, visualTheme));
 
             if (!labelsEnabled(evt, theme, visualTheme)) {
                 hidePaintedLabel(data);
@@ -9372,8 +9476,8 @@ const Reprise = Object.freeze({
                     evt,
                     lane: getTapeLane(this, evt),
                     data: verticalData,
-                    width: verticalData.width,
-                    height: verticalData.height,
+                    width: getDataWidth(verticalData, verticalData.width || 0),
+                    height: getDataHeight(verticalData, verticalData.height || 0),
                     naturalTop: verticalData.top,
                     startPixel: Math.min(startPixel, endPixel),
                     endPixel: Math.max(startPixel, endPixel),
@@ -9393,8 +9497,8 @@ const Reprise = Object.freeze({
                 evt,
                 lane: getEventLane(this, evt),
                 data: verticalData,
-                width: verticalData.width,
-                height: verticalData.height
+                width: getDataWidth(verticalData, verticalData.width || 0),
+                height: getDataHeight(verticalData, verticalData.height || 0)
             });
 
             return verticalData;
@@ -9411,16 +9515,16 @@ const Reprise = Object.freeze({
 
             setPaintedRect(data, {
                 top: getTapeLabelTop(this, metrics, theme),
-                width,
-                height
+                width: getDataWidth(data, width),
+                height: getDataHeight(data, height)
             });
 
             this._repriseTapeLabels.push({
                 evt,
                 lane,
                 data,
-                width,
-                height,
+                width: getDataWidth(data, width),
+                height: getDataHeight(data, height),
                 naturalLeft: left,
                 startPixel: Math.min(startPixel, endPixel),
                 endPixel: Math.max(startPixel, endPixel),
@@ -9445,8 +9549,8 @@ const Reprise = Object.freeze({
             data
         );
         item.naturalLeft = left;
-        item.width = width;
-        item.height = height;
+        item.width = getDataWidth(data, width);
+        item.height = getDataHeight(data, height);
         if (!evt.isInstant()) {
             item.trackTopOffset += getTapeToLabelGap(this);
         }
@@ -9622,6 +9726,16 @@ const Reprise = Object.freeze({
 
         return source === "graphic" || source === "theme" || source === "inherit"
             ? source
+            : fallback;
+    }
+
+    function normalizeLabelFlow(value, fallback = "normal") {
+        const flow = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return flow === "normal" || flow === "orthogonal"
+            ? flow
             : fallback;
     }
 
@@ -9861,6 +9975,9 @@ const Reprise = Object.freeze({
         this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
         this._stickyGap = themedFinite({}, labelTheme, "stickyGap", 4);
         this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
+        this._labelFlow = normalizeLabelFlow(
+            themedValue({}, labelTheme, "flow", "normal")
+        );
         this._labelColorMode = normalizeLabelColorMode(
             themedValue({}, labelTheme, "colorSource", "graphic"),
             "graphic"
@@ -10156,6 +10273,28 @@ const Reprise = Object.freeze({
 
     Timeline.NarrativeDecorator.prototype._measureLabel = function (record) {
         const rect = record.labelElmt.getBoundingClientRect();
+        if (this._labelFlow === "orthogonal") {
+            const measuredRawWidth = Math.max(
+                record.rawWidth || 0,
+                record.labelElmt.offsetWidth || 0,
+                record.labelElmt.scrollWidth || 0
+            );
+            const measuredRawHeight = Math.max(
+                record.rawHeight || 0,
+                record.labelElmt.offsetHeight || 0,
+                record.labelElmt.scrollHeight || 0
+            );
+            const rawWidth = measuredRawWidth || rect.height || 0;
+            const rawHeight = measuredRawHeight || rect.width || 0;
+
+            record.rawWidth = rawWidth;
+            record.rawHeight = rawHeight;
+            record.width = rawHeight;
+            record.height = rawWidth;
+            this._updateLabelFlow(record);
+            return;
+        }
+
         const visibleWidth = Math.max(
             rect.width || 0,
             record.labelElmt.offsetWidth || 0
@@ -10166,6 +10305,22 @@ const Reprise = Object.freeze({
             record.labelElmt.offsetHeight || 0,
             record.labelElmt.scrollHeight || 0
         );
+    };
+
+    Timeline.NarrativeDecorator.prototype._updateLabelFlow = function (record) {
+        if (!record?.labelElmt) return;
+
+        if (this._labelFlow !== "orthogonal") {
+            record.labelElmt.style.transform = "";
+            record.labelElmt.style.transformOrigin = "";
+            record.labelElmt.style.textAlign = "";
+            return;
+        }
+
+        record.labelElmt.style.textAlign = "right";
+        record.labelElmt.style.transformOrigin = "0 0";
+        record.labelElmt.style.transform =
+            "translateY(" + (record.rawWidth || record.height || 0) + "px) rotate(-90deg)";
     };
 
     Timeline.NarrativeDecorator.prototype._labelMainSize = function (record) {
@@ -10193,12 +10348,22 @@ const Reprise = Object.freeze({
                 top: trackStart,
                 height: trackSize
             });
+            if (this._labelFlow === "orthogonal") {
+                record.rawHeight = trackSize;
+                record.width = trackSize;
+                this._updateLabelFlow(record);
+            }
         } else {
             this._setRect(record.labelElmt, {
                 top: adjustedMainStart,
                 left: trackStart,
                 width: trackSize
             });
+            if (this._labelFlow === "orthogonal") {
+                record.rawWidth = trackSize;
+                record.height = trackSize;
+                this._updateLabelFlow(record);
+            }
             record.labelElmt.style.whiteSpace = "normal";
             record.labelElmt.style.overflowWrap = "break-word";
         }
@@ -10355,6 +10520,9 @@ const Reprise = Object.freeze({
         elmt.style.boxSizing = "border-box";
         elmt.style.pointerEvents = bubbles || tooltip ? "auto" : "none";
         elmt.style.cursor = bubbles ? "pointer" : "default";
+        if (this._labelFlow === "orthogonal") {
+            elmt.style.textAlign = "right";
+        }
 
         if (hasRenderedContent(title)) {
             const titleElmt = doc.createElement("div");

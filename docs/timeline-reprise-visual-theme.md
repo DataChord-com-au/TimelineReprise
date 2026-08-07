@@ -89,6 +89,22 @@ enabled rendered caption as the label's native `title` tooltip. Set
 `tooltips: false` to suppress these caption tooltips without changing bubble
 behavior.
 
+`label.flow` controls label text direction for event and Narrative labels:
+
+```js
+var themes = Timeline.loadVisualThemes([{
+    id: "verticalLabels",
+    label: {
+        flow: "orthogonal"
+    }
+}]);
+```
+
+`normal` keeps the existing label behavior. `orthogonal` rotates Latin text by
+`-90deg`, so it reads up the page. The convention is page-space based and is not
+relative to timeline orientation. Event and Narrative label routing use the
+rotated visual footprint; overview painters do not use this label flow option.
+
 ## Presentation selection
 
 `presentation` selects a Reprise

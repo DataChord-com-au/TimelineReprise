@@ -84,6 +84,7 @@ function testVisualTheme(overrides = {}) {
             }
         },
         label: {
+            flow: "normal",
             colorSource: "graphic",
             horizontal: { stickyInset: 2, stickyGap: 4, offset: 0 },
             vertical: { stickyInset: 2, stickyGap: 4, offset: 0 }
@@ -1720,6 +1721,91 @@ test("event labelColor and textColor obey eventColorScope", () => {
     );
 });
 
+test("event range labels route with the orthogonal visual footprint", () => {
+    const painter = makeEventPainter("horizontal");
+    const theme = painter._params.theme;
+    const first = event("first", 0, 80);
+    const second = event("second", 50, 130);
+
+    painter._visualTheme = testVisualTheme({
+        label: { flow: "orthogonal" }
+    });
+    painter._timeline.getDocument = () => ({
+        getElementById: () => null,
+        createElement: () => ({ className: "", style: {} }),
+        head: { appendChild() {} }
+    });
+    painter._eventLayer = { appendChild() {} };
+
+    const firstLabel = painter._paintEventLabel(
+        first,
+        "first",
+        4,
+        0,
+        60,
+        10,
+        theme,
+        "timeline-event-label"
+    );
+    const secondLabel = painter._paintEventLabel(
+        second,
+        "second",
+        54,
+        0,
+        60,
+        10,
+        theme,
+        "timeline-event-label"
+    );
+
+    painter.paint();
+
+    assert.equal(firstLabel.width, 10);
+    assert.equal(firstLabel.height, 60);
+    assert.equal(firstLabel.left, 4);
+    assert.equal(firstLabel.elmt.style.width, "60px");
+    assert.equal(firstLabel.elmt.style.height, "10px");
+    assert.equal(firstLabel.elmt.style.textAlign, "right");
+    assert.equal(firstLabel.elmt.style.transform, "translateY(60px) rotate(-90deg)");
+    assert.equal(secondLabel.top, firstLabel.top);
+});
+
+test("event instant labels use orthogonal visual dimensions", () => {
+    const painter = makeEventPainter("horizontal");
+    const theme = painter._params.theme;
+    const evt = instantEvent("instant", 20);
+    const iconData = paintedData(20, 10, 10, 10);
+
+    painter._visualTheme = testVisualTheme({
+        label: { flow: "orthogonal" }
+    });
+    painter._reprisePointIcons.push({
+        evt,
+        lane: 0,
+        trackTopOffset: 8,
+        data: iconData
+    });
+
+    const label = painter._paintEventLabel(
+        evt,
+        "instant",
+        0,
+        0,
+        50,
+        12,
+        theme,
+        "timeline-event-label"
+    );
+
+    assert.equal(label.width, 12);
+    assert.equal(label.height, 50);
+    assert.equal(label.left, 34);
+    assert.equal(label.elmt.style.textAlign, "right");
+    assert.equal(label.elmt.style.transform, "translateY(50px) rotate(-90deg)");
+    assert.equal(painter._reprisePointLabels[0].width, 12);
+    assert.equal(painter._reprisePointLabels[0].height, 50);
+});
+
 test("horizontal instant toLabelGap is the exact visible dot-to-label gap", () => {
     const painter = makeEventPainter("horizontal");
     const evt = instantEvent("instant", 20);
@@ -2199,6 +2285,52 @@ test("vertical narrative range labels use range toLabelGap at the range edge", (
     decorator.softPaint();
 
     assert.equal(range.labelElmt.style.top, "26px");
+});
+
+test("horizontal narrative range labels route with the orthogonal visual footprint", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._labelFlow = "orthogonal";
+    const first = narrativeRange(decorator, 0, 0, 80, 60, 10);
+    const second = narrativeRange(decorator, 1, 50, 130, 60, 10);
+
+    decorator._setLabelPosition(first, -100000);
+    decorator._measureLabel(first);
+    decorator._setLabelPosition(second, -100000);
+    decorator._measureLabel(second);
+    decorator._rangeRecords = [first, second];
+
+    decorator.softPaint();
+
+    assert.equal(first.width, 40);
+    assert.equal(first.height, 60);
+    assert.equal(first.labelElmt.style.left, "4px");
+    assert.equal(first.labelElmt.style.textAlign, "right");
+    assert.equal(first.labelElmt.style.transform, "translateY(60px) rotate(-90deg)");
+    assert.deepEqual([first.track, second.track], [0, 0]);
+});
+
+test("horizontal narrative instant labels route with the orthogonal visual footprint", () => {
+    const decorator = makeNarrative("horizontal");
+    decorator._labelFlow = "orthogonal";
+    decorator._dividerWidth = 1;
+    const first = narrativeInstant(decorator, 0, 50, 60, 10);
+    const second = narrativeInstant(decorator, 1, 95, 60, 10);
+
+    decorator._setLabelPosition(first, -100000);
+    decorator._measureLabel(first);
+    decorator._setLabelPosition(second, -100000);
+    decorator._measureLabel(second);
+    decorator._rangeRecords = [];
+    decorator._instantRecords = [first, second];
+
+    decorator.softPaint();
+
+    assert.equal(first.width, 40);
+    assert.equal(first.height, 60);
+    assert.equal(first.labelElmt.style.left, "55px");
+    assert.equal(first.labelElmt.style.textAlign, "right");
+    assert.equal(first.labelElmt.style.transform, "translateY(60px) rotate(-90deg)");
+    assert.deepEqual([first.track, second.track], [0, 0]);
 });
 
 test("horizontal narrative persistence includes the sticky edge inset in its contact threshold", () => {

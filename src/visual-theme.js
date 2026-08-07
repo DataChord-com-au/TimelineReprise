@@ -93,6 +93,7 @@ function validateThemeSpecId(value, caller) {
 
 const _VISUAL_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'both']);
 const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
+const _LABEL_FLOWS = Object.freeze(['normal', 'orthogonal']);
 const _VISUAL_THEME_FIELDS = new Set([
     'id',
     'disableEmphasis',
@@ -163,6 +164,7 @@ const _LABEL_FIELDS = new Set([
     'offset',
     'color',
     'colorSource',
+    'flow',
     ..._ORIENTATION_FIELDS
 ]);
 const _BUBBLE_FIELDS = new Set([
@@ -240,6 +242,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         }
     },
     label: {
+        flow: 'normal',
         colorSource: 'graphic',
         horizontal: {
             stickyInset: 2,
@@ -407,6 +410,10 @@ class VisualTheme {
 
         if (spec.colorSource !== undefined && !_LABEL_COLOR_SOURCES.includes(spec.colorSource)) {
             throw new RangeError(`${caller}.colorSource must be 'graphic', 'theme', or 'inherit'.`);
+        }
+
+        if (spec.flow !== undefined && !_LABEL_FLOWS.includes(spec.flow)) {
+            throw new RangeError(`${caller}.flow must be 'normal' or 'orthogonal'.`);
         }
     }
 
