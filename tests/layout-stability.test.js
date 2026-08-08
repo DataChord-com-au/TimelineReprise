@@ -1167,6 +1167,40 @@ for (const orientation of ["horizontal", "vertical"]) {
     }
 }
 
+test("vertical sticky duration sparkline stays pinned to the label top line", () => {
+    const painter = makeEventPainter("vertical", 200);
+    let viewOffset = -40;
+    painter._band.getViewOffset = () => viewOffset;
+    painter._visualTheme.label.vertical.stickyInset = 0;
+    const item = tapeLabel(untrackedEvent("sticky", 0, 300), 0, 80, 20);
+
+    painter._repriseTapeLabels.push(item);
+    painter.paint();
+
+    assert.equal(item.data.top, 40);
+    assert.equal(item.spark.top, item.data.top);
+
+    viewOffset = -80;
+    painter.paint();
+
+    assert.equal(item.data.top, 80);
+    assert.equal(item.spark.top, item.data.top);
+});
+
+test("vertical sticky duration sparklines stagger by at least one label line", () => {
+    const labels = buildStickySparklineFixture("vertical", "start");
+    const visible = labels.filter((item) => !isHidden(item));
+    const positions = visible.map((item) => item.spark.top).sort((a, b) => a - b);
+
+    assert.equal(visible.length, labels.length);
+    for (let index = 1; index < positions.length; index++) {
+        assert.ok(
+            positions[index] - positions[index - 1] >= 20,
+            `expected sparkline gap >= 20px, got ${positions[index] - positions[index - 1]}px`
+        );
+    }
+});
+
 test("horizontal duration label sparklines stay attached to their own label after routing", () => {
     const painter = makeEventPainter("horizontal");
     const open = tapeLabel(event("open", -100, 80), 0, 30, 16);
@@ -3190,6 +3224,31 @@ test("fixed vertical orthogonal narrative range labels use collision routing", (
         ["", ""]
     );
 });
+
+for (const { orientation, flow, fixedMetric } of [
+    { orientation: "horizontal", flow: "normal", fixedMetric: "width" },
+    { orientation: "horizontal", flow: "orthogonal", fixedMetric: "height" },
+    { orientation: "vertical", flow: "normal", fixedMetric: "width" },
+    { orientation: "vertical", flow: "orthogonal", fixedMetric: "height" }
+]) {
+    test(`${orientation} ${flow} narrative label width applies to range and instant labels`, () => {
+        const decorator = makeNarrative(orientation);
+        decorator._labelFlow = flow;
+        decorator._labelWidth = 120;
+        decorator._dividerWidth = 1;
+        const range = narrativeRange(decorator, 0, 20, 220, 60, 10);
+        const instant = narrativeInstant(decorator, 1, 250, 60, 10);
+
+        decorator._rangeRecords = [range];
+        decorator._instantRecords = [instant];
+        decorator.softPaint();
+
+        assert.equal(range.labelElmt.style.width, "120px");
+        assert.equal(instant.labelElmt.style.width, "120px");
+        assert.equal(range[fixedMetric], 120);
+        assert.equal(instant[fixedMetric], 120);
+    });
+}
 
 test("horizontal narrative range labels route with the orthogonal visual footprint", () => {
     const decorator = makeNarrative("horizontal");

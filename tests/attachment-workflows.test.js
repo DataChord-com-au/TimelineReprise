@@ -381,6 +381,35 @@ test("attachEvents and attachNarrativeDecorators share label.vertical.width", ()
     assert.equal(bandInfo.decorators[0]._trackGap, 8);
 });
 
+test("attachNarrativeDecorators uses root label.width", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const visualTheme = new Timeline.VisualTheme({
+        label: {
+            width: 144
+        }
+    });
+    const { bandInfo, theme } = makeBand(Timeline, unit, visualTheme);
+    const band = {
+        _theme: theme,
+        getLabeller: () => unit.createLabeller()
+    };
+    const timeline = {
+        getUnit: () => unit,
+        isHorizontal: () => false,
+        isVertical: () => true
+    };
+
+    Timeline.attachNarrativeDecorators(
+        bandInfo,
+        [{ start: 1, end: 2, title: "Narrative" }]
+    );
+
+    bandInfo.decorators[0].initialize(band, timeline);
+
+    assert.equal(bandInfo.decorators[0]._labelWidth, 144);
+});
+
 test("attachNarrativeDecorators ignores label.vertical.length for label sizing", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);

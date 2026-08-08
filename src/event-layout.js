@@ -753,6 +753,16 @@ import {
         return finiteOr(getTapeSpec(painter).sparklineStagger, 8);
     }
 
+    function getLabelSparklineStagger(painter, item) {
+        if (!item?.data) return getSparklineStagger(painter);
+
+        const fontSize = getLabelFontSize(
+            item.data,
+            getLabelLineBoxFallback(item.data, item.height || 12)
+        );
+        return Math.max(getSparklineStagger(painter), fontSize);
+    }
+
     function edgeIfStuck(mainStart, size, viewportStart, viewportEnd) {
         const tolerance = 1;
         if (Math.abs(mainStart - viewportStart) <= tolerance) return "start";
@@ -1309,11 +1319,7 @@ import {
 
         const tapeCenter = getVerticalTapeLaneLeft(painter, metrics, theme, item.lane) +
             Math.round(getRangeWidth(painter) / 2);
-        const fontSize = getLabelFontSize(
-            item.data,
-            getLabelLineBoxFallback(item.data, item.height || 12)
-        );
-        const naturalSparkTop = Math.round(item.data.top + fontSize / 2);
+        const naturalSparkTop = Math.round(item.data.top);
         const authoredSparkTop = Number.isFinite(item._repriseSparkTop)
             ? item._repriseSparkTop
             : naturalSparkTop;
@@ -1463,7 +1469,6 @@ import {
         stickyLeft,
         stickyRight
     ) {
-        const stagger = getSparklineStagger(painter);
         const groups = { start: [], end: [] };
 
         for (const item of items) {
@@ -1495,6 +1500,7 @@ import {
                 metrics,
                 theme
             ).forEach(({ item }, index) => {
+                const stagger = getLabelSparklineStagger(painter, item);
                 const width = getDataWidth(item.data, item.width || 0);
                 const outside = edge === "start"
                     ? item.data.left + 2
@@ -1510,6 +1516,7 @@ import {
             if (Number.isFinite(item._repriseSparkLeft)) continue;
 
             const track = Math.max(0, Math.floor(item.labelTrack || 0));
+            const stagger = getLabelSparklineStagger(painter, item);
             const maxStagger = Math.max(0, item.endPixel - item.data.left - 1);
             const desiredLeft = item.data.left +
                 Math.min(track * stagger, maxStagger);
@@ -1525,7 +1532,6 @@ import {
         stickyTop,
         stickyBottom
     ) {
-        const stagger = getSparklineStagger(painter);
         const groups = { start: [], end: [] };
 
         for (const item of items) {
@@ -1536,9 +1542,7 @@ import {
         }
 
         const setSparkTop = (item, preferred) => {
-            const top = item.data.top;
-            const bottom = top + getDataHeight(item.data, item.height || 0);
-            item._repriseSparkTop = Math.round(Math.max(top, Math.min(preferred, bottom)));
+            item._repriseSparkTop = Math.round(preferred);
         };
 
         for (const [edge, group] of Object.entries(groups)) {
@@ -1552,10 +1556,11 @@ import {
                     item.data,
                     getLabelLineBoxFallback(item.data, item.height || 12)
                 );
+                const stagger = getLabelSparklineStagger(painter, item);
                 const height = getDataHeight(item.data, item.height || 0);
                 const outside = edge === "start"
-                    ? item.data.top + fontSize / 2
-                    : item.data.top + height - fontSize / 2;
+                    ? item.data.top
+                    : item.data.top + Math.max(0, height - fontSize);
                 const inward = edge === "start"
                     ? index * stagger
                     : -index * stagger;
@@ -1566,11 +1571,7 @@ import {
         for (const item of items) {
             if (Number.isFinite(item._repriseSparkTop)) continue;
 
-            const fontSize = getLabelFontSize(
-                item.data,
-                getLabelLineBoxFallback(item.data, item.height || 12)
-            );
-            setSparkTop(item, item.data.top + fontSize / 2);
+            setSparkTop(item, item.data.top);
         }
     }
 

@@ -276,25 +276,35 @@ import {
             : source;
     }
 
-    function hasConfiguredLabelWidth(visualTheme, timeline) {
+    function configuredLabelWidth(visualTheme, timeline) {
         const orientation = getOrientation(timeline);
         const hasConfigured = visualTheme?._hasConfigured;
 
         if (typeof hasConfigured === "function") {
-            if (orientation != null) {
-                return hasConfigured.call(visualTheme, ["label", orientation, "width"]);
+            if (
+                orientation != null &&
+                hasConfigured.call(visualTheme, ["label", orientation, "width"])
+            ) {
+                return toFiniteNumber(visualTheme?.label?.[orientation]?.width);
             }
 
-            return hasConfigured.call(visualTheme, ["label", "width"]);
+            return hasConfigured.call(visualTheme, ["label", "width"])
+                ? toFiniteNumber(visualTheme?.label?.width)
+                : null;
         }
 
         const label = visualTheme?.label;
-        if (!isObject(label)) return false;
+        if (!isObject(label)) return null;
         if (orientation != null && isObject(label[orientation])) {
-            return Object.prototype.hasOwnProperty.call(label[orientation], "width");
+            const oriented = label[orientation];
+            if (Object.prototype.hasOwnProperty.call(oriented, "width")) {
+                return toFiniteNumber(oriented.width);
+            }
         }
 
-        return Object.prototype.hasOwnProperty.call(label, "width");
+        return Object.prototype.hasOwnProperty.call(label, "width")
+            ? toFiniteNumber(label.width)
+            : null;
     }
 
     function cycleValue(values, index) {
@@ -382,9 +392,7 @@ import {
         this._stickyInset = themedFinite({}, labelTheme, "stickyInset", 2);
         this._stickyGap = themedFinite({}, labelTheme, "routingGap", 4);
         this._labelOffset = themedFinite({}, labelTheme, "offset", 0);
-        this._labelWidth = hasConfiguredLabelWidth(visualTheme, this._timeline)
-            ? themedFiniteOrNull({}, labelTheme, "width")
-            : null;
+        this._labelWidth = configuredLabelWidth(visualTheme, this._timeline);
         this._labelFlow = normalizeLabelFlow(
             themedValue({}, labelTheme, "flow", "normal")
         );
@@ -723,9 +731,11 @@ import {
 
     Timeline.NarrativeDecorator.prototype._measureLabel = function (record) {
         if (this._labelFlow === "orthogonal") {
+            const configuredWidth = this._labelWidth;
             const rawWidth = Math.max(
-                record.labelElmt.scrollWidth || 0,
-                record.labelElmt.offsetWidth || 0,
+                configuredWidth ?? 0,
+                configuredWidth == null ? record.labelElmt.scrollWidth || 0 : 0,
+                configuredWidth == null ? record.labelElmt.offsetWidth || 0 : 0,
                 record.rawWidth || 0
             );
             const rawHeight = Math.max(
@@ -755,7 +765,9 @@ import {
             rect.width || 0,
             record.labelElmt.offsetWidth || 0
         );
-        record.width = Math.max(visibleWidth, record.labelElmt.scrollWidth || 0);
+        record.width = this._labelWidth == null
+            ? Math.max(visibleWidth, record.labelElmt.scrollWidth || 0)
+            : this._labelWidth;
         record.height = Math.max(
             rect.height || 0,
             record.labelElmt.offsetHeight || 0,
@@ -842,6 +854,17 @@ import {
         const trackStart = this._trackStart(record.track);
         const trackSize = this._trackSizeValue();
         const adjustedMainStart = mainStart + this._labelOffset;
+        const labelWidth = this._labelWidth;
+
+        if (labelWidth != null) {
+            record.labelElmt.style.width = Math.round(labelWidth) + "px";
+            if (this._labelFlow === "orthogonal") {
+                record.rawWidth = labelWidth;
+                record.height = labelWidth;
+            } else {
+                record.width = labelWidth;
+            }
+        }
 
         if (this._isHorizontal()) {
             if (this._labelFlow === "orthogonal") {
@@ -857,15 +880,15 @@ import {
                     top: trackStart,
                     height: trackSize
                 });
+                if (labelWidth != null) {
+                    record.width = labelWidth;
+                }
             }
         } else {
             if (this._labelFlow === "orthogonal") {
-                const labelWidth = this._labelWidth;
                 record.labelElmt.style.top = Math.round(adjustedMainStart) + "px";
                 record.labelElmt.style.left = Math.round(trackStart) + "px";
-                record.labelElmt.style.width = labelWidth == null
-                    ? ""
-                    : Math.round(labelWidth) + "px";
+                record.labelElmt.style.width = labelWidth == null ? "" : Math.round(labelWidth) + "px";
                 record.labelElmt.style.maxWidth = "";
                 record.labelElmt.style.height = Math.round(trackSize) + "px";
                 record.labelElmt.style.whiteSpace = "normal";
@@ -881,10 +904,13 @@ import {
                 this._setRect(record.labelElmt, {
                     top: adjustedMainStart,
                     left: trackStart,
-                    width: trackSize
+                    width: labelWidth == null ? trackSize : labelWidth
                 });
                 record.labelElmt.style.whiteSpace = "normal";
                 record.labelElmt.style.overflowWrap = "break-word";
+                if (labelWidth != null) {
+                    record.width = labelWidth;
+                }
             }
         }
     };
