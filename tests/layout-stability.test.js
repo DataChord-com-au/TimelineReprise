@@ -2924,20 +2924,21 @@ test("vertical orthogonal narrative label width is independent of physical track
     assert.equal(decorator._trackStart(1), 80);
     assert.equal(first.labelElmt.style.left, "32px");
     assert.equal(second.labelElmt.style.left, "80px");
-    assert.equal(first.labelElmt.style.width, "");
-    assert.equal(first.labelElmt.style.maxWidth, "120px");
+    assert.equal(first.labelElmt.style.width, "120px");
+    assert.equal(first.labelElmt.style.maxWidth, "");
     assert.equal(first.labelElmt.style.height, "40px");
     assert.equal(first.width, 40);
-    assert.equal(first.height, 90);
-    assert.equal(first.labelElmt.style.transform, "translateY(90px) rotate(-90deg)");
+    assert.equal(first.height, 120);
+    assert.equal(first.labelElmt.style.transform, "translateY(120px) rotate(-90deg)");
 });
 
-test("vertical orthogonal narrative label width caps wrapping without becoming route length", () => {
+test("vertical orthogonal narrative label width sets route length", () => {
     const decorator = makeNarrative("vertical");
     decorator._labelFlow = "orthogonal";
+    decorator._band.getViewLength = () => 400;
     decorator._labelWidth = 120;
     const first = narrativeRange(decorator, 0, 0, 200, 90, 10);
-    const second = narrativeRange(decorator, 1, 95, 260, 90, 10);
+    const second = narrativeRange(decorator, 1, 100, 260, 90, 10);
 
     decorator._setLabelPosition(first, -100000);
     decorator._measureLabel(first);
@@ -2947,10 +2948,11 @@ test("vertical orthogonal narrative label width caps wrapping without becoming r
 
     decorator.softPaint();
 
-    assert.equal(first.labelElmt.style.maxWidth, "120px");
-    assert.equal(first.height, 90);
-    assert.equal(second.labelElmt.style.top, "99px");
-    assert.deepEqual([first.track, second.track], [0, 0]);
+    assert.equal(first.labelElmt.style.width, "120px");
+    assert.equal(first.labelElmt.style.maxWidth, "");
+    assert.equal(first.height, 120);
+    assert.equal(second.labelElmt.style.top, "104px");
+    assert.deepEqual([first.track, second.track], [0, 1]);
 });
 
 test("horizontal narrative labels remain retained briefly after leaving the sticky edge", () => {
