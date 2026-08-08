@@ -2808,11 +2808,11 @@ for (const rangeAlign of ["start", "center"]) {
                 ? ["30px", "90px", "170px"]
                 : ["44px", "104px", "184px"]
         );
-        assert.deepEqual([first.track, second.track, third.track], [0, 0, 0]);
+        assert.deepEqual([first.track, second.track, third.track], [0, 1, 0]);
     });
 }
 
-test("vertical narrative labels that already overhang their range do not route", () => {
+test("vertical narrative labels that already overhang their range route by track", () => {
     const decorator = makeNarrative("vertical");
     decorator._rangeLabelAlign = "center";
     const first = narrativeRange(decorator, 0, 40, 100, 40, 80);
@@ -2822,10 +2822,39 @@ test("vertical narrative labels that already overhang their range do not route",
 
     decorator.softPaint();
 
-    assert.deepEqual([first.track, second.track, third.track], [0, 0, 0]);
+    assert.deepEqual([first.track, second.track, third.track], [0, 1, 0]);
     assert.deepEqual(
         [first.labelElmt.style.display, second.labelElmt.style.display, third.labelElmt.style.display],
-        ["", "", ""]
+        ["", "", "none"]
+    );
+});
+
+test("fixed vertical orthogonal narrative range labels use collision routing", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+    decorator._labelWidth = 120;
+    decorator._rangeLabelAlign = "center";
+    const first = narrativeRange(decorator, 0, 40, 100, 90, 10);
+    const second = narrativeRange(decorator, 1, 40, 100, 90, 10);
+
+    decorator._setLabelPosition(first, -100000);
+    decorator._measureLabel(first);
+    decorator._setLabelPosition(second, -100000);
+    decorator._measureLabel(second);
+    decorator._rangeRecords = [first, second];
+
+    decorator.softPaint();
+
+    assert.equal(first.height, 120);
+    assert.equal(second.height, 120);
+    assert.deepEqual([first.track, second.track], [0, 1]);
+    assert.deepEqual(
+        [first.labelElmt.style.top, second.labelElmt.style.top],
+        ["10px", "10px"]
+    );
+    assert.deepEqual(
+        [first.labelElmt.style.display, second.labelElmt.style.display],
+        ["", ""]
     );
 });
 

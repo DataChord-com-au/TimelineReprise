@@ -1404,15 +1404,13 @@ import {
             a.record.index - b.record.index
         );
 
-        for (const { record, size, main, fixedMain, retained } of rangePlacements) {
-            const track = fixedMain
-                ? Math.max(0, Math.floor(record.baseTrack || 0))
-                : firstFreeTrack(
-                    main,
-                    size,
-                    record.baseTrack,
-                    record
-                );
+        for (const { record, size, main, retained } of rangePlacements) {
+            const track = firstFreeTrack(
+                main,
+                size,
+                record.baseTrack,
+                record
+            );
 
             if (track == null || track >= this._trackCount) {
                 record.labelElmt.style.display = "none";
