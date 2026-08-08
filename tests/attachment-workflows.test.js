@@ -272,6 +272,63 @@ test("events and Narrative on one band can use different named and instance them
     assert.equal(bandInfo.theme.visualTheme, bandTheme);
 });
 
+test("attachment options derive selected themes with boolean overrides", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const themes = Timeline.loadVisualThemes([{
+        id: "residences",
+        disableEmphasis: false,
+        spans: true,
+        dividers: true,
+        labels: true,
+        bubbles: true,
+        tooltips: true
+    }]);
+    const { bandInfo, eventPainter, records } = makeBand(Timeline, unit);
+
+    Timeline.attachEvents(
+        bandInfo,
+        [{ date: 1, title: "Event" }],
+        {
+            visualTheme: "residences",
+            labels: false,
+            bubbles: false
+        }
+    );
+    Timeline.attachNarrativeDecorators(
+        bandInfo,
+        [{ start: 2, end: 3, title: "Narrative" }],
+        {
+            visualTheme: "residences",
+            disableEmphasis: true,
+            spans: false,
+            dividers: false,
+            labels: false,
+            bubbles: false,
+            tooltips: false
+        }
+    );
+
+    assert.notEqual(records[0].visualTheme, themes.residences);
+    assert.equal(records[0].visualTheme.labels, false);
+    assert.equal(records[0].visualTheme.bubbles, false);
+    assert.equal(records[0].visualTheme.tooltips, true);
+    assert.equal(eventPainter._params.visualTheme, records[0].visualTheme);
+
+    const narrativeTheme = bandInfo.decorators[0]._visualTheme;
+    assert.notEqual(narrativeTheme, themes.residences);
+    assert.equal(narrativeTheme.disableEmphasis, true);
+    assert.equal(narrativeTheme.spans, false);
+    assert.equal(narrativeTheme.dividers, false);
+    assert.equal(narrativeTheme.labels, false);
+    assert.equal(narrativeTheme.bubbles, false);
+    assert.equal(narrativeTheme.tooltips, false);
+    assert.equal(bandInfo.decorators[0]._ranges[0].visualTheme, narrativeTheme);
+
+    assert.equal(themes.residences.labels, true);
+    assert.equal(themes.residences.bubbles, true);
+});
+
 test("attachEvents and attachNarrativeDecorators share label.vertical.width", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
@@ -1105,7 +1162,7 @@ test("attachCardinalAxis uses the runtime cardinal-axis projection hook", () => 
     assert.equal(bandInfo.decorators[0]._indexAtValue, indexAtValue);
 });
 
-test("legacy theme ids and flat decorator controls are rejected", () => {
+test("legacy theme ids and unsupported flat decorator controls are rejected", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
     const { bandInfo } = makeBand(Timeline, unit);
@@ -1122,9 +1179,9 @@ test("legacy theme ids and flat decorator controls are rejected", () => {
         () => Timeline.attachNarrativeDecorators(
             bandInfo,
             [],
-            { spans: false }
+            { labels: "no" }
         ),
-        /options\.spans.*not supported/
+        /labels must be a boolean/
     );
     assert.throws(
         () => Timeline.attachCardinalAxis(bandInfo, {

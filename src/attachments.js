@@ -3,9 +3,22 @@ import {
     resolveRepriseRuntime
 } from "./presentation-runtime.js";
 import { resolveVisualTheme } from "./theme-registry.js";
+import { deriveVisualTheme } from "./visual-theme.js";
 
 const _ATTACHMENT_MODULE_LABEL = "TimelineReprise";
-const _ATTACHMENT_OPTION_NAMES = new Set(["visualTheme", "runtime"]);
+const _ATTACHMENT_VISUAL_THEME_OVERRIDE_NAMES = [
+    "disableEmphasis",
+    "spans",
+    "dividers",
+    "labels",
+    "bubbles",
+    "tooltips"
+];
+const _ATTACHMENT_OPTION_NAMES = new Set([
+    "visualTheme",
+    "runtime",
+    ..._ATTACHMENT_VISUAL_THEME_OVERRIDE_NAMES
+]);
 const _ATTACHMENT_COLOUR_FIELDS = [
     "color",
     "textColor",
@@ -78,6 +91,18 @@ function _attachmentResolveOptions(options, caller) {
     return options;
 }
 
+function _attachmentReadVisualThemeOverrides(options) {
+    const overrides = {};
+
+    for (const name of _ATTACHMENT_VISUAL_THEME_OVERRIDE_NAMES) {
+        if (_attachmentHasOwn(options, name) && options[name] !== undefined) {
+            overrides[name] = options[name];
+        }
+    }
+
+    return Object.keys(overrides).length === 0 ? null : overrides;
+}
+
 function _attachmentResolveBandUnit(bandInfo) {
     return bandInfo.eventSource?._events?.getUnit?.() ??
         bandInfo.unit ??
@@ -118,10 +143,15 @@ function _attachmentResolveContext(bandInfo, options, caller) {
     _attachmentAssertBandInfo(bandInfo, caller);
     const resolvedOptions = _attachmentResolveOptions(options, caller);
     const unit = _attachmentResolveBandUnit(bandInfo);
-    const visualTheme = resolveVisualTheme(
+    const baseVisualTheme = resolveVisualTheme(
         resolvedOptions.visualTheme ?? null,
         bandInfo.theme
     );
+    const visualThemeOverrides =
+        _attachmentReadVisualThemeOverrides(resolvedOptions);
+    const visualTheme = visualThemeOverrides == null
+        ? baseVisualTheme
+        : deriveVisualTheme(baseVisualTheme, visualThemeOverrides);
     const runtime = resolveRepriseRuntime(
         resolvedOptions.runtime ?? bandInfo.repriseRuntime ?? null,
         {

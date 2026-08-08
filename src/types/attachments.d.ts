@@ -45,6 +45,12 @@ declare namespace Timeline {
     interface AttachmentOptions<T = unknown> {
         visualTheme?: VisualThemeSelection | null;
         runtime?: RepriseRuntimeContract<T> | null;
+        disableEmphasis?: boolean;
+        spans?: boolean;
+        dividers?: boolean;
+        labels?: boolean;
+        bubbles?: boolean;
+        tooltips?: boolean;
     }
 
     function attachEvents<T = unknown>(
