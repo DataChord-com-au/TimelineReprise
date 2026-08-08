@@ -26,6 +26,7 @@ import {
     const EVENT_GRAPHIC_Z_INDEX = 0;
     const EVENT_SPARKLINE_Z_INDEX = 1;
     const EVENT_LABEL_Z_INDEX = 2;
+    const HORIZONTAL_RANGE_SPARK_END_CLEARANCE = 6;
 
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
@@ -1288,23 +1289,53 @@ import {
             : (start + end - size) / 2;
     }
 
-    function getRangeLabelSlideEnd(
+    function rangeLabelBoxRetainedForRouting(mainStart, size, viewportStart, viewportEnd) {
+        const retention = Math.max(size, viewportEnd - viewportStart);
+        return mainStart + size > viewportStart - retention &&
+            mainStart < viewportEnd + retention;
+    }
+
+    function getRangeLabelViewportStart(
         painter,
         item,
+        size,
+        naturalStart,
         viewportStart,
-        stickyStart,
-        naturalStart
+        viewportEnd,
+        trailingMaxStart = null
     ) {
         const start = toFiniteNumber(item?.startPixel);
         const end = toFiniteNumber(item?.endPixel);
-        const viewLength = toFiniteNumber(painter._band?.getViewLength?.());
-        if (start == null || end == null || viewLength == null) return null;
+        const rangeEndStart = toFiniteNumber(trailingMaxStart) ?? end - size;
+        const overhangsRangeEnd = end != null && naturalStart + size > end;
+        const canSlideToTrailingLimit =
+            rangeEndStart != null &&
+            overhangsRangeEnd &&
+            naturalStart < viewportStart &&
+            end > viewportStart;
 
-        const fullyVisible =
-            start >= viewportStart &&
-            end <= viewportStart + viewLength;
-        const finishing = naturalStart <= stickyStart;
-        return fullyVisible && !finishing ? end : null;
+        if (start == null || end == null || (overhangsRangeEnd && !canSlideToTrailingLimit)) {
+            return naturalStart;
+        }
+
+        let main = naturalStart;
+        if (naturalStart < viewportStart) main = viewportStart;
+        else if (naturalStart + size > viewportEnd) main = viewportEnd - size;
+
+        return Math.max(start, Math.min(main, rangeEndStart));
+    }
+
+    function getHorizontalRangeLabelSparkMaxStart(painter, item, track) {
+        const end = toFiniteNumber(item?.endPixel);
+        if (end == null || !item?.spark) return null;
+
+        const stagger = Math.max(0, Math.floor(track || 0)) * getSparklineStagger(painter);
+        return end - HORIZONTAL_RANGE_SPARK_END_CLEARANCE - stagger - 2;
+    }
+
+    function horizontalRangeLabelAtSparkLimit(painter, item, left, track) {
+        const maxStart = getHorizontalRangeLabelSparkMaxStart(painter, item, track);
+        return maxStart != null && left >= maxStart;
     }
 
     function alignShortRangeLabel(painter, item) {
@@ -1493,64 +1524,6 @@ import {
         tracks[track].push({ left, right });
     }
 
-    function findSlidingLeft(intervals, preferredLeft, width, maxLeft, gap) {
-        if (preferredLeft >= maxLeft) return null;
-
-        let left = preferredLeft;
-        const sorted = (intervals || []).slice().sort((a, b) => a.left - b.left);
-
-        for (const interval of sorted) {
-            const right = left + width;
-            if (right + gap <= interval.left) break;
-
-            if (left < interval.right + gap && right + gap > interval.left) {
-                left = interval.right + gap;
-                if (left >= maxLeft) return null;
-            }
-        }
-
-        return left < maxLeft ? left : null;
-    }
-
-    function placeSlidingLabel(
-        tracks,
-        preferredLeft,
-        width,
-        maxLeft,
-        gap,
-        { slideEnd = null } = {}
-    ) {
-        if (preferredLeft >= maxLeft) return null;
-
-        for (let track = 0; track < tracks.length; track++) {
-            const preferredRight = preferredLeft + width;
-            if (slideEnd != null && intervalIsFree(
-                tracks[track],
-                preferredLeft,
-                preferredRight,
-                gap
-            )) {
-                return {
-                    track,
-                    left: preferredLeft,
-                    preservePreferredPosition: track > 0
-                };
-            }
-
-            const left = findSlidingLeft(tracks[track], preferredLeft, width, maxLeft, gap);
-            if (left != null && (slideEnd == null || left + width <= slideEnd)) {
-                return { track, left };
-            }
-        }
-
-        tracks.push([]);
-        return {
-            track: tracks.length - 1,
-            left: preferredLeft,
-            preservePreferredPosition: slideEnd != null
-        };
-    }
-
     function placeFixedGroup(tracks, left, right, gap) {
         for (let track = 0; track < tracks.length; track++) {
             if (intervalIsFree(tracks[track], left, right, gap)) return track;
@@ -1711,35 +1684,17 @@ import {
 
         const viewportTop = -painter._band.getViewOffset();
         const stickyTop = viewportTop + getStickyTopInset(painter);
+        const stickyBottom = viewportTop + painter._band.getViewLength() -
+            getStickyTopInset(painter);
         const labelGap = getLabelRoutingGap(painter);
         const activeTapeLabels = painter._repriseTapeLabels
-            .map((item, index) => ({ item, index }))
-            .filter(({ item }) => {
-                if (item.endPixel > stickyTop) return true;
-
-                item.data.elmt.style.display = "none";
-                if (item.spark?.elmt) item.spark.elmt.style.display = "none";
-                return false;
-            });
+            .map((item, index) => ({ item, index }));
         const rangePreferredTop = (item) => getRangeLabelPreferredStart(
             painter,
             item,
             item.height,
             item.naturalTop ?? item.startPixel
         );
-        const stickyTapeLabels = activeTapeLabels
-            .filter(({ item }) => rangePreferredTop(item) <= stickyTop)
-            .sort((a, b) =>
-                a.item.endPixel - b.item.endPixel ||
-                a.item.startPixel - b.item.startPixel ||
-                a.index - b.index
-            );
-        const normalTapeLabels = activeTapeLabels
-            .filter(({ item }) => rangePreferredTop(item) > stickyTop)
-            .sort((a, b) =>
-                rangePreferredTop(a.item) - rangePreferredTop(b.item) ||
-                a.index - b.index
-            );
         const pointGroups = buildVerticalEventGroups(painter)
             .sort((a, b) =>
                 a.startPixel - b.startPixel ||
@@ -1758,57 +1713,44 @@ import {
 
         const tapePlacements = [];
 
-        for (const { item } of [...stickyTapeLabels, ...normalTapeLabels]) {
+        for (const { item, index } of activeTapeLabels) {
             const naturalTop = rangePreferredTop(item);
-            const preferredTop = Math.max(naturalTop, stickyTop);
-            const placement = placeSlidingLabel(
-                tracks,
-                preferredTop,
+            const top = getRangeLabelViewportStart(
+                painter,
+                item,
                 item.height,
-                item.endPixel,
-                labelGap,
-                {
-                    slideEnd: getRangeLabelSlideEnd(
-                        painter,
-                        item,
-                        viewportTop,
-                        stickyTop,
-                        naturalTop
-                    )
-                }
+                naturalTop,
+                stickyTop,
+                stickyBottom
             );
 
-            if (placement == null) {
+            if (!rangeLabelBoxRetainedForRouting(
+                top,
+                item.height,
+                stickyTop,
+                stickyBottom
+            )) {
                 item.data.elmt.style.display = "none";
                 if (item.spark?.elmt) item.spark.elmt.style.display = "none";
                 continue;
             }
 
-            reserveInterval(
-                tracks,
-                placement.track,
-                placement.left,
-                placement.left + item.height
-            );
-            tapePlacements.push({ item, placement });
+            tapePlacements.push({
+                item,
+                top,
+                bottom: top + item.height,
+                index
+            });
         }
 
-        const shiftedTracks = tracks.map(() => []);
-        const routedTapePlacements = tapePlacements
-            .map((entry, routeIndex) => ({
-                item: entry.item,
-                top: entry.placement.left,
-                bottom: entry.placement.left + entry.item.height,
-                routeIndex
-            }))
-            .sort((a, b) =>
-                compareTapeLabelSpanInnerFirst(a, b) ||
-                a.routeIndex - b.routeIndex
-            );
+        const routedTapePlacements = tapePlacements.sort((a, b) =>
+            compareTapeLabelSpanInnerFirst(a, b) ||
+            a.index - b.index
+        );
 
         for (const entry of routedTapePlacements) {
-            const labelTrack = placeFixedGroup(shiftedTracks, entry.top, entry.bottom, labelGap);
-            reserveInterval(shiftedTracks, labelTrack, entry.top, entry.bottom);
+            const labelTrack = placeFixedGroup(tracks, entry.top, entry.bottom, labelGap);
+            reserveInterval(tracks, labelTrack, entry.top, entry.bottom);
 
             const left = labelTrack === 0
                 ? tapeLabelLeft
@@ -1823,8 +1765,6 @@ import {
             setPaintedRect(entry.item.data, { left, top: entry.top });
             updateVerticalTapeSparkLine(painter, entry.item, metrics, theme);
         }
-
-        tracks = shiftedTracks;
 
         for (const group of pointGroups.filter((item) => item.fixedLane == null)) {
             let physicalTrack = 0;
@@ -1924,20 +1864,36 @@ import {
         painter._repriseLabelTrackCount = tracks.length;
         painter._repriseEventLanes = {};
 
+        const horizontalRangeLabelLeft = (item, width, naturalLeft, track = 0) =>
+            getRangeLabelViewportStart(
+                painter,
+                item,
+                width,
+                naturalLeft,
+                stickyLeft,
+                stickyRight,
+                getHorizontalRangeLabelSparkMaxStart(painter, item, track)
+            );
+
+        const placeHorizontalRangeLabel = (item, width, naturalLeft) => {
+            for (let track = 0; track < tracks.length; track++) {
+                const left = horizontalRangeLabelLeft(item, width, naturalLeft, track);
+                if (intervalIsFree(tracks[track], left, left + width, labelGap)) {
+                    return { track, left };
+                }
+            }
+
+            const track = tracks.length;
+            tracks.push([]);
+            return {
+                track,
+                left: horizontalRangeLabelLeft(item, width, naturalLeft, track)
+            };
+        };
+
         for (const item of labels) {
             item.data.elmt.style.display = "";
             if (item.spark) item.spark.elmt.style.display = "";
-
-            if (item.endPixel <= stickyLeft) {
-                item.data.elmt.style.display = "none";
-                if (item.spark) item.spark.elmt.style.display = "none";
-                continue;
-            }
-            if (item.startPixel >= stickyRight) {
-                item.data.elmt.style.display = "none";
-                if (item.spark) item.spark.elmt.style.display = "none";
-                continue;
-            }
 
             const width = getDataWidth(item.data, item.width || 0);
             const naturalLeft = getRangeLabelPreferredStart(
@@ -1946,109 +1902,68 @@ import {
                 width,
                 item.naturalLeft ?? item.startPixel
             );
-            const preferredLeft = Math.max(naturalLeft, stickyLeft);
-            const placement = placeSlidingLabel(
-                tracks,
-                preferredLeft,
-                width,
-                item.endPixel,
-                labelGap,
-                {
-                    slideEnd: getRangeLabelSlideEnd(
-                        painter,
-                        item,
-                        viewportLeft,
-                        stickyLeft,
-                        naturalLeft
-                    )
-                }
-            );
+            const left = horizontalRangeLabelLeft(item, width, naturalLeft);
 
-            if (placement == null) {
+            if (!rangeLabelBoxRetainedForRouting(left, width, stickyLeft, stickyRight)) {
                 item.data.elmt.style.display = "none";
                 if (item.spark) item.spark.elmt.style.display = "none";
                 continue;
             }
 
-            reserveInterval(tracks, placement.track, placement.left, placement.left + width);
             item.lane = getTapeLane(painter, item.evt);
-            tapePlacements.push({ item, placement, width });
+            tapePlacements.push({
+                item,
+                naturalLeft,
+                left,
+                right: left + width,
+                width,
+                routeIndex: item.index
+            });
         }
 
-        const shiftedTracks = tracks.map(() => []);
-        const routedTapePlacements = [];
-        const placementsByTrack = new Map();
-
-        for (const entry of tapePlacements) {
-            const track = entry.placement.track;
-            if (!placementsByTrack.has(track)) placementsByTrack.set(track, []);
-            placementsByTrack.get(track).push(entry);
-        }
-
-        for (const entries of placementsByTrack.values()) {
-            for (let index = entries.length - 1; index >= 0; index--) {
-                const { item, placement, width } = entries[index];
-                const stagger = placement.track * sparklineStagger;
-                const maxStagger = Math.max(0, item.endPixel - placement.left - 1);
-                // The tape's own natural attach point: where its tape entered
-                // the sliding/collision placement, plus any stagger. This is
-                // deliberately independent of the sticky-right clamp below, so
-                // a label pushed off the visible edge cannot drag its tick
-                // along with it onto a position the tape never actually had.
-                const desiredLeft = placement.left + Math.min(stagger, maxStagger);
-                const naturalTickLeft = desiredLeft + 2;
-                const tickLeft = Math.round(getRangeLabelAlign(
-                    painter,
-                    getPainterVisualTheme(painter, item.evt)
-                ) === "center"
-                    ? Math.max(
-                        item.startPixel,
-                        Math.min(naturalTickLeft, item.endPixel)
-                    )
-                    : naturalTickLeft);
-                const rightStickyLeft = stickyRight - width;
-                const labelDesiredLeft = placement.preservePreferredPosition
-                    ? placement.left
-                    : desiredLeft;
-                const left = Math.max(
-                    stickyLeft,
-                    Math.min(labelDesiredLeft, rightStickyLeft)
-                );
-
-                routedTapePlacements.push({
-                    item,
-                    track: placement.track,
-                    left,
-                    right: left + width,
-                    width,
-                    tickLeft,
-                    routeIndex: routedTapePlacements.length
-                });
-            }
-        }
-
-        routedTapePlacements.sort((a, b) =>
+        const routedTapePlacements = tapePlacements.sort((a, b) =>
             compareTapeLabelSpanInnerFirst(a, b) ||
             a.routeIndex - b.routeIndex
         );
 
         for (const entry of routedTapePlacements) {
-            // Usually tickLeft lands inside [left, right] (it does whenever
-            // the sticky-right clamp above didn't have to move the label), so
-            // the spark still touches the label - just possibly at a
-            // different point along it than the label's own left edge. Only
-            // when clamping pulled the label far enough that its own tape's
-            // attach point no longer falls anywhere on it do we drop the
-            // label instead of faking a connection or stretching one across
-            // an arbitrary distance.
-            if (entry.item.spark && (entry.tickLeft < entry.left - 1 || entry.tickLeft > entry.right + 1)) {
+            const placement = placeHorizontalRangeLabel(
+                entry.item,
+                entry.width,
+                entry.naturalLeft
+            );
+            const track = placement.track;
+            entry.left = placement.left;
+            entry.right = entry.left + entry.width;
+            reserveInterval(tracks, track, entry.left, entry.right);
+            const stagger = track * sparklineStagger;
+            const maxStagger = Math.max(0, entry.item.endPixel - entry.left - 1);
+            const desiredLeft = entry.left + Math.min(stagger, maxStagger);
+            const naturalTickLeft = desiredLeft + 2;
+            const rangeTickLeft = getRangeLabelAlign(
+                painter,
+                getPainterVisualTheme(painter, entry.item.evt)
+            ) === "center"
+                ? Math.max(
+                    entry.item.startPixel,
+                    Math.min(naturalTickLeft, entry.item.endPixel)
+                )
+                : naturalTickLeft;
+            const tickLeft = Math.round(Math.max(
+                entry.left,
+                Math.min(rangeTickLeft, entry.right)
+            ));
+
+            if (horizontalRangeLabelAtSparkLimit(
+                painter,
+                entry.item,
+                entry.left,
+                track
+            )) {
                 entry.item.data.elmt.style.display = "none";
-                entry.item.spark.elmt.style.display = "none";
+                if (entry.item.spark) entry.item.spark.elmt.style.display = "none";
                 continue;
             }
-
-            const track = placeFixedGroup(shiftedTracks, entry.left, entry.right, labelGap);
-            reserveInterval(shiftedTracks, track, entry.left, entry.right);
 
             setPaintedRect(entry.item.data, {
                 left: entry.left,
@@ -2057,12 +1972,10 @@ import {
             });
 
             if (entry.item.spark) {
-                entry.item._repriseSparkLeft = entry.tickLeft;
+                entry.item._repriseSparkLeft = tickLeft;
                 updateTapeSparkLine(painter, entry.item, metrics, theme);
             }
         }
-
-        tracks = shiftedTracks;
 
         for (const group of pointGroups) {
             const track = placeFixedGroup(tracks, group.left, group.right, labelGap);

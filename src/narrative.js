@@ -19,9 +19,6 @@ import {
     const DEFAULT_NARRATIVE_LAYER_Z_INDEX = 5;
     const DEFAULT_NARRATIVE_DIVIDER_Z_INDEX = 101;
     const DEFAULT_NARRATIVE_LABEL_Z_INDEX = 114;
-    const HORIZONTAL_STICKY_CONTACT_SIZE = 12;
-    const VERTICAL_STICKY_CONTACT_SIZE = 6;
-
     function finiteOr(value, fallback) {
         const number = toFiniteNumber(value);
         return number != null ? number : fallback;
@@ -456,10 +453,6 @@ import {
         return this._trackEndPadding != null ? this._trackEndPadding : this._trackOffset;
     };
 
-    Timeline.NarrativeDecorator.prototype._stickyContactThreshold = function (contactSize) {
-        return contactSize + Math.max(0, this._stickyInset);
-    };
-
     Timeline.NarrativeDecorator.prototype._trackStart = function (track) {
         const trackSize = this._trackSizeValue();
         const increment = trackSize + this._trackGap;
@@ -740,6 +733,45 @@ import {
         return this._rangeLabelAlign === "center"
             ? (record.startPixel + record.endPixel - size) / 2
             : record.startPixel + this._rangeToLabelGap;
+    };
+
+    Timeline.NarrativeDecorator.prototype._rangeLabelRetainedForRouting = function (
+        mainStart,
+        size,
+        viewportStart,
+        viewportEnd
+    ) {
+        const retention = Math.max(1.5 * size, 2 * (viewportEnd - viewportStart));
+        return mainStart + size > viewportStart - retention &&
+            mainStart < viewportEnd + retention;
+    };
+
+    Timeline.NarrativeDecorator.prototype._rangeLabelViewportMain = function (
+        record,
+        size,
+        naturalMain,
+        viewportStart,
+        viewportEnd
+    ) {
+        const rangeEndMain = record.endPixel - size;
+        if (naturalMain + size > record.endPixel) return naturalMain;
+
+        const rangeSize = record.endPixel - record.startPixel;
+        if (size > rangeSize) return naturalMain;
+
+        let main = naturalMain;
+        if (naturalMain < viewportStart) main = viewportStart;
+        else if (naturalMain + size > viewportEnd) main = viewportEnd - size;
+
+        return Math.max(record.startPixel, Math.min(main, rangeEndMain));
+    };
+
+    Timeline.NarrativeDecorator.prototype._rangeLabelHasFixedMain = function (
+        record,
+        size,
+        naturalMain
+    ) {
+        return naturalMain + size > record.endPixel;
     };
 
     Timeline.NarrativeDecorator.prototype._instantDividerEndOffset = function (record) {
@@ -1175,9 +1207,6 @@ import {
             const stickyLeft = stickyMain;
             const stickyRight = viewportLeft + this._band.getViewLength() - this._stickyInset;
             const labelGap = this._stickyGap;
-            const contactInset = this._stickyContactThreshold(
-                HORIZONTAL_STICKY_CONTACT_SIZE
-            );
             let tracks = Array.from({ length: this._trackCount }, () => []);
             const spanPlacements = [];
 
@@ -1197,45 +1226,6 @@ import {
                 targetTracks[track].push({ left, right });
             };
 
-            const findSlidingLeft = (intervals, preferredLeft, size, maxLeft) => {
-                if (preferredLeft >= maxLeft) return null;
-
-                let left = preferredLeft;
-                const sorted = (intervals || []).slice().sort((a, b) => a.left - b.left);
-
-                for (const interval of sorted) {
-                    const right = left + size;
-                    if (right + labelGap <= interval.left) break;
-
-                    if (left < interval.right + labelGap &&
-                        right + labelGap > interval.left) {
-                        left = interval.right + labelGap;
-                        if (left >= maxLeft) return null;
-                    }
-                }
-
-                return left < maxLeft ? left : null;
-            };
-
-            const placeSlidingLabel = (targetTracks, preferredLeft, size, maxLeft) => {
-                if (preferredLeft >= maxLeft) return null;
-
-                const preferredRight = preferredLeft + size;
-
-                for (let track = 0; track < targetTracks.length; track++) {
-                    if (intervalIsFree(targetTracks[track], preferredLeft, preferredRight)) {
-                        return { track, left: preferredLeft };
-                    }
-                }
-
-                for (let track = 0; track < targetTracks.length; track++) {
-                    const left = findSlidingLeft(targetTracks[track], preferredLeft, size, maxLeft);
-                    if (left != null) return { track, left };
-                }
-
-                return null;
-            };
-
             const placeFixedLabel = (targetTracks, left, right, preferredTrack) => {
                 const startTrack = Math.max(0, Math.floor(preferredTrack || 0));
 
@@ -1243,63 +1233,53 @@ import {
                     if (intervalIsFree(targetTracks[track], left, right)) return track;
                 }
 
-                targetTracks.push([]);
-                return targetTracks.length - 1;
+                return null;
             };
 
             for (const record of ranges) {
-                if (record.endPixel - contactInset <= stickyLeft ||
-                    record.startPixel + contactInset >= stickyRight) {
-                    record.labelElmt.style.display = "none";
-                    continue;
-                }
-
                 const size = this._labelMainSize(record);
-                const naturalLeft = Math.max(
-                    this._rangeLabelMainStart(record, size),
-                    stickyLeft
-                );
-                const maxContactLeft = record.endPixel - contactInset;
-
-                if (naturalLeft >= maxContactLeft) {
-                    record.labelElmt.style.display = "none";
-                    continue;
-                }
-
-                const placement = placeSlidingLabel(
-                    tracks,
-                    naturalLeft,
+                const naturalLeft = this._rangeLabelMainStart(record, size);
+                const fixedMain = this._rangeLabelHasFixedMain(
+                    record,
                     size,
-                    maxContactLeft
+                    naturalLeft
+                );
+                const left = this._rangeLabelViewportMain(
+                    record,
+                    size,
+                    naturalLeft,
+                    stickyLeft,
+                    stickyRight
                 );
 
-                if (placement == null) {
+                if (!this._rangeLabelRetainedForRouting(
+                    left,
+                    size,
+                    stickyLeft,
+                    stickyRight
+                )) {
                     record.labelElmt.style.display = "none";
                     continue;
                 }
 
-                reserveInterval(
-                    tracks,
-                    placement.track,
-                    placement.left,
-                    placement.left + size
-                );
-                spanPlacements.push({ record, placement, size });
+                spanPlacements.push({ record, left, size, fixedMain });
             }
 
             const shiftedTracks = tracks.map(() => []);
 
-            for (const { record, placement, size } of spanPlacements) {
-                const rightStickyLeft = stickyRight - size;
-                const left = Math.max(
-                    stickyLeft,
-                    Math.min(placement.left, rightStickyLeft)
-                );
-                const track = placeFixedLabel(
-                    shiftedTracks,
-                    left,
-                    left + size
-                );
+            for (const { record, left, size, fixedMain } of spanPlacements) {
+                const track = fixedMain
+                    ? Math.max(0, Math.floor(record.baseTrack || 0))
+                    : placeFixedLabel(
+                        shiftedTracks,
+                        left,
+                        left + size
+                    );
+
+                if (track == null || track >= this._trackCount) {
+                    record.labelElmt.style.display = "none";
+                    continue;
+                }
 
                 record.track = track;
                 record.labelElmt.style.display = "";
@@ -1325,6 +1305,11 @@ import {
                     preferredTrack
                 );
 
+                if (track == null || track >= this._trackCount) {
+                    record.labelElmt.style.display = "none";
+                    continue;
+                }
+
                 record.track = track;
                 record.labelElmt.style.display = "";
                 this._setLabelPosition(record, labelStart);
@@ -1336,9 +1321,9 @@ import {
 
         const occupied = {};
         const visibleOccupied = [];
-        const contactInset = this._stickyContactThreshold(
-            VERTICAL_STICKY_CONTACT_SIZE
-        );
+        const viewportTop = -viewOffset;
+        const viewportBottom = viewportTop + this._band.getViewLength() -
+            this._stickyInset;
         const labelCrossEnd = (record, track) =>
             this._trackStart(track) + Math.max(this._trackSizeValue(), record.width || 0);
 
@@ -1353,87 +1338,6 @@ import {
             });
         };
 
-        const stackForward = (track, start, size) => {
-            let next = start;
-            let changed = true;
-
-            while (changed) {
-                changed = false;
-                for (const rect of occupied[track] || []) {
-                    if (next < rect.end && next + size > rect.start) {
-                        next = rect.end;
-                        changed = true;
-                    }
-                }
-            }
-
-            return next;
-        };
-
-        const labelKeepsRangeContact = (record, main, size) => {
-            const renderedStart = main + this._labelOffset;
-            if (this._rangeLabelAlign !== "center") {
-                return renderedStart >= record.startPixel &&
-                    renderedStart + contactInset <= record.endPixel;
-            }
-
-            const contact = Math.min(
-                contactInset,
-                Math.max(0, (record.endPixel - record.startPixel) / 2)
-            );
-            return renderedStart + size - contact >= record.startPixel &&
-                renderedStart + contact <= record.endPixel;
-        };
-
-        const labelKeepsContact = (record, main, size) =>
-            this._rangeLabelAlign === "center"
-                ? labelKeepsRangeContact(record, main, size)
-                : main + this._labelOffset + contactInset <= record.endPixel;
-
-        const placeRangeLabel = (
-            record,
-            start,
-            size,
-            firstTrack = record.baseTrack,
-            requireFullBounds = false,
-            slideEnd = null
-        ) => {
-            const preferredTrack = Math.max(0, Math.floor(firstTrack || 0));
-            const occupiedTracks = Object.keys(occupied).map(Number);
-            const lastOccupiedTrack = occupiedTracks.length > 0
-                ? Math.max(...occupiedTracks)
-                : -1;
-            const overflowTrack = Math.max(
-                preferredTrack,
-                this._trackCount - 1,
-                lastOccupiedTrack
-            ) + 1;
-            const lastTrack = slideEnd == null
-                ? overflowTrack
-                : this._trackCount - 1;
-            let rerouting = requireFullBounds;
-
-            for (let track = preferredTrack; track <= lastTrack; track++) {
-                const main = stackForward(track, start, size);
-                const pushed = main > start;
-
-                if (slideEnd != null) {
-                    if (!pushed || main + this._labelOffset + size <= slideEnd) {
-                        return { track, main };
-                    }
-                    continue;
-                }
-
-                if ((!rerouting && !pushed) || labelKeepsRangeContact(record, main, size)) {
-                    return { track, main };
-                }
-
-                rerouting = true;
-            }
-
-            return null;
-        };
-
         const collidesVisible = (track, start, size, record) => {
             const left = this._trackStart(track);
             const right = labelCrossEnd(record, track);
@@ -1446,89 +1350,79 @@ import {
             );
         };
 
-        const firstFreeInstantTrackOrOverflow = (start, size, startTrack, record) => {
+        const firstFreeTrack = (start, size, startTrack, record) => {
             const firstTrack = Math.max(0, Math.floor(startTrack || 0));
-            const maxTrack = firstTrack + this._trackCount + visibleOccupied.length + 2;
 
-            for (let track = firstTrack; track <= maxTrack; track++) {
+            for (let track = firstTrack; track < this._trackCount; track++) {
                 if (!collidesVisible(track, start, size, record)) return track;
             }
 
-            return maxTrack + 1;
+            return null;
         };
+
+        const rangePlacements = [];
 
         for (const record of ranges) {
             const size = this._labelMainSize(record);
-            const viewportMain = -viewOffset;
             const naturalMain = this._rangeLabelMainStart(record, size);
-            const fullyVisible =
-                record.startPixel >= viewportMain &&
-                record.endPixel <= viewportMain + this._band.getViewLength();
-            const finishing = naturalMain <= stickyMain;
-            const slideEnd = fullyVisible && !finishing
-                ? record.endPixel
-                : null;
-            const main = Math.max(
+            const preferredMain = Math.max(
                 naturalMain,
-                stickyMain,
                 this._rangeLabelAlign === "center"
                     ? Number.NEGATIVE_INFINITY
                     : record.startPixel - this._labelOffset
             );
-            const previousPlacement = record._verticalPlacement;
-            const retainPushedPlacement = previousPlacement != null &&
-                (previousPlacement.viewOffset == null ||
-                    viewOffset <= previousPlacement.viewOffset);
-            let placement = labelKeepsContact(record, main, size)
-                ? placeRangeLabel(
-                    record,
+            const fixedMain = this._rangeLabelHasFixedMain(
+                record,
+                size,
+                preferredMain
+            );
+            const main = this._rangeLabelViewportMain(
+                record,
+                size,
+                preferredMain,
+                stickyMain,
+                viewportBottom
+            );
+            const retained = this._rangeLabelRetainedForRouting(
+                main,
+                size,
+                stickyMain,
+                viewportBottom
+            );
+
+            rangePlacements.push({ record, size, main, fixedMain, retained });
+        }
+
+        rangePlacements.sort((a, b) =>
+            Number(b.fixedMain) - Number(a.fixedMain) ||
+            a.main - b.main ||
+            a.record.startPixel - b.record.startPixel ||
+            a.record.index - b.record.index
+        );
+
+        for (const { record, size, main, fixedMain, retained } of rangePlacements) {
+            const track = fixedMain
+                ? Math.max(0, Math.floor(record.baseTrack || 0))
+                : firstFreeTrack(
                     main,
                     size,
-                    retainPushedPlacement
-                        ? previousPlacement.track
-                        : record.baseTrack,
-                    false,
-                    slideEnd
-                )
-                : null;
+                    record.baseTrack,
+                    record
+                );
 
-            if (placement != null &&
-                retainPushedPlacement &&
-                previousPlacement.track === placement.track &&
-                previousPlacement.main > placement.main) {
-                const retainedMain = previousPlacement.main;
-                const retainedPlacementFits = slideEnd == null
-                    ? labelKeepsRangeContact(record, retainedMain, size)
-                    : retainedMain + this._labelOffset + size <= slideEnd;
-
-                if (retainedPlacementFits) {
-                    placement.main = retainedMain;
-                } else {
-                    placement = placeRangeLabel(
-                        record,
-                        main,
-                        size,
-                        placement.track + 1,
-                        true,
-                        slideEnd
-                    );
-                }
-            }
-
-            if (placement == null) {
+            if (track == null || track >= this._trackCount) {
                 record.labelElmt.style.display = "none";
                 record._verticalPlacement = null;
                 this._rangePlacementState.delete(record.item);
                 continue;
             }
 
-            record.track = placement.track;
-            placement.viewOffset = viewOffset;
-            record._verticalPlacement = placement;
-            this._rangePlacementState.set(record.item, placement);
-            record.labelElmt.style.display = "";
-            this._setLabelPosition(record, placement.main);
-            reserveLabel(record.track, placement.main, size, record);
+            record.track = track;
+            record._verticalPlacement = { track, main, viewOffset };
+            this._rangePlacementState.set(record.item, record._verticalPlacement);
+            record.labelElmt.style.display = retained ? "" : "none";
+            this._setLabelPosition(record, main);
+            reserveLabel(record.track, main, size, record);
         }
 
         const instantLabels = this._instantRecords
@@ -1541,12 +1435,17 @@ import {
             const preferredTrack = record.trackExplicit ? record.baseTrack : 0;
             const labelStart = record.pixel + this._instantDividerEndOffset(record);
 
-            record.track = firstFreeInstantTrackOrOverflow(
+            record.track = firstFreeTrack(
                 labelStart,
                 size,
                 preferredTrack,
                 record
             );
+
+            if (record.track == null || record.track >= this._trackCount) {
+                record.labelElmt.style.display = "none";
+                continue;
+            }
             record.labelElmt.style.display = "";
             this._setLabelPosition(record, labelStart);
             reserveLabel(record.track, labelStart, size, record);
