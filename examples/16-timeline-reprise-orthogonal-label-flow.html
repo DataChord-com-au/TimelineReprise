@@ -39,7 +39,9 @@
   <h1>SIMILE Timeline Reprise: Orthogonal Label Flow</h1>
   <p>
     This example uses the narrative setup from example 11 with
-    <code>label.flow: "orthogonal"</code>, so labels read up the page.
+    <code>label.flow: "orthogonal"</code> and
+    <code>label.*.rangeAlign: "center"</code>, so labels read up the page and
+    range labels prefer the center of their ranges.
   </p>
 
   <section style="margin-top: 28px;">
@@ -47,7 +49,7 @@
     <ul>
       <li>the main band shows normal timeline events and ranges</li>
       <li>the lower band uses chapter spans as decorator data</li>
-      <li>event and Narrative labels share the orthogonal page-space label flow</li>
+      <li>event and Narrative range labels share centered orthogonal placement</li>
     </ul>
     <div id="timeline-horizontal" style="height: 420px;"></div>
   </section>
@@ -57,7 +59,7 @@
     <ul>
       <li>the same main events and narrative data are shown vertically</li>
       <li>the narrative band is still a separate decorator band</li>
-      <li>orthogonal labels keep reading up the page, independent of timeline orientation</li>
+      <li>centered orthogonal labels work independently of timeline orientation</li>
     </ul>
     <div id="timeline-vertical" style="width: 800px; max-width: 100%; height: 620px;"></div>
   </section>
@@ -138,13 +140,13 @@
           horizontal: {
             count: 2,
             offset: 12,
-            size: 22,
+            size: 100,
             gap: 4
           },
           vertical: {
             count: 2,
             offset: 10,
-            size: 90,
+            size: 22,
             gap: 4
           }
         },
@@ -166,11 +168,13 @@
         label: {
           flow: "orthogonal",
           horizontal: {
+            rangeAlign: "center",
             offset: 2,
             stickyInset: 6,
             routingGap: 4
           },
           vertical: {
+            rangeAlign: "center",
             offset: 2,
             stickyInset: 6,
             routingGap: 4

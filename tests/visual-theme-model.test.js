@@ -127,6 +127,7 @@ test("VisualTheme resolves label placement fields from label specs", () => {
             rangeCssClass: "range-label",
             instantCssClass: "instant-label",
             horizontal: {
+                rangeAlign: "center",
                 toRangeGap: 7,
                 toInstantGap: 8,
                 toRangeBlockGap: 15,
@@ -134,6 +135,7 @@ test("VisualTheme resolves label placement fields from label specs", () => {
                 trackGap: 3
             },
             vertical: {
+                rangeAlign: "center",
                 toRangeGap: 9,
                 toInstantGap: 11,
                 width: 120,
@@ -144,6 +146,10 @@ test("VisualTheme resolves label placement fields from label specs", () => {
 
     assert.equal(new Timeline.VisualTheme().label.horizontal.toRangeGap, 4);
     assert.equal(new Timeline.VisualTheme().label.horizontal.toInstantGap, 4);
+    assert.equal(new Timeline.VisualTheme().label.horizontal.rangeAlign, "start");
+    assert.equal(new Timeline.VisualTheme().label.vertical.rangeAlign, "start");
+    assert.equal(theme.label.horizontal.rangeAlign, "center");
+    assert.equal(theme.label.vertical.rangeAlign, "center");
     assert.equal(theme.label.horizontal.toRangeGap, 7);
     assert.equal(theme.label.horizontal.toInstantGap, 8);
     assert.equal(theme.label.horizontal.routingGap, 10);
@@ -188,6 +194,12 @@ test("VisualTheme resolves label placement fields from label specs", () => {
             label: { vertical: { length: 0 } }
         }),
         /label\.vertical\.length must be a positive finite number/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            label: { horizontal: { rangeAlign: "end" } }
+        }),
+        /label\.horizontal\.rangeAlign must be 'start' or 'center'/
     );
 });
 

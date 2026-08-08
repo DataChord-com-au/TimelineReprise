@@ -355,6 +355,12 @@ import {
         return normalizeLabelFlow(oriented?.flow ?? visualTheme?.label?.flow);
     }
 
+    function getRangeLabelAlign(painter, visualTheme = painter._visualTheme) {
+        const oriented = getOrientationSpec(visualTheme?.label, painter._timeline);
+        const align = oriented?.rangeAlign ?? visualTheme?.label?.rangeAlign;
+        return align === "center" ? "center" : "start";
+    }
+
     function resolvePainterVisualTheme(painter, band) {
         const nativeTheme = band?._theme || painter._params?.theme || null;
         const visualTheme = Timeline.resolveVisualTheme(
@@ -1223,7 +1229,13 @@ import {
             item.data,
             getLabelLineBoxFallback(item.data, item.height || 12)
         );
-        const sparkTop = Math.round(item.data.top + fontSize / 2);
+        const naturalSparkTop = Math.round(item.data.top + fontSize / 2);
+        const sparkTop = getRangeLabelAlign(
+            painter,
+            getPainterVisualTheme(painter, item.evt)
+        ) === "center"
+            ? Math.max(item.startPixel, Math.min(naturalSparkTop, item.endPixel))
+            : naturalSparkTop;
         const sparkWidth = Math.max(
             0,
             item.data.left - tapeCenter - getLabelToRangeGap(painter)
@@ -1259,6 +1271,68 @@ import {
         return data?._repriseLabelFlow === "orthogonal"
             ? getDataRawWidth(data, fallback)
             : data?.elmt?.offsetHeight || data?.height || fallback;
+    }
+
+    function getRangeLabelPreferredStart(painter, item, size, fallback) {
+        if (getRangeLabelAlign(
+            painter,
+            getPainterVisualTheme(painter, item?.evt)
+        ) !== "center") {
+            return fallback;
+        }
+
+        const start = toFiniteNumber(item?.startPixel);
+        const end = toFiniteNumber(item?.endPixel);
+        return start == null || end == null
+            ? fallback
+            : (start + end - size) / 2;
+    }
+
+    function getRangeLabelSlideEnd(
+        painter,
+        item,
+        viewportStart,
+        stickyStart,
+        naturalStart
+    ) {
+        const start = toFiniteNumber(item?.startPixel);
+        const end = toFiniteNumber(item?.endPixel);
+        const viewLength = toFiniteNumber(painter._band?.getViewLength?.());
+        if (start == null || end == null || viewLength == null) return null;
+
+        const fullyVisible =
+            start >= viewportStart &&
+            end <= viewportStart + viewLength;
+        const finishing = naturalStart <= stickyStart;
+        return fullyVisible && !finishing ? end : null;
+    }
+
+    function alignShortRangeLabel(painter, item) {
+        if (item?.evt?.isInstant?.() !== false) return;
+
+        const startPixel = Math.round(painter._band.dateToPixelOffset(item.evt.getStart()));
+        const endPixel = Math.round(painter._band.dateToPixelOffset(item.evt.getEnd()));
+        item.startPixel = Math.min(startPixel, endPixel);
+        item.endPixel = Math.max(startPixel, endPixel);
+
+        if (getRangeLabelAlign(
+            painter,
+            getPainterVisualTheme(painter, item.evt)
+        ) !== "center") {
+            return;
+        }
+
+        if (isHorizontal(painter)) {
+            const width = getDataWidth(item.data, item.width || 0);
+            const left = (item.startPixel + item.endPixel - width) / 2;
+            setPaintedRect(item.data, { left });
+            item.naturalLeft = left;
+            return;
+        }
+
+        const height = getDataHeight(item.data, item.height || 0);
+        const top = (item.startPixel + item.endPixel - height) / 2;
+        setPaintedRect(item.data, { top });
     }
 
     function getLabelLineBoxFallback(data, fallback = 12) {
@@ -1438,16 +1512,43 @@ import {
         return left < maxLeft ? left : null;
     }
 
-    function placeSlidingLabel(tracks, preferredLeft, width, maxLeft, gap) {
-        for (let track = 0; track < tracks.length; track++) {
-            const left = findSlidingLeft(tracks[track], preferredLeft, width, maxLeft, gap);
-            if (left != null) return { track, left };
-        }
-
+    function placeSlidingLabel(
+        tracks,
+        preferredLeft,
+        width,
+        maxLeft,
+        gap,
+        { slideEnd = null } = {}
+    ) {
         if (preferredLeft >= maxLeft) return null;
 
+        for (let track = 0; track < tracks.length; track++) {
+            const preferredRight = preferredLeft + width;
+            if (slideEnd != null && intervalIsFree(
+                tracks[track],
+                preferredLeft,
+                preferredRight,
+                gap
+            )) {
+                return {
+                    track,
+                    left: preferredLeft,
+                    preservePreferredPosition: track > 0
+                };
+            }
+
+            const left = findSlidingLeft(tracks[track], preferredLeft, width, maxLeft, gap);
+            if (left != null && (slideEnd == null || left + width <= slideEnd)) {
+                return { track, left };
+            }
+        }
+
         tracks.push([]);
-        return { track: tracks.length - 1, left: preferredLeft };
+        return {
+            track: tracks.length - 1,
+            left: preferredLeft,
+            preservePreferredPosition: slideEnd != null
+        };
     }
 
     function placeFixedGroup(tracks, left, right, gap) {
@@ -1620,18 +1721,23 @@ import {
                 if (item.spark?.elmt) item.spark.elmt.style.display = "none";
                 return false;
             });
+        const rangePreferredTop = (item) => getRangeLabelPreferredStart(
+            painter,
+            item,
+            item.height,
+            item.naturalTop ?? item.startPixel
+        );
         const stickyTapeLabels = activeTapeLabels
-            .filter(({ item }) => (item.naturalTop ?? item.startPixel) <= stickyTop)
+            .filter(({ item }) => rangePreferredTop(item) <= stickyTop)
             .sort((a, b) =>
                 a.item.endPixel - b.item.endPixel ||
                 a.item.startPixel - b.item.startPixel ||
                 a.index - b.index
             );
         const normalTapeLabels = activeTapeLabels
-            .filter(({ item }) => (item.naturalTop ?? item.startPixel) > stickyTop)
+            .filter(({ item }) => rangePreferredTop(item) > stickyTop)
             .sort((a, b) =>
-                (a.item.naturalTop ?? a.item.startPixel) -
-                    (b.item.naturalTop ?? b.item.startPixel) ||
+                rangePreferredTop(a.item) - rangePreferredTop(b.item) ||
                 a.index - b.index
             );
         const pointGroups = buildVerticalEventGroups(painter)
@@ -1653,14 +1759,23 @@ import {
         const tapePlacements = [];
 
         for (const { item } of [...stickyTapeLabels, ...normalTapeLabels]) {
-            const naturalTop = item.naturalTop ?? item.startPixel;
+            const naturalTop = rangePreferredTop(item);
             const preferredTop = Math.max(naturalTop, stickyTop);
             const placement = placeSlidingLabel(
                 tracks,
                 preferredTop,
                 item.height,
                 item.endPixel,
-                labelGap
+                labelGap,
+                {
+                    slideEnd: getRangeLabelSlideEnd(
+                        painter,
+                        item,
+                        viewportTop,
+                        stickyTop,
+                        naturalTop
+                    )
+                }
             );
 
             if (placement == null) {
@@ -1825,13 +1940,28 @@ import {
             }
 
             const width = getDataWidth(item.data, item.width || 0);
-            const preferredLeft = Math.max(item.naturalLeft ?? item.startPixel, stickyLeft);
+            const naturalLeft = getRangeLabelPreferredStart(
+                painter,
+                item,
+                width,
+                item.naturalLeft ?? item.startPixel
+            );
+            const preferredLeft = Math.max(naturalLeft, stickyLeft);
             const placement = placeSlidingLabel(
                 tracks,
                 preferredLeft,
                 width,
                 item.endPixel,
-                labelGap
+                labelGap,
+                {
+                    slideEnd: getRangeLabelSlideEnd(
+                        painter,
+                        item,
+                        viewportLeft,
+                        stickyLeft,
+                        naturalLeft
+                    )
+                }
             );
 
             if (placement == null) {
@@ -1866,11 +1996,23 @@ import {
                 // a label pushed off the visible edge cannot drag its tick
                 // along with it onto a position the tape never actually had.
                 const desiredLeft = placement.left + Math.min(stagger, maxStagger);
-                const tickLeft = Math.round(desiredLeft + 2);
+                const naturalTickLeft = desiredLeft + 2;
+                const tickLeft = Math.round(getRangeLabelAlign(
+                    painter,
+                    getPainterVisualTheme(painter, item.evt)
+                ) === "center"
+                    ? Math.max(
+                        item.startPixel,
+                        Math.min(naturalTickLeft, item.endPixel)
+                    )
+                    : naturalTickLeft);
                 const rightStickyLeft = stickyRight - width;
+                const labelDesiredLeft = placement.preservePreferredPosition
+                    ? placement.left
+                    : desiredLeft;
                 const left = Math.max(
                     stickyLeft,
-                    Math.min(desiredLeft, rightStickyLeft)
+                    Math.min(labelDesiredLeft, rightStickyLeft)
                 );
 
                 routedTapePlacements.push({
@@ -2289,13 +2431,15 @@ import {
                 return verticalData;
             }
 
-            this._reprisePointLabels.push({
+            const item = {
                 evt,
                 lane: getEventLane(this, evt),
                 data: verticalData,
                 width: getDataWidth(verticalData, verticalData.width || 0),
                 height: getDataHeight(verticalData, verticalData.height || 0)
-            });
+            };
+            this._reprisePointLabels.push(item);
+            alignShortRangeLabel(this, item);
 
             return verticalData;
         }
@@ -2351,6 +2495,7 @@ import {
             item.trackTopOffset += getLabelToRangeGap(this);
         }
         alignInstantLabelToIcon(this, item, metrics, theme);
+        alignShortRangeLabel(this, item);
         return data;
     };
 

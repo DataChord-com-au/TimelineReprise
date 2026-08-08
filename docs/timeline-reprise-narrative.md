@@ -354,11 +354,22 @@ Extra class added to instant label elements.
 ### `visualTheme.label.*.offset`
 Offset applied along the timeline axis when placing labels.
 
+### `visualTheme.label.*.rangeAlign`
+Time-axis alignment for range labels. `start` is the default and preserves the
+range-start placement. `center` prefers the range midpoint using the rendered
+label length, including orthogonal labels and labels longer than their range.
+For either alignment, a fully visible label slides or stacks only until its
+trailing edge reaches the range end, then tries another configured track. A
+finishing label at the viewport edge keeps contact-based routing. Labels hide
+when no configured track remains. Instant labels are unaffected.
+
 ### `visualTheme.label.horizontal.toRangeGap`
-Horizontal inset between a range start edge and its label. Defaults to `4`.
+Horizontal inset between a range start edge and a `start`-aligned label.
+Defaults to `4`.
 
 ### `visualTheme.label.vertical.toRangeGap`
-Vertical inset between a range start edge and its label. Defaults to `4`.
+Vertical inset between a range start edge and a `start`-aligned label. Defaults
+to `4`.
 
 ### `visualTheme.label.horizontal.toInstantGap`
 Horizontal gap between an instant divider line and its label. Defaults to `4`.

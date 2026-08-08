@@ -105,6 +105,24 @@ var themes = Timeline.loadVisualThemes([{
 relative to timeline orientation. Event and Narrative label routing use the
 rotated visual footprint; overview painters do not use this label flow option.
 
+`label.horizontal.rangeAlign` and `label.vertical.rangeAlign` control the
+time-axis alignment of range labels for each timeline orientation:
+
+```js
+label: {
+    horizontal: { rangeAlign: "center" },
+    vertical: { rangeAlign: "center" }
+}
+```
+
+`start` is the default. `center` prefers the center of the range using the
+label's rendered footprint, including orthogonal labels and labels longer than
+their range. Collision routing, sticky positioning, and viewport limits may
+move that preferred position. For either alignment, a fully visible label may
+slide on its current track only until its trailing edge reaches the range end;
+routing then tries the next track. A finishing label at the viewport edge keeps
+contact-based routing. Instant labels are unaffected.
+
 ## Presentation selection
 
 `presentation` selects a Reprise

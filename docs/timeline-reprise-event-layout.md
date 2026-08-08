@@ -290,6 +290,14 @@ included when the short event's routed-row height is measured. Defaults to `4`.
 If a long-range value exceeds the available connector distance, the sparkline
 length clamps to zero.
 
+### `visualTheme.label.horizontal.rangeAlign`
+Time-axis alignment for horizontal range labels. `start` preserves the default
+range-start placement. `center` prefers the range midpoint for long and short
+ranges. For either alignment, a fully visible label slides only until its
+trailing edge reaches the range end, then tries another row. A finishing label
+at the viewport edge keeps contact-based routing. Instant labels are
+unaffected.
+
 ### `visualTheme.label.horizontal.toRangeBlockGap`
 Minimum vertical-axis gap between the complete tape block and the first routed
 label row. Defaults to `15`.
@@ -328,6 +336,14 @@ Short-duration labels use the same value by moving the label to the right of
 its tape, and that offset is included in the computed event-column pitch.
 Defaults to `4`. If a long-range value exceeds the available connector
 distance, the sparkline length clamps to zero.
+
+### `visualTheme.label.vertical.rangeAlign`
+Time-axis alignment for vertical range labels. `start` preserves the default
+range-top placement. `center` prefers the range midpoint for long and short
+ranges. For either alignment, a fully visible label slides only until its
+trailing edge reaches the range end, then tries another column. A finishing
+label at the viewport edge keeps contact-based routing. Instant labels are
+unaffected.
 
 ### `visualTheme.label.vertical.toRangeBlockGap`
 Minimum horizontal-axis gap between the complete tape block and the first routed

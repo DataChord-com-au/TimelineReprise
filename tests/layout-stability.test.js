@@ -78,6 +78,7 @@ function testVisualTheme(overrides = {}) {
             rangeCssClass: "",
             instantCssClass: "",
             horizontal: {
+                rangeAlign: "start",
                 stickyInset: 2,
                 offset: 0,
                 toRangeGap: 4,
@@ -87,6 +88,7 @@ function testVisualTheme(overrides = {}) {
                 trackGap: 2
             },
             vertical: {
+                rangeAlign: "start",
                 stickyInset: 2,
                 offset: 0,
                 toRangeGap: 4,
@@ -617,6 +619,147 @@ function tapeLabel(evt, natural, width, height) {
         spark: paintedData(0, 0, 1, 0)
     };
 }
+
+for (const {
+    orientation,
+    flow,
+    width,
+    height,
+    expected
+} of [
+    { orientation: "horizontal", flow: "normal", width: 40, height: 16, expected: 50 },
+    { orientation: "horizontal", flow: "orthogonal", width: 60, height: 12, expected: 64 },
+    { orientation: "vertical", flow: "normal", width: 80, height: 30, expected: 55 },
+    { orientation: "vertical", flow: "orthogonal", width: 70, height: 12, expected: 35 }
+]) {
+    test(`${orientation} ${flow} range labels center on a fully visible range`, () => {
+        const painter = makeEventPainter(orientation);
+        const item = tapeLabel(event("centered", 20, 120), 20, width, height);
+        painter._visualTheme.label[orientation].rangeAlign = "center";
+
+        if (flow === "orthogonal") {
+            item.data._repriseLabelFlow = "orthogonal";
+            item.data._repriseRawWidth = width;
+            item.data._repriseRawHeight = height;
+            item.data.width = height;
+            item.data.height = width;
+            item.width = height;
+            item.height = width;
+        }
+
+        painter._repriseTapeLabels.push(item);
+        painter.paint();
+
+        assert.equal(
+            orientation === "horizontal" ? item.data.left : item.data.top,
+            expected
+        );
+    });
+}
+
+test("a centered range label can be longer than its range", () => {
+    const painter = makeEventPainter("horizontal");
+    const item = tapeLabel(event("overlong", 80, 110), 80, 100, 16);
+    painter._visualTheme.label.horizontal.rangeAlign = "center";
+    painter._repriseTapeLabels.push(item);
+
+    painter.paint();
+
+    assert.equal(item.data.left, 45);
+    assert.equal(item.data.elmt.style.display, "");
+});
+
+for (const orientation of ["horizontal", "vertical"]) {
+    test(`${orientation} centered range labels retain sticky leading-edge limits`, () => {
+        const painter = makeEventPainter(orientation);
+        const item = tapeLabel(event("sticky", -100, 100), -100, 40, 30);
+        painter._visualTheme.label[orientation].rangeAlign = "center";
+        painter._repriseTapeLabels.push(item);
+
+        painter.paint();
+
+        assert.equal(
+            orientation === "horizontal" ? item.data.left : item.data.top,
+            0
+        );
+    });
+}
+
+for (const rangeAlign of ["start", "center"]) {
+    for (const orientation of ["horizontal", "vertical"]) {
+        test(`${orientation} ${rangeAlign}-aligned range labels jump tracks at their range end`, () => {
+        const painter = makeEventPainter(orientation, 300);
+        const height = orientation === "horizontal" ? 16 : 80;
+        const first = tapeLabel(event("first", 40, 100), 40, 80, height);
+        const second = tapeLabel(event("second", 100, 160), 100, 80, height);
+        const third = tapeLabel(event("third", 180, 240), 180, 80, height);
+        painter._visualTheme.label[orientation].rangeAlign = rangeAlign;
+        painter._repriseTapeLabels.push(first, second, third);
+
+        painter.paint();
+
+        const main = (item) => orientation === "horizontal"
+            ? item.data.left
+            : item.data.top;
+        const cross = (item) => orientation === "horizontal"
+            ? item.data.top
+            : item.data.left;
+
+        assert.deepEqual(
+            [main(first), main(second), main(third)],
+            rangeAlign === "center" ? [30, 90, 170] : [40, 100, 180]
+        );
+        assert.equal(cross(first), cross(third));
+        assert.notEqual(cross(first), cross(second));
+        });
+    }
+}
+
+test("range labels retain same-track sliding while their trailing edge fits", () => {
+    const painter = makeEventPainter("horizontal", 300);
+    const first = tapeLabel(event("first", 40, 140), 40, 60, 16);
+    const second = tapeLabel(event("second", 90, 210), 90, 60, 16);
+    painter._visualTheme.label.horizontal.rangeAlign = "center";
+    painter._visualTheme.range.horizontal.sparklineStagger = 0;
+    painter._repriseTapeLabels.push(first, second);
+
+    painter.paint();
+
+    assert.deepEqual([first.data.left, second.data.left], [60, 130]);
+    assert.equal(first.data.top, second.data.top);
+});
+
+test("center alignment applies to short range labels but not instant labels", () => {
+    const painter = makeEventPainter("horizontal");
+    const theme = painter._params.theme;
+    painter._visualTheme.label.horizontal.rangeAlign = "center";
+
+    const rangeLabel = painter._paintEventLabel(
+        event("short", 100, 110),
+        "Long range label",
+        110,
+        2,
+        100,
+        16,
+        theme,
+        "timeline-event-label",
+        -1
+    );
+    const instantLabel = painter._paintEventLabel(
+        instantEvent("instant", 130),
+        "Instant label",
+        135,
+        2,
+        40,
+        16,
+        theme,
+        "timeline-event-label",
+        -1
+    );
+
+    assert.equal(rangeLabel.left, 55);
+    assert.equal(instantLabel.left, 135);
+});
 
 test("horizontal event labels ignore distant right-edge stacks", () => {
     const baseline = makeEventPainter("horizontal");
@@ -2307,6 +2450,77 @@ test("vertical narrative range labels use label toRangeGap at the range edge", (
     assert.equal(range.labelElmt.style.top, "26px");
 });
 
+for (const {
+    orientation,
+    flow,
+    width,
+    height,
+    expected
+} of [
+    { orientation: "horizontal", flow: "normal", width: 40, height: 16, expected: "50px" },
+    { orientation: "horizontal", flow: "orthogonal", width: 70, height: 12, expected: "64px" },
+    { orientation: "vertical", flow: "normal", width: 80, height: 30, expected: "55px" },
+    { orientation: "vertical", flow: "orthogonal", width: 70, height: 12, expected: "35px" }
+]) {
+    test(`${orientation} ${flow} narrative range labels center on the range`, () => {
+        const decorator = makeNarrative(orientation);
+        decorator._labelFlow = flow;
+        decorator._rangeLabelAlign = "center";
+        const range = narrativeRange(decorator, 0, 20, 120, width, height);
+
+        if (flow === "orthogonal") {
+            decorator._setLabelPosition(range, -100000);
+            decorator._measureLabel(range);
+        }
+
+        decorator._rangeRecords = [range];
+        decorator.softPaint();
+
+        assert.equal(
+            orientation === "horizontal"
+                ? range.labelElmt.style.left
+                : range.labelElmt.style.top,
+            expected
+        );
+    });
+}
+
+for (const rangeAlign of ["start", "center"]) {
+    test(`vertical ${rangeAlign}-aligned narrative labels jump tracks at their range end`, () => {
+        const decorator = makeNarrative("vertical");
+        decorator._rangeLabelAlign = rangeAlign;
+        decorator._band.getViewLength = () => 300;
+        const first = narrativeRange(decorator, 0, 40, 100, 40, 80);
+        const second = narrativeRange(decorator, 1, 100, 160, 40, 80);
+        const third = narrativeRange(decorator, 2, 180, 240, 40, 80);
+        decorator._rangeRecords = [first, second, third];
+
+        decorator.softPaint();
+
+        assert.deepEqual(
+            [first.labelElmt.style.top, second.labelElmt.style.top, third.labelElmt.style.top],
+            rangeAlign === "center"
+                ? ["30px", "90px", "170px"]
+                : ["44px", "104px", "184px"]
+        );
+        assert.deepEqual([first.track, second.track, third.track], [0, 1, 0]);
+    });
+}
+
+test("vertical narrative labels hide when range-end routing exhausts configured tracks", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._rangeLabelAlign = "center";
+    const first = narrativeRange(decorator, 0, 40, 100, 40, 80);
+    const second = narrativeRange(decorator, 1, 40, 100, 40, 80);
+    const third = narrativeRange(decorator, 2, 40, 100, 40, 80);
+    decorator._rangeRecords = [first, second, third];
+
+    decorator.softPaint();
+
+    assert.deepEqual([first.track, second.track], [0, 1]);
+    assert.equal(third.labelElmt.style.display, "none");
+});
+
 test("horizontal narrative range labels route with the orthogonal visual footprint", () => {
     const decorator = makeNarrative("horizontal");
     decorator._labelFlow = "orthogonal";
@@ -2321,8 +2535,9 @@ test("horizontal narrative range labels route with the orthogonal visual footpri
 
     decorator.softPaint();
 
-    assert.equal(first.width, 40);
+    assert.equal(first.width, 10);
     assert.equal(first.height, 60);
+    assert.equal(first.labelElmt.style.height, "");
     assert.equal(first.labelElmt.style.left, "4px");
     assert.equal(first.labelElmt.style.textAlign, "right");
     assert.equal(first.labelElmt.style.transform, "translateY(60px) rotate(-90deg)");
@@ -2345,8 +2560,9 @@ test("horizontal narrative instant labels route with the orthogonal visual footp
 
     decorator.softPaint();
 
-    assert.equal(first.width, 40);
+    assert.equal(first.width, 10);
     assert.equal(first.height, 60);
+    assert.equal(first.labelElmt.style.height, "");
     assert.equal(first.labelElmt.style.left, "55px");
     assert.equal(first.labelElmt.style.textAlign, "right");
     assert.equal(first.labelElmt.style.transform, "translateY(60px) rotate(-90deg)");
@@ -2672,7 +2888,7 @@ test("vertical sticky narrative labels stack forward on their current track whil
     ]);
 });
 
-test("a multiline vertical narrative label alone reroutes when its full height cannot fit the stack", () => {
+test("a multiline vertical narrative label stacks while it keeps range contact", () => {
     const decorator = makeNarrative("vertical");
     decorator._labelOffset = 2;
 
@@ -2692,16 +2908,35 @@ test("a multiline vertical narrative label alone reroutes when its full height c
     decorator.softPaint();
 
     assert.equal(multiline.height, 55, "routing must use the rendered multiline scroll height");
-    assert.deepEqual([first.track, multiline.track, third.track], [0, 1, 0]);
+    assert.deepEqual([first.track, multiline.track, third.track], [0, 0, 0]);
     assert.deepEqual(
         [first.labelElmt.style.top, multiline.labelElmt.style.top, third.labelElmt.style.top],
-        ["2px", "2px", "27px"]
+        ["2px", "27px", "87px"]
     );
-    assert.equal(multiline.labelElmt.style.left, "45px");
+    assert.equal(multiline.labelElmt.style.left, "0px");
     assert.ok(
-        Number.parseInt(multiline.labelElmt.style.top, 10) + multiline.height <= multiline.endPixel,
-        "the complete rerouted label must remain within its own duration"
+        Number.parseInt(multiline.labelElmt.style.top, 10) + 6 <= multiline.endPixel,
+        "the rerouted label must keep contact with its own duration"
     );
+});
+
+test("a short vertical range keeps a long orthogonal label after collision routing", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+
+    const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
+    const longLabel = narrativeRange(decorator, 1, -90, 40, 80, 12);
+    decorator._rangeRecords = [leading, longLabel];
+
+    decorator.softPaint();
+
+    const top = Number.parseInt(longLabel.labelElmt.style.top, 10);
+
+    assert.equal(longLabel.height, 80);
+    assert.equal(longLabel.track, 1);
+    assert.equal(longLabel.labelElmt.style.display, "");
+    assert.ok(top + longLabel.height > longLabel.endPixel);
+    assert.ok(top + 6 <= longLabel.endPixel);
 });
 
 test("vertical narrative labels move together after a later label hits their same-track stack", () => {
@@ -2794,7 +3029,7 @@ test("a pushed vertical label returns to the top of its span when scrolling back
     assert.equal(follower.labelElmt.style.top, "44px");
 });
 
-test("reverse scrolling removes a bottom reroute when the label fits at its span top", () => {
+test("reverse scrolling restores track zero after a range-end track jump", () => {
     const decorator = makeNarrative("vertical");
     const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
     const constrained = narrativeRange(decorator, 1, 40, 65, 40, 20);
@@ -2899,7 +3134,7 @@ test("vertical narrative persistence includes the sticky edge inset in its conta
     assert.equal(range.labelElmt.style.display, "none");
 });
 
-test("a vertical label reroutes before stacking can push it beyond its duration", () => {
+test("a vertical label stays stacked while preserving range contact", () => {
     const decorator = makeNarrative("vertical");
     const leading = narrativeRange(decorator, 0, -100, 50, 40, 20);
     const constrained = narrativeRange(decorator, 1, -90, 80, 40, 20);
@@ -2912,10 +3147,10 @@ test("a vertical label reroutes before stacking can push it beyond its duration"
 
     decorator.setViewOffset(-36);
     decorator.softPaint();
-    assert.equal(constrained.track, 1);
-    assert.equal(constrained.labelElmt.style.top, "36px");
+    assert.equal(constrained.track, 0);
+    assert.equal(constrained.labelElmt.style.top, "61px");
     assert.ok(
-        Number.parseInt(constrained.labelElmt.style.top, 10) + constrained.height <=
+        Number.parseInt(constrained.labelElmt.style.top, 10) + 6 <=
             constrained.endPixel
     );
 });

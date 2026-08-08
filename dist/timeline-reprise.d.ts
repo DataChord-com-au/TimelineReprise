@@ -274,6 +274,7 @@ declare namespace Timeline {
     type EventColorScope = "none" | "label" | "graphic" | "both";
     type LabelColorSource = "graphic" | "theme" | "inherit";
     type LabelFlow = "normal" | "orthogonal";
+    type RangeLabelAlign = "start" | "center";
 
     interface TrackSpec {
         count?: number;
@@ -341,6 +342,7 @@ declare namespace Timeline {
         color?: string;
         colorSource?: LabelColorSource;
         flow?: LabelFlow;
+        rangeAlign?: RangeLabelAlign;
     }
 
     interface OrientableLabelSpec extends LabelSpec {

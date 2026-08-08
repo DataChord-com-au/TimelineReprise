@@ -94,6 +94,7 @@ function validateThemeSpecId(value, caller) {
 const _VISUAL_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'both']);
 const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
 const _LABEL_FLOWS = Object.freeze(['normal', 'orthogonal']);
+const _RANGE_LABEL_ALIGNS = Object.freeze(['start', 'center']);
 const _VISUAL_THEME_FIELDS = new Set([
     'id',
     'disableEmphasis',
@@ -163,6 +164,7 @@ const _LABEL_FIELDS = new Set([
     'color',
     'colorSource',
     'flow',
+    'rangeAlign',
     ..._ORIENTATION_FIELDS
 ]);
 const _BUBBLE_FIELDS = new Set([
@@ -232,6 +234,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         rangeCssClass: '',
         instantCssClass: '',
         horizontal: {
+            rangeAlign: 'start',
             stickyInset: 2,
             offset: 0,
             toRangeGap: 4,
@@ -241,6 +244,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
             trackGap: 2
         },
         vertical: {
+            rangeAlign: 'start',
             stickyInset: 2,
             offset: 0,
             toRangeGap: 4,
@@ -411,6 +415,10 @@ class VisualTheme {
 
         if (spec.flow !== undefined && !_LABEL_FLOWS.includes(spec.flow)) {
             throw new RangeError(`${caller}.flow must be 'normal' or 'orthogonal'.`);
+        }
+
+        if (spec.rangeAlign !== undefined && !_RANGE_LABEL_ALIGNS.includes(spec.rangeAlign)) {
+            throw new RangeError(`${caller}.rangeAlign must be 'start' or 'center'.`);
         }
     }
 
