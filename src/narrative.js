@@ -112,6 +112,19 @@ import {
             : fallback;
     }
 
+    function normalizeRangeGraphic(value, fallback = "span") {
+        const graphic = typeof value === "string"
+            ? value.trim().toLowerCase()
+            : "";
+
+        return graphic === "span" ||
+            graphic === "start" ||
+            graphic === "end" ||
+            graphic === "both"
+            ? graphic
+            : fallback;
+    }
+
     function parseColorChannels(color) {
         const source = String(color ?? "").trim();
         const rgb = source.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
@@ -377,6 +390,9 @@ import {
         );
         this._rangeLabelAlign = normalizeRangeLabelAlign(
             themedValue({}, labelTheme, "rangeAlign", "start")
+        );
+        this._rangeGraphic = normalizeRangeGraphic(
+            themedValue({}, rangeTheme, "graphic", "span")
         );
         this._labelColorMode = normalizeLabelColorMode(
             themedValue({}, labelTheme, "colorSource", "graphic"),
@@ -665,6 +681,44 @@ import {
         for (const key in rect) {
             elmt.style[key] = Math.round(rect[key]) + "px";
         }
+    };
+
+    Timeline.NarrativeDecorator.prototype._rangeGraphicBoundaries = function () {
+        switch (this._rangeGraphic) {
+            case "start": return ["start"];
+            case "end": return ["end"];
+            case "both": return ["start", "end"];
+            case "span":
+            default: return ["span"];
+        }
+    };
+
+    Timeline.NarrativeDecorator.prototype._makeRangeGraphic = function (
+        record,
+        boundary,
+        color
+    ) {
+        const doc = this._timeline.getDocument();
+        const elmt = doc.createElement("div");
+        const span = boundary === "span";
+
+        elmt.className = [
+            span ? "timeline-narrative-span" : "timeline-narrative-range-divider",
+            span ? null : "timeline-narrative-range-" + boundary + "-divider",
+            this._themeCssClass(span ? "span" : "range-divider"),
+            this._spanCssClass,
+            record.item.cssClass
+        ].filter(Boolean).join(" ");
+        elmt.style.position = "absolute";
+        if (color) {
+            elmt.style.backgroundColor = color;
+        }
+        elmt._repriseRangeGraphicBoundary = boundary;
+
+        this._layerDiv.appendChild(elmt);
+        record.graphicElmts ??= [];
+        record.graphicElmts.push(elmt);
+        if (span) record.spanElmt = elmt;
     };
 
     Timeline.NarrativeDecorator.prototype._measureLabel = function (record) {
@@ -1079,19 +1133,9 @@ import {
             record.graphicColor = spanColor;
 
             if (this._spans) {
-                const span = doc.createElement("div");
-                span.className = [
-                    "timeline-narrative-span",
-                    this._themeCssClass("span"),
-                    this._spanCssClass,
-                    item.cssClass
-                ].filter(Boolean).join(" ");
-                span.style.position = "absolute";
-                if (spanColor) {
-                    span.style.backgroundColor = spanColor;
+                for (const boundary of this._rangeGraphicBoundaries()) {
+                    this._makeRangeGraphic(record, boundary, spanColor);
                 }
-                this._layerDiv.appendChild(span);
-                record.spanElmt = span;
             }
 
             this._makeLabel(record, [
@@ -1102,7 +1146,9 @@ import {
                 this._spanLabelCssClass,
                 item.labelCssClass
             ].filter(Boolean).join(" "));
-            this._installCaptionRefresh(record, record.spanElmt, null);
+            for (const graphicElmt of record.graphicElmts || []) {
+                this._installCaptionRefresh(record, graphicElmt, null);
+            }
             this._rangeRecords.push(record);
         });
 
@@ -1172,11 +1218,19 @@ import {
             record.startPixel = Math.round(this._band.dateToPixelOffset(record.startDate));
             record.endPixel = Math.round(this._band.dateToPixelOffset(record.endDate));
 
-            if (record.spanElmt) {
-                record.spanElmt.style.display = "";
-                this._setRect(record.spanElmt, horizontal
-                    ? { left: record.startPixel, width: record.endPixel - record.startPixel, top: this._spanOffset, height: crossSize }
-                    : { top: record.startPixel, height: record.endPixel - record.startPixel, left: this._spanOffset, width: crossSize });
+            for (const graphicElmt of record.graphicElmts || []) {
+                graphicElmt.style.display = "";
+                const boundary = graphicElmt._repriseRangeGraphicBoundary;
+                const mainStart = boundary === "end"
+                    ? record.endPixel
+                    : record.startPixel;
+                this._setRect(graphicElmt, boundary === "span"
+                    ? horizontal
+                        ? { left: record.startPixel, width: record.endPixel - record.startPixel, top: this._spanOffset, height: crossSize }
+                        : { top: record.startPixel, height: record.endPixel - record.startPixel, left: this._spanOffset, width: crossSize }
+                    : horizontal
+                        ? { left: mainStart, width: 1, top: this._spanOffset, height: crossSize }
+                        : { top: mainStart, height: 1, left: this._spanOffset, width: crossSize });
             }
         }
 

@@ -1,4 +1,4 @@
-import { assertColorString } from "./color.js";
+import { assertColorString, normalizeColorString } from "./color.js";
 import { DisplayProfile } from "./display-profile.js";
 import { TIMELINE_ORIENTATIONS } from "./orientation.js";
 
@@ -95,8 +95,10 @@ const _VISUAL_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'b
 const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
 const _LABEL_FLOWS = Object.freeze(['normal', 'orthogonal']);
 const _RANGE_LABEL_ALIGNS = Object.freeze(['start', 'center']);
+const _RANGE_GRAPHICS = Object.freeze(['span', 'start', 'end', 'both']);
 const _VISUAL_THEME_FIELDS = new Set([
     'id',
+    'backgroundColor',
     'disableEmphasis',
     'eventColorScope',
     'spans',
@@ -135,6 +137,7 @@ const _INSTANT_FIELDS = new Set([
 const _RANGE_FIELDS = new Set([
     'iconColor',
     'colors',
+    'graphic',
     'width',
     'offset',
     'size',
@@ -177,6 +180,7 @@ const _LAYER_FIELDS = new Set([
     'labelZIndex'
 ]);
 const _VISUAL_THEME_DEFAULTS = Object.freeze({
+    backgroundColor: null,
     disableEmphasis: false,
     eventColorScope: 'graphic',
     spans: true,
@@ -213,6 +217,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
     range: {
         iconColor: 'blue',
         colors: ['blue'],
+        graphic: 'span',
         width: 4,
         offset: 0,
         cssClass: '',
@@ -374,6 +379,9 @@ class VisualTheme {
 
         this.#assertColor(spec.iconColor, `${caller}.iconColor`);
         this.#assertColorList(spec.colors, `${caller}.colors`);
+        if (spec.graphic !== undefined && !_RANGE_GRAPHICS.includes(spec.graphic)) {
+            throw new RangeError(`${caller}.graphic must be 'span', 'start', 'end', or 'both'.`);
+        }
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
         this.#assertNumber(spec.size, `${caller}.size`, { positive: true });
@@ -482,6 +490,9 @@ class VisualTheme {
             }
         }
 
+        if (theme.backgroundColor !== null) {
+            this.#assertColor(theme.backgroundColor, `${caller}.backgroundColor`);
+        }
         this.#assertBoolean(theme.disableEmphasis, `${caller}.disableEmphasis`);
         this.#assertEventColorScope(theme.eventColorScope, `${caller}.eventColorScope`);
         this.#assertBoolean(theme.spans, `${caller}.spans`);
@@ -534,6 +545,13 @@ class VisualTheme {
         } else {
             theme.id = id;
         }
+
+        theme.backgroundColor = theme.backgroundColor == null
+            ? null
+            : normalizeColorString(
+                theme.backgroundColor,
+                `${caller}.backgroundColor`
+            );
 
         this.constructor.#assertThemeShape(theme, caller);
 

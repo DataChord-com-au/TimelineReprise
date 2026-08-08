@@ -3,6 +3,7 @@ declare namespace Timeline {
     type LabelColorSource = "graphic" | "theme" | "inherit";
     type LabelFlow = "normal" | "orthogonal";
     type RangeLabelAlign = "start" | "center";
+    type RangeGraphic = "span" | "start" | "end" | "both";
 
     interface TrackSpec {
         count?: number;
@@ -39,6 +40,7 @@ declare namespace Timeline {
     interface RangeSpec {
         iconColor?: string;
         colors?: readonly string[];
+        graphic?: RangeGraphic;
         width?: number;
         offset?: number;
         size?: number;
@@ -84,7 +86,7 @@ declare namespace Timeline {
     }
 
     interface LayerSpec {
-        /** Z-index for Narrative span graphics. */
+        /** Z-index for Narrative range graphics. */
         zIndex?: number;
 
         /** Z-index for Narrative instant divider lines. */
@@ -96,6 +98,7 @@ declare namespace Timeline {
 
     interface VisualThemeConfig {
         id?: string;
+        backgroundColor?: string | null;
         disableEmphasis?: boolean;
         eventColorScope?: EventColorScope;
         spans?: boolean;
@@ -120,6 +123,7 @@ declare namespace Timeline {
         constructor(config?: VisualThemeConfig);
 
         readonly id?: string;
+        readonly backgroundColor: string | null;
         readonly disableEmphasis: boolean;
         readonly eventColorScope: EventColorScope;
         readonly spans: boolean;

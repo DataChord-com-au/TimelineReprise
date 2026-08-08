@@ -690,6 +690,9 @@ function createBand(spec = {}, context = {}) {
         ...contextDefaults
     } = context;
     const resolved = { ...contextDefaults, ...spec };
+    const hasBandBackgroundColor =
+        _bandHasOwn(contextDefaults, "backgroundColor") ||
+        _bandHasOwn(spec, "backgroundColor");
     if (
         context.runtime != null &&
         spec.runtime != null &&
@@ -721,6 +724,12 @@ function createBand(spec = {}, context = {}) {
     const eventSource = resolved.eventSource ??
         _makeEventSource(runtime.unit, caller);
     const theme = _createNativeTheme(resolved, orientation, caller);
+    if (
+        !hasBandBackgroundColor &&
+        theme.visualTheme?.backgroundColor != null
+    ) {
+        resolved.backgroundColor = theme.visualTheme.backgroundColor;
+    }
     const zones = _selectZones(resolved.scaledZones, zoneRegistry, caller);
 
     const bandInfo = _isNativeDateUnit(runtime.unit)
@@ -968,11 +977,22 @@ function _applyBandPresentation(timeline, bandSet, caller) {
 }
 
 function _applyInitialDate(timeline, bandSet) {
-    if (bandSet.initialDate == null) return;
+    if (bandSet.initialDate == null) return false;
 
     for (let index = 0; index < bandSet.bandInfos.length; index++) {
         if (bandSet.bandInfos[index].syncWith == null) {
             timeline.getBand(index).setCenterVisibleDate(bandSet.initialDate);
+        }
+    }
+    return true;
+}
+
+function _softPaintDecorators(bandSet) {
+    for (const bandInfo of bandSet.bandInfos) {
+        for (const decorator of bandInfo.decorators ?? []) {
+            if (typeof decorator?.softPaint === "function") {
+                decorator.softPaint();
+            }
         }
     }
 }
@@ -998,7 +1018,9 @@ function createTimeline(container, bandSet) {
     );
 
     _applyBandPresentation(timeline, bandSet, caller);
-    _applyInitialDate(timeline, bandSet);
+    if (_applyInitialDate(timeline, bandSet)) {
+        _softPaintDecorators(bandSet);
+    }
     bandSet.clampController = bandSet.clampRange == null
         ? null
         : clampBandChains(timeline, bandSet.clampRange);

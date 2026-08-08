@@ -106,6 +106,28 @@ test("VisualTheme validates tooltips and enables them by default", () => {
     );
 });
 
+test("VisualTheme accepts and validates backgroundColor", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(new Timeline.VisualTheme().backgroundColor, null);
+    assert.equal(
+        new Timeline.VisualTheme({ backgroundColor: null }).backgroundColor,
+        null
+    );
+    assert.equal(
+        new Timeline.VisualTheme({ backgroundColor: "  #123456  " })
+            .backgroundColor,
+        "#123456"
+    );
+
+    for (const backgroundColor of ["", "   ", 42, false, {}, []]) {
+        assert.throws(
+            () => new Timeline.VisualTheme({ backgroundColor }),
+            /backgroundColor must be a non-empty CSS color string/
+        );
+    }
+});
+
 test("VisualTheme validates label flow and defaults to normal", () => {
     const Timeline = loadTimeline();
 
@@ -117,6 +139,32 @@ test("VisualTheme validates label flow and defaults to normal", () => {
     assert.throws(
         () => new Timeline.VisualTheme({ label: { flow: "sideways" } }),
         /label\.flow must be 'normal' or 'orthogonal'/
+    );
+});
+
+test("VisualTheme validates Narrative range graphic mode", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(new Timeline.VisualTheme().range.graphic, "span");
+    assert.equal(
+        new Timeline.VisualTheme({ range: { graphic: "both" } }).range.graphic,
+        "both"
+    );
+    assert.equal(
+        new Timeline.VisualTheme({
+            range: { horizontal: { graphic: "start" } }
+        }).range.horizontal.graphic,
+        "start"
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({ range: { graphic: "middle" } }),
+        /range\.graphic must be 'span', 'start', 'end', or 'both'/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            range: { vertical: { graphic: "middle" } }
+        }),
+        /range\.vertical\.graphic must be 'span', 'start', 'end', or 'both'/
     );
 });
 

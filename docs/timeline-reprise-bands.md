@@ -116,6 +116,8 @@ Common fields:
 - `scaledZones`
 
 `visualTheme` is a registered VisualTheme id or `Timeline.VisualTheme` instance.
+When the resolved theme defines `backgroundColor`, Reprise uses it as the band
+background default unless the band spec supplies `backgroundColor`.
 `etherTheme` contains native ether overrides, but Reprise creates and owns the
 native theme carrying them.
 
@@ -154,7 +156,8 @@ band. Override the cycle per timeline with CSS custom properties:
 }
 ```
 
-Per-band `backgroundColor` still wins over the cycle.
+Per-band `backgroundColor` wins over a visual-theme background and over the
+cycle. An explicit `backgroundColor: null` leaves the inline background unset.
 
 Emphasized marker labels retain the same dimensions as ordinary labels by
 default. The `timeline-date-label-em` class remains available for application

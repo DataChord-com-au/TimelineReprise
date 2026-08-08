@@ -244,9 +244,13 @@ function loadNarrativeDecorator() {
         resolveVisualTheme: resolveTestVisualTheme
     };
     const context = vm.createContext({
+        captureAttachedEventRenderContext: () => null,
         fillRepriseBubble: () => {},
+        getAttachedEventContext: () => null,
         hasRenderedContent: value => value != null && value !== "",
-        renderEventField: () => "",
+        renderAttachedEventField: () => "",
+        renderEventField: (_runtime, _visualTheme, _eventTime, event, field) =>
+            field === "title" ? event?.title ?? "" : "",
         resolveRepriseRuntime: resolveTestRuntime,
         setRenderedContent: () => true,
         Timeline,
@@ -303,6 +307,15 @@ function event(id, start, end) {
 function instantEvent(id, start) {
     return {
         ...event(id, start, start),
+        isInstant: () => true
+    };
+}
+
+function untrackedInstantEvent(id, start) {
+    return {
+        getID: () => id,
+        getStart: () => start,
+        getEnd: () => start,
         isInstant: () => true
     };
 }
@@ -619,6 +632,158 @@ function tapeLabel(evt, natural, width, height) {
         spark: paintedData(0, 0, 1, 0)
     };
 }
+
+function configureEventTrackCount(painter, orientation, count) {
+    painter._visualTheme.track[orientation].count = count;
+    painter._visualTheme._hasConfigured = (path) => {
+        const key = Array.isArray(path) ? path.join(".") : String(path);
+        return key === `track.${orientation}.count`;
+    };
+}
+
+function tapeBar(evt, start = evt.getStart(), end = evt.getEnd()) {
+    return {
+        evt,
+        lane: 0,
+        data: paintedData(start, 0, end - start, 4),
+        startPixel: Math.min(start, end),
+        endPixel: Math.max(start, end)
+    };
+}
+
+function pointLabel(evt, left, width = 30, height = 8) {
+    return {
+        evt,
+        lane: 0,
+        trackTopOffset: 0,
+        data: paintedData(left, 0, width, height),
+        naturalLeft: left,
+        width,
+        height
+    };
+}
+
+function verticalPointLabel(evt, top, width = 80, height = 20) {
+    return {
+        evt,
+        data: paintedData(0, top, width, height),
+        width,
+        height
+    };
+}
+
+test("omitted event track count preserves dynamic lane growth", () => {
+    const painter = makeEventPainter("horizontal");
+    const labels = [
+        tapeLabel(untrackedEvent("a", 0, 100), 0, 30, 16),
+        tapeLabel(untrackedEvent("b", 10, 110), 10, 30, 16),
+        tapeLabel(untrackedEvent("c", 20, 120), 20, 30, 16)
+    ];
+
+    painter._repriseTapeLabels.push(...labels);
+    painter.paint();
+
+    assert.equal(painter._repriseTapeLaneEnds.length, 3);
+    assert.equal(labels.filter(isHidden).length, 0);
+});
+
+test("track count caps horizontal duration tape lanes", () => {
+    const painter = makeEventPainter("horizontal");
+    configureEventTrackCount(painter, "horizontal", 2);
+    const events = [
+        untrackedEvent("a", 0, 100),
+        untrackedEvent("b", 10, 110),
+        untrackedEvent("c", 20, 120)
+    ];
+    const labels = events.map((evt) => tapeLabel(evt, evt.getStart(), 30, 16));
+    const bars = events.map((evt) => tapeBar(evt));
+
+    painter._repriseTapeLabels.push(...labels);
+    painter._repriseTapeBars.push(...bars);
+    painter.paint();
+
+    assert.equal(painter._repriseTapeLaneEnds.length, 2);
+    assert.deepEqual(labels.map(isHidden), [false, false, true]);
+    assert.deepEqual(bars.map(isHidden), [false, false, true]);
+});
+
+test("track count caps horizontal instant and short routed rows", () => {
+    const painter = makeEventPainter("horizontal");
+    configureEventTrackCount(painter, "horizontal", 2);
+    const labels = [
+        pointLabel(instantEvent("a", 0), 0),
+        pointLabel(instantEvent("b", 0), 0),
+        pointLabel(instantEvent("c", 0), 0)
+    ];
+
+    painter._reprisePointLabels.push(...labels);
+    painter.paint();
+
+    assert.equal(painter._repriseLabelTrackCount, 2);
+    assert.deepEqual(labels.map(isHidden), [false, false, true]);
+});
+
+test("track count caps vertical duration tape lanes", () => {
+    const painter = makeEventPainter("vertical");
+    configureEventTrackCount(painter, "vertical", 2);
+    const events = [
+        untrackedEvent("a", 0, 100),
+        untrackedEvent("b", 10, 110),
+        untrackedEvent("c", 20, 120)
+    ];
+    const labels = events.map((evt) => tapeLabel(evt, evt.getStart(), 80, 20));
+    const bars = events.map((evt) => tapeBar(evt));
+
+    painter._repriseTapeLabels.push(...labels);
+    painter._repriseTapeBars.push(...bars);
+    painter.paint();
+
+    assert.equal(painter._repriseTapeLaneEnds.length, 2);
+    assert.deepEqual(labels.map(isHidden), [false, false, true]);
+    assert.deepEqual(bars.map(isHidden), [false, false, true]);
+});
+
+test("track count caps vertical instant and short routed columns", () => {
+    const painter = makeEventPainter("vertical");
+    configureEventTrackCount(painter, "vertical", 2);
+    const labels = [
+        verticalPointLabel(untrackedInstantEvent("a", 0), 0),
+        verticalPointLabel(untrackedInstantEvent("b", 0), 0),
+        verticalPointLabel(untrackedInstantEvent("c", 0), 0)
+    ];
+
+    painter._reprisePointLabels.push(...labels);
+    painter.paint();
+
+    assert.equal(painter._repriseLabelTrackCount, 2);
+    assert.deepEqual(labels.map(isHidden), [false, false, true]);
+});
+
+test("event layout can use capped tape lanes and capped routed tracks together", () => {
+    const painter = makeEventPainter("horizontal");
+    configureEventTrackCount(painter, "horizontal", 2);
+    const tapeEvents = [
+        untrackedEvent("range-a", 0, 200),
+        untrackedEvent("range-b", 10, 210)
+    ];
+    const rangeLabels = [
+        tapeLabel(tapeEvents[0], 120, 20, 16),
+        tapeLabel(tapeEvents[1], 160, 20, 16)
+    ];
+    const pointLabels = [
+        pointLabel(instantEvent("point-a", 0), 0),
+        pointLabel(instantEvent("point-b", 0), 0)
+    ];
+
+    painter._repriseTapeLabels.push(...rangeLabels);
+    painter._repriseTapeBars.push(...tapeEvents.map((evt) => tapeBar(evt)));
+    painter._reprisePointLabels.push(...pointLabels);
+    painter.paint();
+
+    assert.equal(painter._repriseTapeLaneEnds.length, 2);
+    assert.equal(painter._repriseLabelTrackCount, 2);
+    assert.equal([...rangeLabels, ...pointLabels].filter(isHidden).length, 0);
+});
 
 for (const {
     orientation,
@@ -943,6 +1108,63 @@ function assertSparkAttached(item) {
 function assertConnectedOrHidden(item) {
     if (isHidden(item)) return;
     assertSparkAttached(item);
+}
+
+function sparklineMainPosition(orientation, item) {
+    return orientation === "horizontal" ? item.spark.left : item.spark.top;
+}
+
+function sparklineCrossLength(orientation, item) {
+    return orientation === "horizontal" ? item.spark.height : item.spark.width;
+}
+
+function buildStickySparklineFixture(orientation, edge) {
+    const painter = makeEventPainter(orientation, 200);
+    painter._visualTheme.range[orientation].sparklineStagger = 8;
+    painter._visualTheme.label[orientation].routingGap = 10;
+
+    const labels = orientation === "horizontal"
+        ? [
+            tapeLabel(untrackedEvent("long", -120, 420), edge === "start" ? 0 : 140, 60, 16),
+            tapeLabel(untrackedEvent("medium", -100, 380), edge === "start" ? 0 : 140, 60, 16),
+            tapeLabel(untrackedEvent("short", -80, 340), edge === "start" ? 0 : 140, 60, 16)
+        ]
+        : [
+            tapeLabel(untrackedEvent("long", -120, 420), edge === "start" ? 0 : 180, 80, 20),
+            tapeLabel(untrackedEvent("medium", -100, 380), edge === "start" ? 0 : 180, 80, 20),
+            tapeLabel(untrackedEvent("short", -80, 340), edge === "start" ? 0 : 180, 80, 20)
+        ];
+
+    painter._repriseTapeLabels.push(...labels);
+    painter.paint();
+
+    return labels;
+}
+
+function assertLongestSparklineOutside(orientation, edge) {
+    const labels = buildStickySparklineFixture(orientation, edge);
+    const ordered = labels
+        .slice()
+        .sort((a, b) =>
+            sparklineCrossLength(orientation, b) -
+            sparklineCrossLength(orientation, a)
+        );
+    const positions = ordered.map((item) => sparklineMainPosition(orientation, item));
+
+    assert.equal(labels.filter(isHidden).length, 0);
+    assert.equal(new Set(positions).size, labels.length);
+    assert.deepEqual(
+        positions,
+        positions.slice().sort((a, b) => edge === "start" ? a - b : b - a)
+    );
+}
+
+for (const orientation of ["horizontal", "vertical"]) {
+    for (const edge of ["start", "end"]) {
+        test(`${orientation} sticky duration sparklines put the longest connector outside at the ${edge} edge`, () => {
+            assertLongestSparklineOutside(orientation, edge);
+        });
+    }
 }
 
 test("horizontal duration label sparklines stay attached to their own label after routing", () => {
@@ -2506,6 +2728,83 @@ function narrativePlacement(records) {
     }));
 }
 
+function makeNarrativePaintDom() {
+    const document = {
+        createElement: () => ({
+            children: [],
+            childNodes: [],
+            className: "",
+            style: {},
+            offsetWidth: 80,
+            offsetHeight: 18,
+            scrollWidth: 80,
+            scrollHeight: 18,
+            appendChild(child) {
+                this.children.push(child);
+                this.childNodes.push(child);
+            },
+            setAttribute() {},
+            removeAttribute() {},
+            getBoundingClientRect() {
+                return { width: this.offsetWidth, height: this.offsetHeight };
+            }
+        })
+    };
+    const layers = [];
+    const band = {
+        createLayerDiv(zIndex, className = "") {
+            const layer = document.createElement("div");
+            layer.zIndex = zIndex;
+            layer.className = className;
+            layers.push(layer);
+            return layer;
+        },
+        removeLayerDiv() {},
+        dateToPixelOffset: value => value,
+        getViewOffset: () => 0,
+        getViewLength: () => 200,
+        getViewWidth: () => 200
+    };
+    const timeline = {
+        getDocument: () => document,
+        isHorizontal: () => true,
+        isVertical: () => false
+    };
+
+    return { document, layers, band, timeline };
+}
+
+function paintNarrativeRangeGraphic(graphic, { spans = true } = {}) {
+    const NarrativeDecorator = loadNarrativeDecorator();
+    const { layers, band, timeline } = makeNarrativePaintDom();
+    const decorator = new NarrativeDecorator({
+        visualTheme: testVisualTheme({
+            spans,
+            range: {
+                colors: ["range-color"],
+                graphic
+            }
+        }),
+        ranges: [{ start: 10, end: 40, title: "Range" }]
+    });
+
+    decorator._runtime = {
+        readEventTime: item => ({ kind: "range", start: item.start, end: item.end })
+    };
+    decorator._band = band;
+    decorator._timeline = timeline;
+    decorator.paint();
+
+    const visualLayer = layers.find(layer =>
+        layer.className.includes("timeline-narrative-visual-layer")
+    );
+    const labelLayer = layers.find(layer =>
+        layer.className.includes("timeline-narrative-label-layer")
+    );
+
+    return { decorator, visualLayer, labelLayer };
+}
+
 test("narrative defaults layer dividers between marker ticks and labels", () => {
     const NarrativeDecorator = loadNarrativeDecorator();
     const layers = [];
@@ -2579,6 +2878,40 @@ test("narrative defaults layer dividers between marker ticks and labels", () => 
     assert.equal(dividerLayer.zIndex, 101);
     assert.equal(spanLayer.children[0].className, "timeline-narrative-span");
     assert.equal(dividerLayer.children[0].className, "timeline-narrative-instant-line");
+});
+
+test("narrative range graphic modes draw spans or range boundary dividers", () => {
+    const cases = [
+        { graphic: "span", classes: ["timeline-narrative-span"], left: ["10px"], width: ["30px"] },
+        { graphic: "start", classes: ["timeline-narrative-range-start-divider"], left: ["10px"], width: ["1px"] },
+        { graphic: "end", classes: ["timeline-narrative-range-end-divider"], left: ["40px"], width: ["1px"] },
+        { graphic: "both", classes: ["timeline-narrative-range-start-divider", "timeline-narrative-range-end-divider"], left: ["10px", "40px"], width: ["1px", "1px"] }
+    ];
+
+    for (const { graphic, classes, left, width } of cases) {
+        const { visualLayer, labelLayer } = paintNarrativeRangeGraphic(graphic);
+        const graphics = visualLayer.children;
+        const label = labelLayer.children[0];
+
+        assert.equal(graphics.length, classes.length);
+        graphics.forEach((elmt, index) => {
+            assertHasClasses(elmt, [classes[index]]);
+            assert.equal(elmt.style.backgroundColor, "range-color");
+            assert.equal(elmt.style.left, left[index]);
+            assert.equal(elmt.style.width, width[index]);
+        });
+        assertHasClasses(label, ["timeline-narrative-range-label"]);
+        assert.ok(!String(label.className).includes("timeline-narrative-instant-label"));
+    }
+});
+
+test("narrative range boundary graphics are suppressed by spans false", () => {
+    const { visualLayer, labelLayer } = paintNarrativeRangeGraphic("both", {
+        spans: false
+    });
+
+    assert.equal(visualLayer.children.length, 0);
+    assertHasClasses(labelLayer.children[0], ["timeline-narrative-range-label"]);
 });
 
 test("narrative span, divider, and label z-index overrides stay independent", () => {

@@ -11,6 +11,7 @@ resolved:
 var themes = Timeline.loadVisualThemes([
     {
         id: "editorial",
+        backgroundColor: "#f8f6ef",
         labels: true,
         bubbles: false,
         tooltips: true,
@@ -19,6 +20,7 @@ var themes = Timeline.loadVisualThemes([
         },
         range: {
             iconColor: "green",
+            graphic: "span",
             width: 4
         }
     }
@@ -84,6 +86,12 @@ An explicit selection must be a registered id or a `VisualTheme` instance.
 Object literals belong in the registry.
 The two methods may select different themes on the same band.
 
+`backgroundColor` is an optional band background default. It must be `null`,
+omitted, or a non-empty CSS color string. `createBand()` and
+`createBandSet()` use the selected visual theme's `backgroundColor` only when
+the band spec has no `backgroundColor`; an explicit band value, including
+`null`, wins.
+
 `tooltips` is an optional boolean that defaults to `true`. Narrative uses an
 enabled rendered caption as the label's native `title` tooltip. Set
 `tooltips: false` to suppress these caption tooltips without changing bubble
@@ -122,6 +130,11 @@ move that preferred position. For either alignment, a fully visible label may
 slide on its current track only until its trailing edge reaches the range end;
 routing then tries the next track. A finishing label at the viewport edge keeps
 contact-based routing. Instant labels are unaffected.
+
+`range.graphic` controls the built-in graphic Narrative draws for range
+records. `span` preserves the filled span default; `start`, `end`, and `both`
+draw divider lines at the corresponding range boundary while labels remain
+range labels. Normal event layout and overview painting ignore this property.
 
 ## Presentation selection
 

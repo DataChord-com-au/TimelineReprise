@@ -33,9 +33,11 @@ var visualThemes = Timeline.loadVisualThemes([{
     eventColorScope: "both",
     track: {
         horizontal: {
+            count: 3,
             offset: 12
         },
         vertical: {
+            count: 3,
             offset: 12
         }
     },
@@ -107,6 +109,27 @@ var timeline = Timeline.createTimeline(container, bandSet);
 
 Orientation-specific properties are read from `horizontal` or `vertical` when
 the painter is initialised.
+
+## `visualTheme.track`
+
+### `visualTheme.track.horizontal.count`
+Maximum number of horizontal event rows used by each event-layout lane group.
+When configured, it caps long-duration tape lanes separately from routed
+instant, point, short-duration, and range-label rows. A value of `3`, for
+example, may still produce up to three tape rows plus three routed event rows.
+
+If omitted, event layout preserves the existing grow-as-needed behavior. This
+differs from Narrative, which always uses its resolved `track.count` value for
+Narrative label tracks.
+
+### `visualTheme.track.vertical.count`
+Maximum number of vertical event columns used by each event-layout lane group.
+When configured, it caps long-duration tape lanes separately from routed
+instant, point, short-duration, and range-label columns. A value of `3`, for
+example, may still produce up to three tape columns plus three routed event
+columns.
+
+If omitted, event layout preserves the existing grow-as-needed behavior.
 
 ## Event Content Layering
 
@@ -313,7 +336,8 @@ spacing or tape-block-to-label-row separation. Defaults to `2`.
 
 ### `visualTheme.range.horizontal.sparklineStagger`
 Time-axis stagger applied to long-range sparkline attachment points on
-successive routed rows. Defaults to `8`.
+stacked sticky labels. The longest connector is placed on the outside, nearest
+the viewport edge, with shorter connectors staggered inward. Defaults to `8`.
 
 ### `visualTheme.label.horizontal.stickyInset`
 Viewport inset used when long-range labels stick at the left or right edge.
@@ -344,6 +368,11 @@ ranges. For either alignment, a fully visible label slides only until its
 trailing edge reaches the range end, then tries another column. A finishing
 label at the viewport edge keeps contact-based routing. Instant labels are
 unaffected.
+
+### `visualTheme.range.vertical.sparklineStagger`
+Time-axis stagger applied to long-range sparkline attachment points on
+stacked sticky labels. The longest connector is placed on the outside, nearest
+the viewport edge, with shorter connectors staggered inward. Defaults to `8`.
 
 ### `visualTheme.label.vertical.toRangeBlockGap`
 Minimum horizontal-axis gap between the complete tape block and the first routed

@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v3.3.8`
+Version: `v3.3.9`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -51,8 +51,8 @@ browser ESM entry, each JavaScript source has a matching declaration under
 - Added a larger default event and overview track offset for vertical bands
   with left-aligned markers.
 - Layered Narrative instant divider lines between date/unit and cardinal-axis
-  marker ticks and labels by default, while keeping Narrative spans below all
-  marker content.
+  marker ticks and labels by default, while keeping Narrative range graphics
+  below all marker content.
 - Cycled dark-mode band background tones across all Reprise bands with
   per-timeline CSS variable overrides.
 - Added optional cardinal-axis `indexAtValue()` projection support so

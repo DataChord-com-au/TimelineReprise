@@ -53,7 +53,7 @@ All date, numeric, and wrapped values are parsed by
 
 ### Range Items
 
-Range items create span decorators.
+Range items create range graphic decorators.
 
 ```js
 {
@@ -160,6 +160,7 @@ var visualThemes = Timeline.loadVisualThemes([{
     },
     range: {
         offset: 0,
+        graphic: "span",
         colors: ["green", "blue"]
     },
     instant: {
@@ -210,7 +211,7 @@ var bandSet = Timeline.createBandSet({
 ```
 
 ### `visualTheme.spans`
-Set to `false` to stop range span decorators being drawn.
+Set to `false` to stop range graphic decorators being drawn.
 
 ### `visualTheme.dividers`
 Set to `false` to stop instant divider decorators being drawn.
@@ -306,16 +307,31 @@ Vertical-only track alignment. Use `start` or `end`.
 ## Range Theme
 
 ### `visualTheme.range.offset`
-Cross-band offset for range spans.
+Cross-band offset for range graphics.
 
 ### `visualTheme.range.size`
-Optional cross-band size for range spans. If omitted, spans fill the available narrative band space from `range.offset`.
+Optional cross-band size for range graphics. If omitted, graphics fill the
+available narrative band space from `range.offset`.
 
 ### `visualTheme.range.colors`
-Array of fallback span colours, cycled by range index.
+Array of fallback range graphic colours, cycled by range index.
+
+### `visualTheme.range.graphic`
+Selects the built-in graphic drawn for Narrative ranges while keeping range
+label behavior:
+
+- `span` - draw the current filled range span. This is the default.
+- `start` - draw only a divider at the range start.
+- `end` - draw only a divider at the range end.
+- `both` - draw dividers at both range boundaries.
+
+The boundary dividers use the same resolved range graphic colour as a span,
+including `spanColor`, `color`, tags, and emphasis according to
+`eventColorScope`. `spans: false` suppresses all Narrative range graphics,
+including boundary dividers.
 
 ### `visualTheme.range.cssClass`
-Extra class added to range span elements.
+Extra class added to range graphic elements.
 
 ## Instant Theme
 
@@ -403,7 +419,7 @@ Optional maximum bubble popup height.
 ## Layer Theme
 
 ### `visualTheme.layer.zIndex`
-Z-index for span graphics. Defaults to `5`, below date/unit and cardinal-axis
+Z-index for range graphics. Defaults to `5`, below date/unit and cardinal-axis
 markers.
 
 ### `visualTheme.layer.dividerZIndex`
@@ -414,9 +430,9 @@ Z-index for narrative labels. Defaults to `114`.
 
 By default, Narrative instant divider lines render on a separate layer at
 z-index `101`, above date/unit and cardinal-axis ticks at `100` and below their
-labels at `102`. Narrative spans remain below that marker content. Narrative
+labels at `102`. Narrative range graphics remain below that marker content. Narrative
 labels default to z-index `114`, above marker labels but below normal event
-content. Each of the span, divider, and Narrative label values is independent;
+content. Each of the range graphic, divider, and Narrative label values is independent;
 changing `zIndex` does not change `dividerZIndex`. The normal event layer passes
 pointer input through its empty area, so Narrative labels remain interactive
 while tapes, icons, and event labels retain precedence where they overlap.
@@ -434,6 +450,9 @@ Routing uses each label's complete rendered height, including wrapped multiline 
 Base classes:
 
 - `timeline-narrative-span`
+- `timeline-narrative-range-divider`
+- `timeline-narrative-range-start-divider`
+- `timeline-narrative-range-end-divider`
 - `timeline-narrative-label`
 - `timeline-narrative-range-label`
 - `timeline-narrative-instant-line`
@@ -442,6 +461,7 @@ Base classes:
 Set `visualTheme.id` to add generated theme classes:
 
 - `timeline-narrative-{id}-span`
+- `timeline-narrative-{id}-range-divider`
 - `timeline-narrative-{id}-label`
 - `timeline-narrative-{id}-range-label`
 - `timeline-narrative-{id}-instant-line`
@@ -470,7 +490,7 @@ Preferred Reprise field for one narrative label colour. It applies only when
 alias; `labelColor` wins when both are present.
 
 ### `spanColor`
-Sets one range span colour when `eventColorScope` includes `graphic`.
+Sets one range graphic colour when `eventColorScope` includes `graphic`.
 
 ### `lineColor`
 Sets one instant divider colour when `eventColorScope` includes `graphic`.

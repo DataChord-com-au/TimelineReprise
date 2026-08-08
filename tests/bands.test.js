@@ -61,6 +61,7 @@ function loadBands() {
     });
     const nativeBandCalls = [];
     const timelineCreateCalls = [];
+    const timelineActions = [];
     const clampCalls = [];
     const themes = [];
 
@@ -162,11 +163,12 @@ function loadBands() {
             };
         },
         create(container, bandInfos, orientation, unit) {
-            const bands = bandInfos.map(() => ({
+            const bands = bandInfos.map((bandInfo, index) => ({
                 _div: new FakeElement(),
                 centers: [],
                 setCenterVisibleDate(value) {
                     this.centers.push(value);
+                    timelineActions.push({ type: "center", index, value });
                 }
             }));
             const timeline = {
@@ -211,8 +213,22 @@ function loadBands() {
         };
     }
 
+    const visualThemesById = {
+        themeBackground: {
+            id: "themeBackground",
+            backgroundColor: " #224466 "
+        },
+        overrideBackground: {
+            id: "overrideBackground",
+            backgroundColor: "#111111"
+        }
+    };
+
     function composeVisualTheme(theme, selection) {
-        theme.visualTheme = selection ?? { id: "default" };
+        theme.visualTheme =
+            typeof selection === "string"
+                ? visualThemesById[selection] ?? selection
+                : selection ?? { id: "default", backgroundColor: null };
         return theme.visualTheme;
     }
 
@@ -296,6 +312,7 @@ function loadBands() {
         nativeBandCalls,
         nativeUnit,
         themes,
+        timelineActions,
         timelineCreateCalls,
         Timeline,
         UnitScaledZoneEther
@@ -453,6 +470,130 @@ test("Reprise band presentation cycles dark-mode tone classes beyond five bands"
             ["timeline-reprise-band-tone-5"],
             ["timeline-reprise-band-tone-1"]
         ]
+    );
+});
+
+test("createTimeline soft-paints decorators after initialDate settles", () => {
+    const {
+        createBandSet,
+        createTimeline,
+        timelineActions
+    } = loadBands();
+    const decoratorCalls = [];
+    const makeDecorator = id => ({
+        softPaint() {
+            decoratorCalls.push({
+                id,
+                centered: timelineActions.some(action =>
+                    action.type === "center"
+                )
+            });
+        }
+    });
+    const bandSet = createBandSet({
+        orientation: "vertical",
+        syncTarget: "lifeEvents",
+        initialDate: "2026-06-01",
+        bands: [
+            {
+                id: "lifeEvents",
+                width: "60%",
+                intervalUnit: "month",
+                intervalPixels: 100,
+                decorators: [makeDecorator("lifeEvents")]
+            },
+            {
+                id: "residences",
+                width: "40%",
+                intervalUnit: "month",
+                intervalPixels: 100,
+                decorators: [makeDecorator("residences")]
+            }
+        ]
+    });
+    const timeline = createTimeline({}, bandSet);
+
+    assert.deepEqual(
+        timelineActions.map(action => action.type),
+        ["center"]
+    );
+    assert.deepEqual(
+        decoratorCalls,
+        [
+            { id: "lifeEvents", centered: true },
+            { id: "residences", centered: true }
+        ]
+    );
+    assert.equal(bandSet.byId.residences.syncWith, 0);
+    assert.equal(timeline.getBand(0).centers.length, 1);
+    assert.equal(timeline.getBand(1).centers.length, 0);
+});
+
+test("visual theme backgroundColor applies to band presentation", () => {
+    const { createBandSet, createTimeline } = loadBands();
+    const bandSet = createBandSet({
+        visualTheme: "themeBackground",
+        bands: [{
+            id: "main",
+            width: "100%",
+            intervalUnit: "month",
+            intervalPixels: 100
+        }]
+    });
+    const timeline = createTimeline({}, bandSet);
+
+    assert.equal(bandSet.byId.main.repriseBackgroundColor, "#224466");
+    assert.equal(
+        timeline.getBand(0)._div.properties.get(
+            "--timeline-band-background-color"
+        ),
+        "#224466"
+    );
+});
+
+test("band backgroundColor overrides visual theme backgroundColor", () => {
+    const { createBandSet, createTimeline } = loadBands();
+    const bandSet = createBandSet({
+        visualTheme: "overrideBackground",
+        bands: [{
+            id: "main",
+            width: "100%",
+            intervalUnit: "month",
+            intervalPixels: 100,
+            backgroundColor: " #eeeeee "
+        }]
+    });
+    const timeline = createTimeline({}, bandSet);
+
+    assert.equal(bandSet.byId.main.repriseBackgroundColor, "#eeeeee");
+    assert.equal(
+        timeline.getBand(0)._div.properties.get(
+            "--timeline-band-background-color"
+        ),
+        "#eeeeee"
+    );
+});
+
+test("explicit null band backgroundColor suppresses visual theme fallback", () => {
+    const { createBandSet, createTimeline } = loadBands();
+    const bandSet = createBandSet({
+        visualTheme: "themeBackground",
+        bands: [{
+            id: "main",
+            width: "100%",
+            intervalUnit: "month",
+            intervalPixels: 100,
+            backgroundColor: null
+        }]
+    });
+    const timeline = createTimeline({}, bandSet);
+
+    assert.equal(bandSet.byId.main.repriseBackgroundColor, null);
+    assert.equal(
+        timeline.getBand(0)._div.properties.has(
+            "--timeline-band-background-color"
+        ),
+        false
     );
 });
 
