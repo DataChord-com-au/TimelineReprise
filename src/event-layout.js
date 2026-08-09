@@ -15,10 +15,10 @@ import {
     if (Timeline._eventLayout23PatchApplied) return;
     Timeline._eventLayout23PatchApplied = true;
 
-    const HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET = 1;
+    const HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET = 0;
     const HORIZONTAL_INSTANT_LABEL_BASELINE_TOP_OFFSET = 1;
     const HORIZONTAL_INSTANT_EVENT_TOP_OFFSET = -3;
-    const VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET = 2;
+    const VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET = 0;
     const DEFAULT_INSTANT_ICON_SIZE = 9;
     const DEFAULT_INSTANT_ICON_COLOR = "blue";
     const DEFAULT_RANGE_TAPE_COLOR = "blue";
@@ -26,7 +26,6 @@ import {
     const EVENT_GRAPHIC_Z_INDEX = 0;
     const EVENT_SPARKLINE_Z_INDEX = 1;
     const EVENT_LABEL_Z_INDEX = 2;
-    const HORIZONTAL_RANGE_SPARK_END_CLEARANCE = 6;
 
     function isObject(value) {
         return value != null && typeof value === "object" && !Array.isArray(value);
@@ -753,23 +752,6 @@ import {
         return finiteOr(getTapeSpec(painter).sparklineStagger, 8);
     }
 
-    function getLabelSparklineStagger(painter, item) {
-        if (!item?.data) return getSparklineStagger(painter);
-
-        const fontSize = getLabelFontSize(
-            item.data,
-            getLabelLineBoxFallback(item.data, item.height || 12)
-        );
-        return Math.max(getSparklineStagger(painter), fontSize);
-    }
-
-    function edgeIfStuck(mainStart, size, viewportStart, viewportEnd) {
-        const tolerance = 1;
-        if (Math.abs(mainStart - viewportStart) <= tolerance) return "start";
-        if (Math.abs(mainStart + size - viewportEnd) <= tolerance) return "end";
-        return null;
-    }
-
     function getInstantToLabelGap(painter) {
         return finiteOr(getLabelSpec(painter).toInstantGap, 4);
     }
@@ -901,6 +883,8 @@ import {
                 const startPixel = Math.round(painter._band.dateToPixelOffset(item.evt.getStart()));
                 group = {
                     evt: item.evt,
+                    routeKey: key,
+                    preferredTrack: painter._repriseRoutedLaneState?.get(key),
                     index: groups.size,
                     items: [],
                     startPixel,
@@ -1417,161 +1401,166 @@ import {
         return Math.max(start, Math.min(main, rangeEndStart));
     }
 
-    function getHorizontalRangeLabelSparkMaxStart(painter, item, track) {
+    function getHorizontalRangeLabelLeadingStart(
+        item,
+        size,
+        naturalStart,
+        viewportStart
+    ) {
+        const start = toFiniteNumber(item?.startPixel);
         const end = toFiniteNumber(item?.endPixel);
-        if (end == null || !item?.spark) return null;
 
-        const stagger = Math.max(0, Math.floor(track || 0)) * getSparklineStagger(painter);
-        return end - HORIZONTAL_RANGE_SPARK_END_CLEARANCE - stagger - 2;
-    }
+        if (start == null || end == null) return naturalStart;
 
-    function horizontalRangeLabelAtSparkLimit(painter, item, left, track) {
-        const maxStart = getHorizontalRangeLabelSparkMaxStart(painter, item, track);
-        return maxStart != null && left >= maxStart;
-    }
-
-    function rangeSparklineLength(painter, item, metrics, theme) {
-        if (isVertical(painter)) {
-            const tapeCenter = getVerticalTapeLaneLeft(painter, metrics, theme, item.lane) +
-                Math.round(getRangeWidth(painter) / 2);
-            return Math.max(
-                0,
-                item.data.left - tapeCenter - getLabelToRangeGap(painter)
-            );
+        if (naturalStart >= viewportStart || end <= viewportStart) {
+            return end <= viewportStart
+                ? Math.max(naturalStart, end)
+                : naturalStart;
         }
 
-        const tapeCenter = getTapeLaneTop(painter, metrics, theme, item.lane) +
-            Math.round(getRangeWidth(painter) / 2);
-        return Math.max(
-            0,
-            item.data.top - tapeCenter - getLabelToRangeGap(painter)
+        return Math.max(start, viewportStart);
+    }
+
+    function getVerticalRangeLabelLeadingStart(
+        item,
+        size,
+        naturalStart,
+        viewportStart
+    ) {
+        return getHorizontalRangeLabelLeadingStart(
+            item,
+            size,
+            naturalStart,
+            viewportStart
         );
     }
 
-    function orderSparklineStagger(items, painter, metrics, theme) {
-        return items
-            .map((item, index) => ({
-                item,
-                index,
-                length: rangeSparklineLength(painter, item, metrics, theme)
-            }))
+    function assignHorizontalPinnedStackPositions(
+        painter,
+        placements,
+        stickyLeft,
+        stickyRight
+    ) {
+        const stagger = Math.max(0, getSparklineStagger(painter));
+        let stackTail = null;
+
+        for (const entry of placements
+            .slice()
             .sort((a, b) =>
-                b.length - a.length ||
+                a.item.endPixel - b.item.endPixel ||
+                a.item.startPixel - b.item.startPixel ||
+                a.routeIndex - b.routeIndex
+            )) {
+            const item = entry.item;
+            const end = toFiniteNumber(item.endPixel);
+            if (end == null) continue;
+
+            let target = null;
+
+            if (entry.naturalLeft <= stickyLeft) {
+                target = end <= stickyLeft
+                    ? Math.max(entry.naturalLeft, end)
+                    : stackTail == null
+                        ? getHorizontalRangeLabelLeadingStart(
+                            item,
+                            entry.width,
+                            entry.naturalLeft,
+                            stickyLeft
+                        )
+                        : Math.max(stickyLeft, stackTail + stagger);
+            } else if (stackTail != null && entry.naturalLeft < stackTail + stagger) {
+                target = stackTail + stagger;
+            }
+
+            if (target == null) continue;
+
+            entry.left = Math.min(target, end);
+            entry.right = entry.left + entry.width;
+            entry.pinnedStack = true;
+
+            if (rangeLabelBoxRetainedForRouting(
+                entry.left,
+                entry.width,
+                stickyLeft,
+                stickyRight
+            )) {
+                stackTail = entry.left;
+            }
+        }
+    }
+
+    function assignVerticalPinnedStackPositions(
+        painter,
+        placements,
+        stickyTop,
+        stickyBottom
+    ) {
+        const stagger = Math.max(0, getSparklineStagger(painter));
+        let stackTail = null;
+
+        for (const entry of placements
+            .slice()
+            .sort((a, b) =>
+                finiteOr(b.preferredTrack, -1) - finiteOr(a.preferredTrack, -1) ||
+                a.item.endPixel - b.item.endPixel ||
+                a.item.startPixel - b.item.startPixel ||
                 a.index - b.index
-            );
+            )) {
+            const item = entry.item;
+            const end = toFiniteNumber(item.endPixel);
+            if (end == null) continue;
+
+            let target = null;
+
+            if (entry.naturalTop <= stickyTop) {
+                target = end <= stickyTop
+                    ? Math.max(entry.naturalTop, end)
+                    : stackTail == null
+                        ? getVerticalRangeLabelLeadingStart(
+                            item,
+                            entry.height,
+                            entry.naturalTop,
+                            stickyTop
+                        )
+                        : Math.max(stickyTop, stackTail + stagger);
+            } else if (
+                stackTail != null &&
+                entry.naturalTop < stackTail + stagger
+            ) {
+                target = stackTail + stagger;
+            }
+
+            if (target == null) continue;
+
+            entry.top = Math.min(target, end);
+            entry.bottom = entry.top + entry.height;
+            entry.pinnedStack = true;
+
+            if (rangeLabelBoxRetainedForRouting(
+                entry.top,
+                entry.height,
+                stickyTop,
+                stickyBottom
+            )) {
+                stackTail = entry.top;
+            }
+        }
     }
 
     function assignHorizontalSparklinePositions(
         painter,
-        items,
-        metrics,
-        theme,
-        stickyLeft,
-        stickyRight
+        items
     ) {
-        const groups = { start: [], end: [] };
-
         for (const item of items) {
             delete item._repriseSparkLeft;
-            const width = getDataWidth(item.data, item.width || 0);
-            const edge = edgeIfStuck(item.data.left, width, stickyLeft, stickyRight);
-            if (edge) groups[edge].push(item);
-        }
-
-        const setSparkLeft = (item, preferred) => {
-            const left = item.data.left;
-            const right = left + getDataWidth(item.data, item.width || 0);
-            const aligned = getRangeLabelAlign(
-                painter,
-                getPainterVisualTheme(painter, item.evt)
-            ) === "center"
-                ? Math.max(
-                    item.startPixel,
-                    Math.min(preferred, item.endPixel)
-                )
-                : preferred;
-            item._repriseSparkLeft = Math.round(Math.max(left, Math.min(aligned, right)));
-        };
-
-        for (const [edge, group] of Object.entries(groups)) {
-            orderSparklineStagger(
-                group,
-                painter,
-                metrics,
-                theme
-            ).forEach(({ item }, index) => {
-                const stagger = getLabelSparklineStagger(painter, item);
-                const width = getDataWidth(item.data, item.width || 0);
-                const outside = edge === "start"
-                    ? item.data.left + 2
-                    : item.data.left + width - 2;
-                const inward = edge === "start"
-                    ? index * stagger
-                    : -index * stagger;
-                setSparkLeft(item, outside + inward);
-            });
-        }
-
-        for (const item of items) {
-            if (Number.isFinite(item._repriseSparkLeft)) continue;
-
-            const track = Math.max(0, Math.floor(item.labelTrack || 0));
-            const stagger = getLabelSparklineStagger(painter, item);
-            const maxStagger = Math.max(0, item.endPixel - item.data.left - 1);
-            const desiredLeft = item.data.left +
-                Math.min(track * stagger, maxStagger);
-            setSparkLeft(item, desiredLeft + 2);
+            item._repriseSparkLeft = Math.round(item.data.left + 2);
         }
     }
 
-    function assignVerticalSparklinePositions(
-        painter,
-        items,
-        metrics,
-        theme,
-        stickyTop,
-        stickyBottom
-    ) {
-        const groups = { start: [], end: [] };
-
+    function assignVerticalSparklinePositions(items) {
         for (const item of items) {
             delete item._repriseSparkTop;
-            const height = getDataHeight(item.data, item.height || 0);
-            const edge = edgeIfStuck(item.data.top, height, stickyTop, stickyBottom);
-            if (edge) groups[edge].push(item);
-        }
-
-        const setSparkTop = (item, preferred) => {
-            item._repriseSparkTop = Math.round(preferred);
-        };
-
-        for (const [edge, group] of Object.entries(groups)) {
-            orderSparklineStagger(
-                group,
-                painter,
-                metrics,
-                theme
-            ).forEach(({ item }, index) => {
-                const fontSize = getLabelFontSize(
-                    item.data,
-                    getLabelLineBoxFallback(item.data, item.height || 12)
-                );
-                const stagger = getLabelSparklineStagger(painter, item);
-                const height = getDataHeight(item.data, item.height || 0);
-                const outside = edge === "start"
-                    ? item.data.top
-                    : item.data.top + Math.max(0, height - fontSize);
-                const inward = edge === "start"
-                    ? index * stagger
-                    : -index * stagger;
-                setSparkTop(item, outside + inward);
-            });
-        }
-
-        for (const item of items) {
-            if (Number.isFinite(item._repriseSparkTop)) continue;
-
-            setSparkTop(item, item.data.top);
+            item._repriseSparkTop = Math.round(item.data.top + 2);
         }
     }
 
@@ -1761,6 +1750,16 @@ import {
         tracks[track].push({ left, right });
     }
 
+    function clearRoutingStateOnReverseScroll(painter, stateKey, viewportStart, mapNames) {
+        const previous = toFiniteNumber(painter[stateKey]);
+        if (previous != null && viewportStart < previous - 0.5) {
+            for (const mapName of mapNames) {
+                painter[mapName]?.clear?.();
+            }
+        }
+        painter[stateKey] = viewportStart;
+    }
+
     function placeFixedGroup(tracks, left, right, gap) {
         for (let track = 0; track < tracks.length; track++) {
             if (intervalIsFree(tracks[track], left, right, gap)) return track;
@@ -1779,6 +1778,43 @@ import {
 
         tracks.push([]);
         return tracks.length - 1;
+    }
+
+    function placeFixedGroupCappedFromTrack(
+        tracks,
+        left,
+        right,
+        gap,
+        limit,
+        preferredTrack
+    ) {
+        const preferred = Number.isFinite(preferredTrack)
+            ? Math.max(0, Math.floor(preferredTrack))
+            : null;
+
+        if (preferred != null && laneWithinLimit(preferred, limit)) {
+            while (tracks.length <= preferred) tracks.push([]);
+            if (intervalIsFree(tracks[preferred], left, right, gap)) {
+                return preferred;
+            }
+
+            const maxTrack = limit == null
+                ? tracks.length
+                : Math.max(tracks.length - 1, limit - 1);
+            for (let track = preferred + 1; track <= maxTrack; track++) {
+                if (!laneWithinLimit(track, limit)) break;
+                while (tracks.length <= track) tracks.push([]);
+                if (intervalIsFree(tracks[track], left, right, gap)) return track;
+            }
+
+            for (let track = 0; track < preferred; track++) {
+                if (intervalIsFree(tracks[track], left, right, gap)) return track;
+            }
+
+            return null;
+        }
+
+        return placeFixedGroupCapped(tracks, left, right, gap, limit);
     }
 
     function getTapeLabelAxisSpan(item) {
@@ -1802,6 +1838,11 @@ import {
         return id != null ? "id:" + id : item.evt || "event:" + fallback;
     }
 
+    function getRangeLabelRouteKey(item, fallback) {
+        const id = getEventId(item.evt);
+        return id != null ? "range:" + id : item.evt || "range:" + fallback;
+    }
+
     function buildPointGroups(painter) {
         const groups = new Map();
         let fallback = 0;
@@ -1813,6 +1854,8 @@ import {
             if (!group) {
                 group = {
                     evt: item.evt,
+                    routeKey: key,
+                    preferredLane: painter._repriseRoutedLaneState?.get(key),
                     index: groups.size,
                     items: [],
                     label: null,
@@ -1908,6 +1951,9 @@ import {
         const theme = painter._params.theme;
         if (!metrics || !theme) return;
 
+        painter._repriseRoutedLaneState = painter._repriseRoutedLaneState || new Map();
+        painter._repriseRoutedRangeLaneState =
+            painter._repriseRoutedRangeLaneState || new Map();
         painter._repriseHiddenTapeEvents = new Set();
         painter._repriseHiddenRoutedEvents = new Set();
         rebuildTapeLanes(painter);
@@ -1952,6 +1998,12 @@ import {
         }
 
         const viewportTop = -painter._band.getViewOffset();
+        clearRoutingStateOnReverseScroll(
+            painter,
+            "_repriseLastVerticalViewportStart",
+            viewportTop,
+            ["_repriseRoutedRangeLaneState", "_repriseRoutedLaneState"]
+        );
         const stickyTop = viewportTop + getStickyTopInset(painter);
         const stickyBottom = viewportTop + painter._band.getViewLength() -
             getStickyTopInset(painter);
@@ -1993,51 +2045,65 @@ import {
 
         for (const { item, index } of activeTapeLabels) {
             const naturalTop = rangePreferredTop(item);
-            const top = getRangeLabelViewportStart(
-                painter,
-                item,
-                item.height,
-                naturalTop,
-                stickyTop,
-                stickyBottom
-            );
-
-            if (!rangeLabelBoxRetainedForRouting(
-                top,
-                item.height,
-                stickyTop,
-                stickyBottom
-            )) {
-                hideEventItem(item);
-                continue;
-            }
+            const top = naturalTop;
 
             tapePlacements.push({
                 item,
+                naturalTop,
+                preferredTrack: painter._repriseRoutedRangeLaneState.get(
+                    getRangeLabelRouteKey(item, index)
+                ),
                 top,
                 bottom: top + item.height,
+                height: item.height,
                 index
             });
         }
 
+        assignVerticalPinnedStackPositions(
+            painter,
+            tapePlacements,
+            stickyTop,
+            stickyBottom
+        );
+
+        for (const entry of tapePlacements) {
+            entry.retained = rangeLabelBoxRetainedForRouting(
+                entry.top,
+                entry.height,
+                stickyTop,
+                stickyBottom
+            );
+        }
+
+        const currentRangeRouteKeys = new Set();
         const routedTapePlacements = tapePlacements.sort((a, b) =>
+            (a.pinnedStack && b.pinnedStack
+                ? b.item.endPixel - a.item.endPixel
+                : 0) ||
+            (Number(b.pinnedStack) - Number(a.pinnedStack)) ||
             compareTapeLabelSpanInnerFirst(a, b) ||
             a.index - b.index
         );
 
         for (const entry of routedTapePlacements) {
-            const labelTrack = placeFixedGroupCapped(
+            entry.routeKey = getRangeLabelRouteKey(entry.item, entry.index);
+            if (entry.routeKey != null) currentRangeRouteKeys.add(entry.routeKey);
+
+            const labelTrack = placeFixedGroupCappedFromTrack(
                 tracks,
                 entry.top,
                 entry.bottom,
                 labelGap,
-                routedTrackLimit
+                routedTrackLimit,
+                painter._repriseRoutedRangeLaneState.get(entry.routeKey)
             );
             if (labelTrack == null) {
                 hideEventItem(entry.item);
                 continue;
             }
             reserveInterval(tracks, labelTrack, entry.top, entry.bottom);
+            painter._repriseRoutedRangeLaneState.set(entry.routeKey, labelTrack);
 
             const left = labelTrack === 0
                 ? tapeLabelLeft
@@ -2050,44 +2116,53 @@ import {
 
             entry.item.labelTrack = labelTrack;
             setPaintedRect(entry.item.data, { left, top: entry.top });
+
+            if (!entry.retained) {
+                hideEventItem(entry.item);
+                continue;
+            }
+
             placedTapeLabels.push(entry.item);
         }
+        for (const key of painter._repriseRoutedRangeLaneState.keys()) {
+            if (!currentRangeRouteKeys.has(key)) {
+                painter._repriseRoutedRangeLaneState.delete(key);
+            }
+        }
 
-        assignVerticalSparklinePositions(
-            painter,
-            placedTapeLabels,
-            metrics,
-            theme,
-            stickyTop,
-            stickyBottom
-        );
+        assignVerticalSparklinePositions(placedTapeLabels);
         for (const item of placedTapeLabels) {
             updateVerticalTapeSparkLine(painter, item, metrics, theme);
         }
 
+        const currentPointRouteKeys = new Set();
         for (const group of pointGroups.filter((item) => item.fixedLane == null)) {
-            let physicalTrack = 0;
+            if (group.routeKey != null) currentPointRouteKeys.add(group.routeKey);
 
-            for (; physicalTrack < tracks.length; physicalTrack++) {
-                if (intervalIsFree(
-                    tracks[physicalTrack],
-                    group.span.top,
-                    group.span.bottom,
-                    labelGap
-                )) break;
-            }
+            const physicalTrack = placeFixedGroupCappedFromTrack(
+                tracks,
+                group.span.top,
+                group.span.bottom,
+                labelGap,
+                routedTrackLimit,
+                group.preferredTrack
+            );
 
-            if (physicalTrack >= tracks.length) {
-                if (routedTrackLimit != null && tracks.length >= routedTrackLimit) {
-                    markHiddenEvent(painter, group.evt, "routed");
-                    hideEventGroup(group);
-                    continue;
-                }
-
-                tracks.push([]);
+            if (physicalTrack == null) {
+                markHiddenEvent(painter, group.evt, "routed");
+                hideEventGroup(group);
+                continue;
             }
 
             assignVerticalEventGroup(painter, tracks, group, physicalTrack);
+            if (group.routeKey != null) {
+                painter._repriseRoutedLaneState.set(group.routeKey, physicalTrack);
+            }
+        }
+        for (const key of painter._repriseRoutedLaneState.keys()) {
+            if (!currentPointRouteKeys.has(key)) {
+                painter._repriseRoutedLaneState.delete(key);
+            }
         }
 
         painter._repriseLabelTrackCount = tracks.length;
@@ -2137,11 +2212,18 @@ import {
         const theme = painter._params.theme;
         if (!metrics || !theme) return;
 
+        painter._repriseRoutedLaneState = painter._repriseRoutedLaneState || new Map();
         painter._repriseHiddenTapeEvents = new Set();
         painter._repriseHiddenRoutedEvents = new Set();
         rebuildTapeLanes(painter);
 
         const viewportLeft = -painter._band.getViewOffset();
+        clearRoutingStateOnReverseScroll(
+            painter,
+            "_repriseLastHorizontalViewportStart",
+            viewportLeft,
+            ["_repriseRoutedLaneState"]
+        );
         const stickyLeft = viewportLeft + getStickyLeftInset(painter);
         const stickyRight = viewportLeft + painter._band.getViewLength() - getStickyLeftInset(painter);
         const labelGap = getLabelRoutingGap(painter);
@@ -2181,20 +2263,8 @@ import {
         painter._repriseLabelTrackCount = tracks.length;
         painter._repriseEventLanes = {};
 
-        const horizontalRangeLabelLeft = (item, width, naturalLeft, track = 0) =>
-            getRangeLabelViewportStart(
-                painter,
-                item,
-                width,
-                naturalLeft,
-                stickyLeft,
-                stickyRight,
-                getHorizontalRangeLabelSparkMaxStart(painter, item, track)
-            );
-
-        const placeHorizontalRangeLabel = (item, width, naturalLeft) => {
+        const placeHorizontalRangeLabel = (item, width, left) => {
             for (let track = 0; track < tracks.length; track++) {
-                const left = horizontalRangeLabelLeft(item, width, naturalLeft, track);
                 if (intervalIsFree(tracks[track], left, left + width, labelGap)) {
                     return { track, left };
                 }
@@ -2203,10 +2273,7 @@ import {
             const track = tracks.length;
             if (routedTrackLimit != null && track >= routedTrackLimit) return null;
             tracks.push([]);
-            return {
-                track,
-                left: horizontalRangeLabelLeft(item, width, naturalLeft, track)
-            };
+            return { track, left };
         };
 
         for (const item of labels) {
@@ -2219,12 +2286,7 @@ import {
                 width,
                 item.naturalLeft ?? item.startPixel
             );
-            const left = horizontalRangeLabelLeft(item, width, naturalLeft);
-
-            if (!rangeLabelBoxRetainedForRouting(left, width, stickyLeft, stickyRight)) {
-                hideEventItem(item);
-                continue;
-            }
+            const left = naturalLeft;
 
             item.lane = getTapeLane(painter, item.evt);
             tapePlacements.push({
@@ -2237,7 +2299,28 @@ import {
             });
         }
 
+        assignHorizontalPinnedStackPositions(
+            painter,
+            tapePlacements,
+            stickyLeft,
+            stickyRight
+        );
+
+        for (let index = tapePlacements.length - 1; index >= 0; index--) {
+            const entry = tapePlacements[index];
+            entry.retained = rangeLabelBoxRetainedForRouting(
+                entry.left,
+                entry.width,
+                stickyLeft,
+                stickyRight
+            );
+        }
+
         const routedTapePlacements = tapePlacements.sort((a, b) =>
+            (a.pinnedStack && b.pinnedStack
+                ? b.item.endPixel - a.item.endPixel
+                : 0) ||
+            (Number(b.pinnedStack) - Number(a.pinnedStack)) ||
             compareTapeLabelSpanInnerFirst(a, b) ||
             a.routeIndex - b.routeIndex
         );
@@ -2246,7 +2329,7 @@ import {
             const placement = placeHorizontalRangeLabel(
                 entry.item,
                 entry.width,
-                entry.naturalLeft
+                entry.left
             );
             if (placement == null) {
                 hideEventItem(entry.item);
@@ -2258,44 +2341,39 @@ import {
             reserveInterval(tracks, track, entry.left, entry.right);
             entry.item.labelTrack = track;
 
-            if (horizontalRangeLabelAtSparkLimit(
-                painter,
-                entry.item,
-                entry.left,
-                track
-            )) {
-                hideEventItem(entry.item);
-                continue;
-            }
-
             setPaintedRect(entry.item.data, {
                 left: entry.left,
                 top: getEventLaneTop(painter, metrics, theme, track),
                 width: entry.width
             });
 
+            if (!entry.retained) {
+                hideEventItem(entry.item);
+                continue;
+            }
+
             placedTapeLabels.push(entry.item);
         }
 
         assignHorizontalSparklinePositions(
             painter,
-            placedTapeLabels,
-            metrics,
-            theme,
-            stickyLeft,
-            stickyRight
+            placedTapeLabels
         );
         for (const item of placedTapeLabels) {
             if (item.spark) updateTapeSparkLine(painter, item, metrics, theme);
         }
 
+        const currentPointRouteKeys = new Set();
         for (const group of pointGroups) {
-            const track = placeFixedGroupCapped(
+            if (group.routeKey != null) currentPointRouteKeys.add(group.routeKey);
+
+            const track = placeFixedGroupCappedFromTrack(
                 tracks,
                 group.left,
                 group.right,
                 labelGap,
-                routedTrackLimit
+                routedTrackLimit,
+                group.preferredLane
             );
             if (track == null) {
                 markHiddenEvent(painter, group.evt, "routed");
@@ -2304,12 +2382,21 @@ import {
             }
             reserveInterval(tracks, track, group.left, group.right);
 
+            if (group.routeKey != null) {
+                painter._repriseRoutedLaneState.set(group.routeKey, track);
+            }
+
             const id = getEventId(group.evt);
             if (id != null) painter._repriseEventLanes[id] = track;
 
             for (const item of group.items) {
                 showEventItem(item);
                 item.lane = track;
+            }
+        }
+        for (const key of painter._repriseRoutedLaneState.keys()) {
+            if (!currentPointRouteKeys.has(key)) {
+                painter._repriseRoutedLaneState.delete(key);
             }
         }
 
@@ -2378,6 +2465,9 @@ import {
         const result = originalInitialize.apply(this, arguments);
         resolvePainterVisualTheme(this, band);
         resolvePainterRuntime(this, band, timeline);
+        this._repriseRoutedLaneState = this._repriseRoutedLaneState || new Map();
+        this._repriseRoutedRangeLaneState =
+            this._repriseRoutedRangeLaneState || new Map();
         return result;
     };
 
