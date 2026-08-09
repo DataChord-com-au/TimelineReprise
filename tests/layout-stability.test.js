@@ -3362,6 +3362,21 @@ test("vertical narrative range labels use label toRangeGap at the range edge", (
     assert.equal(range.labelElmt.style.top, "26px");
 });
 
+test("vertical narrative range labels prefer visible same-column nudging before routing", () => {
+    const decorator = makeNarrative("vertical");
+    const short = narrativeRange(decorator, 0, 0, 20, 40, 20);
+    const following = narrativeRange(decorator, 1, 20, 44, 40, 20);
+    decorator._rangeRecords = [short, following];
+
+    decorator.softPaint();
+
+    assert.equal(short.track, 0);
+    assert.equal(short.labelElmt.style.top, "4px");
+    assert.equal(following.track, 0);
+    assert.equal(following.labelElmt.style.top, "24px");
+    assert.equal(following.labelElmt.style.display, "");
+});
+
 for (const {
     orientation,
     flow,
@@ -4059,7 +4074,7 @@ test("a pushed vertical label returns to the top of its span when scrolling back
     assert.equal(follower.labelElmt.style.top, "44px");
 });
 
-test("reverse scrolling restores track zero after a range-end track jump", () => {
+test("reverse scrolling preserves track zero after visible-clear range nudging", () => {
     const decorator = makeNarrative("vertical");
     const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
     const constrained = narrativeRange(decorator, 1, 40, 65, 40, 20);
@@ -4067,7 +4082,7 @@ test("reverse scrolling restores track zero after a range-end track jump", () =>
 
     decorator.setViewOffset(-21);
     decorator.softPaint();
-    assert.equal(constrained.track, 1);
+    assert.equal(constrained.track, 0);
     assert.equal(constrained.labelElmt.style.top, "44px");
 
     decorator.setViewOffset(0);
@@ -4087,7 +4102,7 @@ test("vertical narrative labels route only after same-column placement exceeds t
 
     assert.equal(leading.track, 0);
     assert.equal(leading.labelElmt.style.top, "21px");
-    assert.equal(constrained.track, 1);
+    assert.equal(constrained.track, 0);
     assert.equal(constrained.labelElmt.style.top, "44px");
     assert.equal(constrained.labelElmt.style.display, "");
 });
@@ -4104,7 +4119,7 @@ test("vertical narrative labels hide only after no configured column can fit the
         20,
         { item: { track: 1 } }
     );
-    const constrained = narrativeRange(decorator, 2, 40, 65, 40, 20);
+    const constrained = narrativeRange(decorator, 2, 36, 60, 40, 20);
     decorator._rangeRecords = [baseBlocker, sideBlocker, constrained];
 
     decorator.setViewOffset(-21);

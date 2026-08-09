@@ -1411,27 +1411,42 @@ import {
         const reservedLabels = [];
 
         const reserveLabel = (track, start, size, record) => {
+            const visibleEnd = start + size;
             reservedLabels.push({
                 start,
-                end: start + size + this._stickyGap,
+                visibleEnd,
+                end: visibleEnd + this._stickyGap,
                 left: this._trackStart(track),
-                right: labelCrossEnd(record, track)
+                right: labelCrossEnd(record, track),
+                visible: record.labelElmt?.style?.display !== "none"
             });
         };
 
-        const collidedRangeLabel = (track, start, size, record) => {
+        const collidedRangeLabel = (
+            track,
+            start,
+            size,
+            record,
+            includeRoutingGap = true
+        ) => {
             const left = this._trackStart(track);
             const right = labelCrossEnd(record, track);
 
             return reservedLabels.find(rect =>
-                start < rect.end &&
+                start < (includeRoutingGap ? rect.end : rect.visibleEnd) &&
                 start + size > rect.start &&
                 left < rect.right &&
                 right > rect.left
             );
         };
 
-        const placeRangeLabelInTrack = (track, start, size, record, fixedMain) => {
+        const placeRangeLabelInTrackWithGap = (
+            track,
+            start,
+            size,
+            record,
+            fixedMain
+        ) => {
             const maxMain = record.endPixel - size;
             let main = start;
 
@@ -1443,6 +1458,47 @@ import {
                 main = Math.max(main, collision.end);
                 if (main > maxMain) return null;
             }
+        };
+
+        const placeRangeLabelInTrackVisibleOnly = (track, start, size, record) => {
+            const maxMain = record.endPixel - size - this._labelOffset;
+            let main = start;
+
+            while (true) {
+                const collision = collidedRangeLabel(
+                    track,
+                    main,
+                    size,
+                    record,
+                    false
+                );
+                if (collision) {
+                    main = Math.max(main, collision.visibleEnd);
+                    if (main > maxMain) return null;
+                    continue;
+                }
+
+                const gapCollision = collidedRangeLabel(track, main, size, record);
+                if (!gapCollision || gapCollision.visible) return main;
+
+                if (gapCollision && !gapCollision.visible) {
+                    main = Math.max(main, gapCollision.end);
+                    if (main > maxMain) return null;
+                }
+            }
+        };
+
+        const placeRangeLabelInTrack = (track, start, size, record, fixedMain) => {
+            const main = placeRangeLabelInTrackWithGap(
+                track,
+                start,
+                size,
+                record,
+                fixedMain
+            );
+            if (main != null || fixedMain) return main;
+
+            return placeRangeLabelInTrackVisibleOnly(track, start, size, record);
         };
 
         const placeRangeLabel = (start, size, startTrack, record, fixedMain) => {
