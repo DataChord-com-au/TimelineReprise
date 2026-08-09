@@ -1403,18 +1403,15 @@ import {
             return;
         }
 
-        const occupied = {};
-        const visibleOccupied = [];
         const viewportTop = -viewOffset;
         const viewportBottom = viewportTop + this._band.getViewLength() -
             this._stickyInset;
         const labelCrossEnd = (record, track) =>
             this._trackStart(track) + Math.max(this._trackSizeValue(), record.width || 0);
+        const reservedLabels = [];
 
         const reserveLabel = (track, start, size, record) => {
-            occupied[track] ??= [];
-            occupied[track].push({ start, end: start + size + this._stickyGap });
-            visibleOccupied.push({
+            reservedLabels.push({
                 start,
                 end: start + size + this._stickyGap,
                 left: this._trackStart(track),
@@ -1422,11 +1419,11 @@ import {
             });
         };
 
-        const collidesVisible = (track, start, size, record) => {
+        const collidedRangeLabel = (track, start, size, record) => {
             const left = this._trackStart(track);
             const right = labelCrossEnd(record, track);
 
-            return visibleOccupied.some(rect =>
+            return reservedLabels.find(rect =>
                 start < rect.end &&
                 start + size > rect.start &&
                 left < rect.right &&
@@ -1434,11 +1431,52 @@ import {
             );
         };
 
+        const placeRangeLabelInTrack = (track, start, size, record, fixedMain) => {
+            const maxMain = record.endPixel - size;
+            let main = start;
+
+            while (true) {
+                const collision = collidedRangeLabel(track, main, size, record);
+                if (!collision) return main;
+                if (fixedMain) return null;
+
+                main = Math.max(main, collision.end);
+                if (main > maxMain) return null;
+            }
+        };
+
+        const placeRangeLabel = (start, size, startTrack, record, fixedMain) => {
+            const baseTrack = Math.max(0, Math.floor(startTrack || 0));
+            if (baseTrack >= this._trackCount) return null;
+
+            const baseMain = placeRangeLabelInTrack(
+                baseTrack,
+                start,
+                size,
+                record,
+                fixedMain
+            );
+            if (baseMain != null) return { track: baseTrack, main: baseMain };
+
+            for (let track = baseTrack + 1; track < this._trackCount; track++) {
+                const main = placeRangeLabelInTrack(
+                    track,
+                    start,
+                    size,
+                    record,
+                    fixedMain
+                );
+                if (main != null) return { track, main };
+            }
+
+            return null;
+        };
+
         const firstFreeTrack = (start, size, startTrack, record) => {
             const firstTrack = Math.max(0, Math.floor(startTrack || 0));
 
             for (let track = firstTrack; track < this._trackCount; track++) {
-                if (!collidesVisible(track, start, size, record)) return track;
+                if (!collidedRangeLabel(track, start, size, record)) return track;
             }
 
             return null;
@@ -1484,27 +1522,32 @@ import {
             a.record.index - b.record.index
         );
 
-        for (const { record, size, main, retained } of rangePlacements) {
-            const track = firstFreeTrack(
+        for (const { record, size, main, fixedMain, retained } of rangePlacements) {
+            const placement = placeRangeLabel(
                 main,
                 size,
                 record.baseTrack,
-                record
+                record,
+                fixedMain
             );
 
-            if (track == null || track >= this._trackCount) {
+            if (placement == null || placement.track >= this._trackCount) {
                 record.labelElmt.style.display = "none";
                 record._verticalPlacement = null;
                 this._rangePlacementState.delete(record.item);
                 continue;
             }
 
-            record.track = track;
-            record._verticalPlacement = { track, main, viewOffset };
+            record.track = placement.track;
+            record._verticalPlacement = {
+                track: placement.track,
+                main: placement.main,
+                viewOffset
+            };
             this._rangePlacementState.set(record.item, record._verticalPlacement);
             record.labelElmt.style.display = retained ? "" : "none";
-            this._setLabelPosition(record, main);
-            reserveLabel(record.track, main, size, record);
+            this._setLabelPosition(record, placement.main);
+            reserveLabel(record.track, placement.main, size, record);
         }
 
         const instantLabels = this._instantRecords
