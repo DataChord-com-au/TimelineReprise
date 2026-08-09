@@ -1410,12 +1410,12 @@ import {
             this._trackStart(track) + Math.max(this._trackSizeValue(), record.width || 0);
         const reservedLabels = [];
 
-        const reserveLabel = (track, start, size, record) => {
+        const reserveLabel = (track, start, size, record, gap = this._stickyGap) => {
             const visibleEnd = start + size;
             reservedLabels.push({
                 start,
                 visibleEnd,
-                end: visibleEnd + this._stickyGap,
+                end: visibleEnd + gap,
                 left: this._trackStart(track),
                 right: labelCrossEnd(record, track),
                 visible: record.labelElmt?.style?.display !== "none"
@@ -1603,7 +1603,13 @@ import {
             this._rangePlacementState.set(record.item, record._verticalPlacement);
             record.labelElmt.style.display = retained ? "" : "none";
             this._setLabelPosition(record, placement.main);
-            reserveLabel(record.track, placement.main, size, record);
+            reserveLabel(
+                record.track,
+                placement.main,
+                size,
+                record,
+                retained ? 0 : this._stickyGap
+            );
         }
 
         const instantLabels = this._instantRecords
