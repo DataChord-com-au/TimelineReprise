@@ -5714,7 +5714,8 @@ function createTimeline(container, bandSet) {
     );
 
     _applyBandPresentation(timeline, bandSet, caller);
-    if (_applyInitialDate(timeline, bandSet)) {
+    const initialDateApplied = _applyInitialDate(timeline, bandSet);
+    if (initialDateApplied || bandSet.orientation === "vertical") {
         _softPaintDecorators(bandSet);
     }
     bandSet.clampController = bandSet.clampRange == null
@@ -11005,6 +11006,8 @@ const Reprise = Object.freeze({
     };
 
     Timeline.NarrativeDecorator.prototype._measureLabel = function (record) {
+        record._measuredBandClassName = this._band?._div?.className ?? null;
+
         if (this._labelFlow === "orthogonal") {
             const configuredWidth = this._labelWidth;
             const rawWidth = Math.max(
@@ -11509,6 +11512,20 @@ const Reprise = Object.freeze({
         if (!this._layerDiv) return;
 
         const horizontal = this._isHorizontal();
+        if (!horizontal) {
+            const bandClassName = this._band?._div?.className ?? null;
+            for (const record of [
+                ...this._rangeRecords,
+                ...this._instantRecords
+            ]) {
+                if (
+                    record.labelElmt &&
+                    record._measuredBandClassName !== bandClassName
+                ) {
+                    this._measureLabel(record);
+                }
+            }
+        }
         const crossSize = this._spanSize != null
             ? this._spanSize
             : Math.max(1, this._band.getViewWidth() - this._spanOffset);

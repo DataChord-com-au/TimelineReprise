@@ -2966,6 +2966,51 @@ function narrativeRange(
     return record;
 }
 
+function classSizedNarrativeRange(
+    decorator,
+    index,
+    start,
+    end,
+    width,
+    initialHeight,
+    presentedHeight
+) {
+    const currentHeight = () => decorator._band._div.className.includes(
+        "timeline-band-worldEras"
+    )
+        ? presentedHeight
+        : initialHeight;
+    const labelElmt = {
+        className: "",
+        offsetWidth: width,
+        scrollWidth: width,
+        get offsetHeight() { return currentHeight(); },
+        get scrollHeight() { return currentHeight(); },
+        getBoundingClientRect: () => ({
+            width,
+            height: currentHeight()
+        }),
+        style: {}
+    };
+    const item = {};
+    const record = {
+        item,
+        index,
+        startDate: start,
+        endDate: end,
+        baseTrack: decorator._resolveRangeTrack(item),
+        trackExplicit: decorator._trackIsExplicit(item),
+        startPixel: 0,
+        endPixel: 0,
+        _verticalPlacement: null,
+        labelElmt
+    };
+
+    record.track = record.baseTrack;
+    decorator._measureLabel(record);
+    return record;
+}
+
 function narrativeInstant(
     decorator,
     index,
@@ -3375,6 +3420,43 @@ test("vertical narrative range labels prefer visible same-column nudging before 
     assert.equal(following.track, 0);
     assert.equal(following.labelElmt.style.top, "24px");
     assert.equal(following.labelElmt.style.display, "");
+});
+
+test("vertical narrative routing refreshes label heights after band CSS applies", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._band._div = { className: "timeline-band timeline-band-0" };
+    decorator._trackSize = 120;
+    decorator._trackGap = 2;
+    const covid = classSizedNarrativeRange(
+        decorator,
+        0,
+        0,
+        29,
+        80,
+        63,
+        30
+    );
+    const unravelling = classSizedNarrativeRange(
+        decorator,
+        1,
+        29,
+        100,
+        80,
+        42,
+        15
+    );
+    decorator._rangeRecords = [covid, unravelling];
+
+    decorator.softPaint();
+    assert.equal(unravelling.track, 1);
+
+    decorator._band._div.className += " timeline-band-worldEras";
+    decorator.softPaint();
+
+    assert.deepEqual([covid.height, unravelling.height], [30, 15]);
+    assert.equal(covid.labelElmt.style.top, "4px");
+    assert.equal(unravelling.track, 0);
+    assert.equal(unravelling.labelElmt.style.top, "34px");
 });
 
 for (const {

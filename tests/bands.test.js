@@ -529,6 +529,29 @@ test("createTimeline soft-paints decorators after initialDate settles", () => {
     assert.equal(timeline.getBand(1).centers.length, 0);
 });
 
+test("vertical createTimeline soft-paints decorators after band presentation", () => {
+    const { createBandSet, createTimeline } = loadBands();
+    let softPaintCount = 0;
+    const bandSet = createBandSet({
+        orientation: "vertical",
+        bands: [{
+            id: "worldEras",
+            width: "100%",
+            intervalUnit: "month",
+            intervalPixels: 100,
+            decorators: [{
+                softPaint() {
+                    softPaintCount += 1;
+                }
+            }]
+        }]
+    });
+
+    createTimeline({}, bandSet);
+
+    assert.equal(softPaintCount, 1);
+});
+
 test("visual theme backgroundColor applies to band presentation", () => {
     const { createBandSet, createTimeline } = loadBands();
     const bandSet = createBandSet({

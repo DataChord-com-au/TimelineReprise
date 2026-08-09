@@ -1018,7 +1018,8 @@ function createTimeline(container, bandSet) {
     );
 
     _applyBandPresentation(timeline, bandSet, caller);
-    if (_applyInitialDate(timeline, bandSet)) {
+    const initialDateApplied = _applyInitialDate(timeline, bandSet);
+    if (initialDateApplied || bandSet.orientation === "vertical") {
         _softPaintDecorators(bandSet);
     }
     bandSet.clampController = bandSet.clampRange == null
