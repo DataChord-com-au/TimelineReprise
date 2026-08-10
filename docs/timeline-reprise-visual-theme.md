@@ -21,7 +21,8 @@ var themes = Timeline.loadVisualThemes([
         range: {
             iconColor: "green",
             graphic: "span",
-            width: 4
+            width: 4,
+            lineWidth: 1
         }
     }
 ]);
@@ -133,8 +134,10 @@ contact-based routing. Instant labels are unaffected.
 
 `range.graphic` controls the built-in graphic Narrative draws for range
 records. `span` preserves the filled span default; `start`, `end`, and `both`
-draw divider lines at the corresponding range boundary while labels remain
-range labels. Normal event layout and overview painting ignore this property.
+draw divider lines at the corresponding range boundary; `none` renders the
+range label without a built-in range graphic. `range.lineWidth` controls the
+boundary divider thickness. Normal event layout and overview painting ignore
+these properties.
 
 ## Presentation selection
 

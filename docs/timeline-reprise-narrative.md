@@ -161,6 +161,7 @@ var visualThemes = Timeline.loadVisualThemes([{
     range: {
         offset: 0,
         graphic: "span",
+        lineWidth: 2,
         colors: ["green", "blue"]
     },
     instant: {
@@ -324,11 +325,17 @@ label behavior:
 - `start` - draw only a divider at the range start.
 - `end` - draw only a divider at the range end.
 - `both` - draw dividers at both range boundaries.
+- `none` - draw no built-in range graphic.
 
 The boundary dividers use the same resolved range graphic colour as a span,
 including `spanColor`, `color`, tags, and emphasis according to
-`eventColorScope`. `spans: false` suppresses all Narrative range graphics,
-including boundary dividers.
+`eventColorScope`. Labels still render when `graphic: "none"` is selected.
+`spans: false` suppresses all Narrative range graphics, including boundary
+dividers.
+
+### `visualTheme.range.lineWidth`
+Width of range boundary divider lines when `range.graphic` is `start`, `end`,
+or `both`. Defaults to `1`.
 
 ### `visualTheme.range.cssClass`
 Extra class added to range graphic elements.

@@ -1599,6 +1599,27 @@ test("Narrative accepts ranges and instants for every supported unit shape", () 
     }
 });
 
+test("Narrative range graphic none renders labels without built-in graphics", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const { decorator } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter" }],
+        [],
+        { range: { graphic: "none" } }
+    );
+    const record = decorator._rangeRecords[0];
+
+    assert.ok(record.labelElmt);
+    assert.equal(record.spanElmt, undefined);
+    assert.deepEqual(record.graphicElmts ?? [], []);
+});
+
 test("Narrative caption tooltips enable pointer events without bubble behavior", () => {
     const { Timeline } = loadTimeline();
     const unit = makePlanningUnit();
@@ -1619,6 +1640,38 @@ test("Narrative caption tooltips enable pointer events without bubble behavior",
     assert.equal(label.style.pointerEvents, "auto");
     assert.equal(label.style.cursor, "default");
     assert.equal(label.onclick, undefined);
+});
+
+test("Narrative layer parents pass through input while bubble labels stay interactive", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const { decorator, layers } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter" }],
+        [{ date: 3, title: "Milestone" }]
+    );
+    const visualLayer = layers.find(layer =>
+        hasClass(layer, "timeline-narrative-visual-layer")
+    );
+    const dividerLayer = layers.find(layer =>
+        hasClass(layer, "timeline-narrative-divider-layer")
+    );
+    const labelLayer = layers.find(layer =>
+        hasClass(layer, "timeline-narrative-label-layer")
+    );
+
+    assert.equal(visualLayer.style.pointerEvents, "none");
+    assert.equal(dividerLayer.style.pointerEvents, "none");
+    assert.equal(labelLayer.style.pointerEvents, "none");
+    assert.equal(decorator._rangeRecords[0].labelElmt.style.pointerEvents, "auto");
+    assert.equal(typeof decorator._rangeRecords[0].labelElmt.onclick, "function");
+    assert.equal(decorator._instantRecords[0].labelElmt.style.pointerEvents, "auto");
+    assert.equal(typeof decorator._instantRecords[0].labelElmt.onclick, "function");
 });
 
 test("Narrative caption tooltips can be suppressed independently of bubbles", () => {

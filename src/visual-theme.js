@@ -95,7 +95,7 @@ const _VISUAL_THEME_COLOR_SCOPES = Object.freeze(['none', 'label', 'graphic', 'b
 const _LABEL_COLOR_SOURCES = Object.freeze(['graphic', 'theme', 'inherit']);
 const _LABEL_FLOWS = Object.freeze(['normal', 'orthogonal']);
 const _RANGE_LABEL_ALIGNS = Object.freeze(['start', 'center']);
-const _RANGE_GRAPHICS = Object.freeze(['span', 'start', 'end', 'both']);
+const _RANGE_GRAPHICS = Object.freeze(['span', 'start', 'end', 'both', 'none']);
 const _VISUAL_THEME_FIELDS = new Set([
     'id',
     'backgroundColor',
@@ -139,6 +139,7 @@ const _RANGE_FIELDS = new Set([
     'colors',
     'graphic',
     'width',
+    'lineWidth',
     'offset',
     'size',
     'eventRoutingThreshold',
@@ -219,6 +220,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         colors: ['blue'],
         graphic: 'span',
         width: 4,
+        lineWidth: 1,
         offset: 0,
         cssClass: '',
         short: { minDisplayLength: 4 },
@@ -380,9 +382,10 @@ class VisualTheme {
         this.#assertColor(spec.iconColor, `${caller}.iconColor`);
         this.#assertColorList(spec.colors, `${caller}.colors`);
         if (spec.graphic !== undefined && !_RANGE_GRAPHICS.includes(spec.graphic)) {
-            throw new RangeError(`${caller}.graphic must be 'span', 'start', 'end', or 'both'.`);
+            throw new RangeError(`${caller}.graphic must be 'span', 'start', 'end', 'both', or 'none'.`);
         }
         this.#assertNumber(spec.width, `${caller}.width`, { positive: true });
+        this.#assertNumber(spec.lineWidth, `${caller}.lineWidth`, { positive: true });
         this.#assertNumber(spec.offset, `${caller}.offset`);
         this.#assertNumber(spec.size, `${caller}.size`, { positive: true });
         this.#assertNumber(spec.eventRoutingThreshold, `${caller}.eventRoutingThreshold`, { positive: true });

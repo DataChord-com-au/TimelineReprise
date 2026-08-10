@@ -327,6 +327,9 @@ import {
     function hidePaintedData(data) {
         if (!data?.elmt) return;
 
+        if (data.elmt._repriseHiddenPointerEvents === undefined) {
+            data.elmt._repriseHiddenPointerEvents = data.elmt.style.pointerEvents;
+        }
         data.elmt.style.display = "none";
         data.elmt.style.pointerEvents = "none";
         data.elmt.setAttribute?.("aria-hidden", "true");
@@ -336,8 +339,10 @@ import {
         if (!data?.elmt) return;
 
         data.elmt.style.display = "";
-        data.elmt.style.pointerEvents = data.elmt._repriseHiddenPointerEvents ?? "";
-        delete data.elmt._repriseHiddenPointerEvents;
+        if (data.elmt._repriseHiddenPointerEvents !== undefined) {
+            data.elmt.style.pointerEvents = data.elmt._repriseHiddenPointerEvents;
+            delete data.elmt._repriseHiddenPointerEvents;
+        }
         data.elmt.removeAttribute?.("aria-hidden");
     }
 

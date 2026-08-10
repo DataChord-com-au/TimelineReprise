@@ -120,7 +120,8 @@ import {
         return graphic === "span" ||
             graphic === "start" ||
             graphic === "end" ||
-            graphic === "both"
+            graphic === "both" ||
+            graphic === "none"
             ? graphic
             : fallback;
     }
@@ -385,6 +386,7 @@ import {
 
         this._spanOffset = themedFinite({}, rangeTheme, "offset", 0);
         this._spanSize = themedFiniteOrNull({}, rangeTheme, "size");
+        this._rangeLineWidth = themedFinite({}, rangeTheme, "lineWidth", 1);
         this._rangeToLabelGap = themedFinite({}, labelTheme, "toRangeGap", 4);
         this._dividerWidth = themedFinite({}, instantTheme, "lineWidth", 1);
         this._instantToLabelGap = themedFinite({}, labelTheme, "toInstantGap", 4);
@@ -696,6 +698,7 @@ import {
             case "start": return ["start"];
             case "end": return ["end"];
             case "both": return ["start", "end"];
+            case "none": return [];
             case "span":
             default: return ["span"];
         }
@@ -1266,13 +1269,14 @@ import {
                 const mainStart = boundary === "end"
                     ? record.endPixel
                     : record.startPixel;
+                const lineStart = mainStart - Math.floor(this._rangeLineWidth / 2);
                 this._setRect(graphicElmt, boundary === "span"
                     ? horizontal
                         ? { left: record.startPixel, width: record.endPixel - record.startPixel, top: this._spanOffset, height: crossSize }
                         : { top: record.startPixel, height: record.endPixel - record.startPixel, left: this._spanOffset, width: crossSize }
                     : horizontal
-                        ? { left: mainStart, width: 1, top: this._spanOffset, height: crossSize }
-                        : { top: mainStart, height: 1, left: this._spanOffset, width: crossSize });
+                        ? { left: lineStart, width: this._rangeLineWidth, top: this._spanOffset, height: crossSize }
+                        : { top: lineStart, height: this._rangeLineWidth, left: this._spanOffset, width: crossSize });
             }
         }
 

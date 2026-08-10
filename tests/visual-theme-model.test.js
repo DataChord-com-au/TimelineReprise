@@ -146,9 +146,24 @@ test("VisualTheme validates Narrative range graphic mode", () => {
     const Timeline = loadTimeline();
 
     assert.equal(new Timeline.VisualTheme().range.graphic, "span");
+    assert.equal(new Timeline.VisualTheme().range.lineWidth, 1);
     assert.equal(
         new Timeline.VisualTheme({ range: { graphic: "both" } }).range.graphic,
         "both"
+    );
+    assert.equal(
+        new Timeline.VisualTheme({ range: { lineWidth: 3 } }).range.lineWidth,
+        3
+    );
+    assert.equal(
+        new Timeline.VisualTheme({
+            range: { vertical: { lineWidth: 4 } }
+        }).range.vertical.lineWidth,
+        4
+    );
+    assert.equal(
+        new Timeline.VisualTheme({ range: { graphic: "none" } }).range.graphic,
+        "none"
     );
     assert.equal(
         new Timeline.VisualTheme({
@@ -158,13 +173,17 @@ test("VisualTheme validates Narrative range graphic mode", () => {
     );
     assert.throws(
         () => new Timeline.VisualTheme({ range: { graphic: "middle" } }),
-        /range\.graphic must be 'span', 'start', 'end', or 'both'/
+        /range\.graphic must be 'span', 'start', 'end', 'both', or 'none'/
     );
     assert.throws(
         () => new Timeline.VisualTheme({
             range: { vertical: { graphic: "middle" } }
         }),
-        /range\.vertical\.graphic must be 'span', 'start', 'end', or 'both'/
+        /range\.vertical\.graphic must be 'span', 'start', 'end', 'both', or 'none'/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({ range: { lineWidth: 0 } }),
+        /range\.lineWidth must be a positive finite number/
     );
 });
 

@@ -617,6 +617,32 @@ test("event content passes blank-area input through and keeps painted items inte
     assert.equal(label.elmt.style.zIndex, "2");
 });
 
+test("event content stays interactive after routing hides and shows it", () => {
+    const painter = makeEventPainter("horizontal");
+    const item = tapeLabel(untrackedEvent("range", -400, -300), -400, 80, 16);
+
+    item.data.elmt.style.pointerEvents = "auto";
+    item.spark.elmt.style.pointerEvents = "none";
+    painter._repriseTapeLabels.push(item);
+
+    painter.paint();
+
+    assert.equal(item.data.elmt.style.display, "none");
+    assert.equal(item.data.elmt.style.pointerEvents, "none");
+    assert.equal(item.spark.elmt.style.display, "none");
+    assert.equal(item.spark.elmt.style.pointerEvents, "none");
+
+    item.startPixel = 20;
+    item.endPixel = 100;
+    item.naturalLeft = 20;
+    painter.paint();
+
+    assert.equal(item.data.elmt.style.display, "");
+    assert.equal(item.data.elmt.style.pointerEvents, "auto");
+    assert.equal(item.spark.elmt.style.display, "");
+    assert.equal(item.spark.elmt.style.pointerEvents, "none");
+});
+
 function tapeLabel(evt, natural, width, height) {
     return {
         evt,
@@ -3093,7 +3119,7 @@ function makeNarrativePaintDom() {
     return { document, layers, band, timeline };
 }
 
-function paintNarrativeRangeGraphic(graphic, { spans = true } = {}) {
+function paintNarrativeRangeGraphic(graphic, { spans = true, lineWidth } = {}) {
     const NarrativeDecorator = loadNarrativeDecorator();
     const { layers, band, timeline } = makeNarrativePaintDom();
     const decorator = new NarrativeDecorator({
@@ -3101,7 +3127,8 @@ function paintNarrativeRangeGraphic(graphic, { spans = true } = {}) {
             spans,
             range: {
                 colors: ["range-color"],
-                graphic
+                graphic,
+                lineWidth
             }
         }),
         ranges: [{ start: 10, end: 40, title: "Range" }]
@@ -3222,6 +3249,16 @@ test("narrative range graphic modes draw spans or range boundary dividers", () =
         assertHasClasses(label, ["timeline-narrative-range-label"]);
         assert.ok(!String(label.className).includes("timeline-narrative-instant-label"));
     }
+});
+
+test("narrative range lineWidth controls boundary divider thickness", () => {
+    const { visualLayer } = paintNarrativeRangeGraphic("both", { lineWidth: 4 });
+    const graphics = visualLayer.children;
+
+    assert.equal(graphics[0].style.left, "8px");
+    assert.equal(graphics[0].style.width, "4px");
+    assert.equal(graphics[1].style.left, "38px");
+    assert.equal(graphics[1].style.width, "4px");
 });
 
 test("narrative range boundary graphics are suppressed by spans false", () => {

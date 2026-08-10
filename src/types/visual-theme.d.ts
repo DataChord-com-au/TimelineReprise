@@ -3,7 +3,7 @@ declare namespace Timeline {
     type LabelColorSource = "graphic" | "theme" | "inherit";
     type LabelFlow = "normal" | "orthogonal";
     type RangeLabelAlign = "start" | "center";
-    type RangeGraphic = "span" | "start" | "end" | "both";
+    type RangeGraphic = "span" | "start" | "end" | "both" | "none";
 
     interface TrackSpec {
         count?: number;
@@ -42,6 +42,7 @@ declare namespace Timeline {
         colors?: readonly string[];
         graphic?: RangeGraphic;
         width?: number;
+        lineWidth?: number;
         offset?: number;
         size?: number;
         eventRoutingThreshold?: number;
