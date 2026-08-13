@@ -78,8 +78,11 @@
         markerLayer,
         timeline,
         markerConfig,
-        align
+        align,
+        showTick
     ) {
+        if (showTick === undefined) showTick = true;
+
         var horizontal = timeline.isHorizontal();
         var orientation = horizontal ? "horizontal" : "vertical";
         var edge = horizontal
@@ -108,13 +111,12 @@
         );
         var document = timeline.getDocument();
         var content = document.createElement("span");
-        var tick = document.createElement("span");
 
         releaseMarkerLayer(markerLayer);
         addClass(marker, "timeline-reprise-date-label-" + orientation);
         addClass(marker, "timeline-reprise-date-label-" + edge);
         addClass(marker, "timeline-reprise-date-label-layered");
-        if (length != null) {
+        if (showTick && length != null) {
             addClass(marker, "timeline-reprise-date-label-ticked");
         }
 
@@ -123,12 +125,15 @@
         moveMarkerContent(marker, content);
         marker.appendChild(content);
 
-        tick.className = "timeline-reprise-date-label-tick";
-        tick.setAttribute("aria-hidden", "true");
-        tick.style.zIndex = String(tickZIndex);
-        tick.style[horizontal ? "height" : "width"] =
-            length == null || length === "label" ? "100%" : String(length);
-        marker.appendChild(tick);
+        if (showTick) {
+            var tick = document.createElement("span");
+            tick.className = "timeline-reprise-date-label-tick";
+            tick.setAttribute("aria-hidden", "true");
+            tick.style.zIndex = String(tickZIndex);
+            tick.style[horizontal ? "height" : "width"] =
+                length == null || length === "label" ? "100%" : String(length);
+            marker.appendChild(tick);
+        }
 
         return marker;
     }
@@ -164,9 +169,21 @@
         intervalMarkers
     ) {
         var bandInfo = band && band._bandInfo;
-        var showMarkers = typeof intervalMarkers === "boolean"
+        var markerOptions = intervalMarkers &&
+            typeof intervalMarkers === "object"
             ? intervalMarkers
-            : !bandInfo || bandInfo.intervalMarkers !== false;
+            : null;
+        var showMarkers = markerOptions &&
+            "showMarkers" in markerOptions
+            ? markerOptions.showMarkers
+            : (
+                typeof intervalMarkers === "boolean"
+                    ? intervalMarkers
+                    : !bandInfo || bandInfo.intervalMarkers !== false
+            );
+        var showTicks = markerOptions && "showTicks" in markerOptions
+            ? markerOptions.showTicks
+            : true;
 
         OriginalEtherIntervalMarkerLayout.call(
             this,
@@ -205,7 +222,8 @@
                     markerLayer,
                     timeline,
                     markerConfig,
-                    align
+                    align,
+                    showTicks
                 );
             }
 

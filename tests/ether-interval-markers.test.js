@@ -828,7 +828,7 @@ test("cardinal axes render aligned bounded ranges from either anchor", () => {
     }
 });
 
-test("cardinal labelForIndex receives anchor-relative indexes", () => {
+test("cardinal labelForIndex receives resolved anchor-relative indexes", () => {
     const { DAY, Timeline } = loadTimeline();
     const unit = {
         cloneValue: value => Number(value),
@@ -853,7 +853,9 @@ test("cardinal labelForIndex receives anchor-relative indexes", () => {
         endDate: 30,
         theme: Timeline.ClassicTheme.create(),
         unit: DAY,
-        unitsPerCount: 10,
+        unitsPerCount: 5,
+        countsPerMarker: 2,
+        anchorValue: 1,
         anchor: "end",
         labelForIndex(index) {
             seen.push(index);
@@ -865,12 +867,290 @@ test("cardinal labelForIndex receives anchor-relative indexes", () => {
     cardinal.paint();
 
     assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "i7",
+        "i5",
         "i3",
-        "i2",
-        "i1",
-        "i0"
+        "i1"
     ]);
-    assert.deepEqual(seen, [3, 2, 1, 0]);
+    assert.deepEqual(seen, [7, 5, 3, 1]);
+});
+
+test("cardinal labelEvery calls the delegate only at the label cadence", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const seen = [];
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 32,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 32,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 8,
+        labelEvery: 2,
+        labelForIndex(index) {
+            seen.push(index);
+            return `i${index}`;
+        }
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "i0",
+        "\u2003",
+        "i2",
+        "\u2003",
+        "i4"
+    ]);
+    assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+        0,
+        8,
+        16,
+        24,
+        32
+    ]);
+    assert.deepEqual(seen, [0, 2, 4]);
+});
+
+test("cardinal labelEvery applies anchorValue before calling the delegate", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const seen = [];
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 12,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 12,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 3,
+        countsPerMarker: 1,
+        anchorValue: 1,
+        labelEvery: 4,
+        labelForIndex(index) {
+            seen.push(index);
+            return `Q${index}`;
+        }
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "Q1",
+        "\u2003",
+        "\u2003",
+        "\u2003",
+        "Q5"
+    ]);
+    assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+        0,
+        3,
+        6,
+        9,
+        12
+    ]);
+    assert.deepEqual(seen, [1, 5]);
+});
+
+test("cardinal truncate rounds one place beyond a fractional count cadence", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const seen = [];
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 0.02,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value * 1000
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 0.011,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 0.1,
+        countsPerMarker: 0.1,
+        finishing: "truncate",
+        truncatePreviousMarkerThreshold: 0,
+        labelForIndex(index) {
+            seen.push(index);
+            return String(index);
+        }
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "0",
+        "0.1",
+        "0.11"
+    ]);
+    assert.deepEqual(labelOffsets(fixture.layer("ether-markers")), [
+        0,
+        10,
+        11
+    ]);
+    assert.deepEqual(seen, [0, 0.1, 0.11]);
+});
+
+test("cardinal showLabels suppresses label content without suppressing ticks", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 20,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 20,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        showLabels: false,
+        labelForIndex() {
+            throw new Error("labelForIndex should not be called");
+        }
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    const labels = dateLabels(fixture.layer("ether-markers"));
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), ["", "", ""]);
+    assert.ok(labels.every(label => markerTick(label)));
+});
+
+test("cardinal showTicks suppresses tick elements without suppressing labels", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 20,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 20,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        showTicks: false
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    const labels = dateLabels(fixture.layer("ether-markers"));
+    assert.deepEqual(labelTexts(fixture.layer("ether-markers")), [
+        "0",
+        "1",
+        "2"
+    ]);
+    assert.ok(labels.every(label => !markerTick(label)));
+    assert.ok(labels.every(label =>
+        !label.className.includes("timeline-reprise-date-label-ticked")
+    ));
+});
+
+test("cardinal grid-only axes render lines without marker DOM", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start: 0,
+            end: 20,
+            cloneValue: value => value,
+            dateToPixelOffset: value => value
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        runtime: { unit },
+        startDate: 0,
+        endDate: 20,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 10,
+        showLine: true,
+        showLabels: false,
+        showTicks: false
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+    cardinal.paint();
+
+    assert.equal(dateLabels(fixture.layer("ether-markers")).length, 0);
+    assert.ok(fixture.layer("ether-lines").children.length > 0);
 });
 
 test("cardinal boundary labels refer to physical range boundaries", () => {
@@ -1359,6 +1639,37 @@ test("cardinal date axes use native calendar stepping across variable lengths", 
         "2026-03-01",
         "2027-03-01"
     ]);
+});
+
+test("cardinal native-date axes reject fractional marker intervals", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const start = new Date("2024-01-01T00:00:00Z");
+    const end = new Date("2024-01-03T00:00:00Z");
+    const fixture = makePainterFixture(
+        true,
+        () => ({ text: "Unused", emphasized: false }),
+        false,
+        {
+            start,
+            end,
+            dateToPixelOffset: value => value.getTime()
+        }
+    );
+    const cardinal = new Timeline.CardinalAxis({
+        startDate: start,
+        endDate: end,
+        theme: Timeline.ClassicTheme.create(),
+        unit: DAY,
+        unitsPerCount: 0.5,
+        countsPerMarker: 1
+    });
+
+    cardinal.initialize(fixture.band, fixture.timeline);
+
+    assert.throws(
+        () => cardinal.paint(),
+        /fractional native-date marker intervals require markerAtIndex/
+    );
 });
 
 test("cardinal and hot-zone painters use the shared marker theme", () => {

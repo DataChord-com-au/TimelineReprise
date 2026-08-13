@@ -8,6 +8,83 @@ import {
 (function () {
     if (!window.Timeline || Timeline.CardinalAxis) return;
 
+    var UNLABELED_MARKER_TEXT = "\u2003";
+
+    function hasOwn(value, key) {
+        return value != null &&
+            Object.prototype.hasOwnProperty.call(value, key);
+    }
+
+    function resolveBoolean(params, key, fallback) {
+        var value = hasOwn(params, key) ? params[key] : fallback;
+        if (typeof value !== "boolean") {
+            throw new TypeError(
+                "Timeline.CardinalAxis " + key + " must be a boolean."
+            );
+        }
+        return value;
+    }
+
+    function resolveLabelEvery(params) {
+        var hasLabelEvery = hasOwn(params, "labelEvery");
+
+        var value = hasLabelEvery
+            ? params.labelEvery
+            : 1;
+
+        if (!Number.isInteger(value) || value <= 0) {
+            throw new RangeError(
+                "Timeline.CardinalAxis labelEvery must be a positive integer."
+            );
+        }
+
+        return value;
+    }
+
+    function showsGeneratedLabel(markerIndex, labelEvery) {
+        if (labelEvery === 1) return true;
+        if (!Number.isInteger(markerIndex)) return false;
+        return markerIndex % labelEvery === 0;
+    }
+
+    function resolvePositiveFinite(params, key, fallback) {
+        var value = hasOwn(params, key) ? params[key] : fallback;
+        if (!Number.isFinite(value) || value <= 0) {
+            throw new RangeError(
+                "Timeline.CardinalAxis " + key + " must be a positive finite number."
+            );
+        }
+        return value;
+    }
+
+    function decimalPlaces(value) {
+        var parts = Math.abs(value).toString().toLowerCase().split("e");
+        var fraction = (parts[0].split(".")[1] || "").length;
+        var exponent = parts.length > 1 ? Number(parts[1]) : 0;
+
+        return Math.max(0, fraction - exponent);
+    }
+
+    function shiftDecimal(value, places) {
+        var parts = value.toString().toLowerCase().split("e");
+        var exponent = parts.length > 1 ? Number(parts[1]) : 0;
+
+        return Number(parts[0] + "e" + (exponent + places));
+    }
+
+    function roundToDecimalPlaces(value, places) {
+        var shifted = shiftDecimal(value, places);
+        if (!Number.isFinite(shifted)) return value;
+
+        var rounded = shiftDecimal(Math.round(shifted), -places);
+        return Object.is(rounded, -0) ? 0 : rounded;
+    }
+
+    function isEffectivelyInteger(value) {
+        return Math.abs(value - Math.round(value)) <=
+            Number.EPSILON * Math.max(1, Math.abs(value)) * 8;
+    }
+
     Timeline.CardinalAxis = function (params) {
         this._params = params;
         this._nativeTheme = params.theme;
@@ -17,13 +94,27 @@ import {
         this._endDate = params.endDate ?? null;
         this._unit = params.unit;
         this._runtime = params.runtime ?? null;
-        this._unitsPerCount = ("unitsPerCount" in params)
-            ? params.unitsPerCount
-            : 1;
-        this._countsPerMarker = ("countsPerMarker" in params)
-            ? params.countsPerMarker
-            : 1;
-        this._unitsPerMarker = this._unitsPerCount * this._countsPerMarker;
+        this._unitsPerCount = resolvePositiveFinite(
+            params,
+            "unitsPerCount",
+            1
+        );
+        this._countsPerMarker = resolvePositiveFinite(
+            params,
+            "countsPerMarker",
+            1
+        );
+        var unitsPerMarker = this._unitsPerCount * this._countsPerMarker;
+        if (!Number.isFinite(unitsPerMarker) || unitsPerMarker <= 0) {
+            throw new RangeError(
+                "Timeline.CardinalAxis unitsPerCount * countsPerMarker must be a positive finite number."
+            );
+        }
+        this._unitsPerMarker = roundToDecimalPlaces(
+            unitsPerMarker,
+            decimalPlaces(this._unitsPerCount) +
+                decimalPlaces(this._countsPerMarker)
+        );
         this._anchorValue = params.anchorValue ?? 0;
         this._markerAtIndex = params.markerAtIndex ?? null;
         this._indexAtValue = params.indexAtValue ?? null;
@@ -77,16 +168,39 @@ import {
         }
         this._startLabel = params.startLabel;
         this._endLabel = params.endLabel;
+        this._showLabels = resolveBoolean(params, "showLabels", true);
+        this._showTicks = resolveBoolean(params, "showTicks", true);
+        this._labelEvery = resolveLabelEvery(params);
+        this._unlabeledMarkerText = hasOwn(params, "unlabeledMarkerText")
+            ? params.unlabeledMarkerText
+            : UNLABELED_MARKER_TEXT;
+        if (typeof this._unlabeledMarkerText !== "string") {
+            throw new TypeError(
+                "Timeline.CardinalAxis unlabeledMarkerText must be a string."
+            );
+        }
         var countsPerMarker = this._countsPerMarker;
         var anchorValue = this._anchorValue;
-        this._labelForIndex = params.labelForIndex || function (index) {
-            var value = anchorValue + index * countsPerMarker;
-            var rounded = Math.round(value);
+        var labelEvery = this._labelEvery;
+        var unlabeledMarkerText = this._unlabeledMarkerText;
+        var indexPrecision = Math.max(
+            decimalPlaces(anchorValue),
+            decimalPlaces(countsPerMarker)
+        );
+        var labelForIndex = params.labelForIndex || function (index) {
+            return String(index);
+        };
+        this._labelForMarkerIndex = function (markerIndex) {
+            var precision = indexPrecision +
+                (Number.isInteger(markerIndex) ? 0 : 1);
+            var index = roundToDecimalPlaces(
+                anchorValue + markerIndex * countsPerMarker,
+                precision
+            );
 
-            if (Math.abs(value - rounded) > 1e-9) {
-                rounded = Math.round(value * 10) / 10;
-            }
-            return String(Object.is(rounded, -0) ? 0 : rounded);
+            return showsGeneratedLabel(markerIndex, labelEvery)
+                ? labelForIndex(index)
+                : unlabeledMarkerText;
         };
         this._background = params.background !== false;
         this._cssClass = params.cssClass || null;
@@ -126,7 +240,10 @@ import {
             this._theme,
             align,
             showLine,
-            true
+            {
+                showMarkers: this._showLabels || this._showTicks,
+                showTicks: this._showTicks
+            }
         );
 
         this._highlight = this._backgroundLayer
@@ -254,7 +371,14 @@ import {
             if (isNativeDate(value)) {
                 next = cloneValue(value);
 
-                for (var i = 0; i < p._unitsPerMarker; i++) {
+                if (!isEffectivelyInteger(p._unitsPerMarker)) {
+                    throw new RangeError(
+                        "Timeline.CardinalAxis fractional native-date marker intervals require markerAtIndex()."
+                    );
+                }
+
+                var nativeUnitsPerMarker = Math.round(p._unitsPerMarker);
+                for (var i = 0; i < nativeUnitsPerMarker; i++) {
                     if (
                         direction > 0 &&
                         typeof globalThis.SimileAjax?.DateTime?.incrementByInterval === "function"
@@ -505,9 +629,12 @@ import {
             var isEnd = this._endDate != null &&
                 compare(markerDate, this._endDate) === 0;
 
-            var text = isStart && this._startLabel != null ? this._startLabel
-                : isEnd && this._endLabel != null ? this._endLabel
-                : this._labelForIndex(marker.index);
+            var text = "";
+            if (this._showLabels) {
+                text = isStart && this._startLabel != null ? this._startLabel
+                    : isEnd && this._endLabel != null ? this._endLabel
+                    : this._labelForMarkerIndex(marker.index);
+            }
 
             var div = this._intervalMarkerLayout.createIntervalMarker(
                 markerDate,
@@ -542,7 +669,8 @@ const _CARDINAL_SPEC_FIELDS = new Set([
     "truncatePreviousMarkerThreshold",
     "startLabel",
     "endLabel",
-    "labelForIndex"
+    "labelForIndex",
+    "labelEvery"
 ]);
 const _CARDINAL_OPTION_FIELDS = new Set([
     "runtime",
@@ -550,7 +678,10 @@ const _CARDINAL_OPTION_FIELDS = new Set([
     "markerLength",
     "cssClass",
     "align",
-    "showLine"
+    "showLine",
+    "showLabels",
+    "showTicks",
+    "unlabeledMarkerText"
 ]);
 
 function _cardinalHasOwn(value, key) {
@@ -609,6 +740,31 @@ function _cardinalOptionalString(value, name) {
     if (value == null) return value;
     if (typeof value !== "string") {
         throw new TypeError(`${_CARDINAL_ATTACHMENT_LABEL} ${name} must be a string or null.`);
+    }
+    return value;
+}
+
+function _cardinalRequiredString(value, name) {
+    if (typeof value !== "string") {
+        throw new TypeError(`${_CARDINAL_ATTACHMENT_LABEL} ${name} must be a string.`);
+    }
+    return value;
+}
+
+function _cardinalPositiveInteger(value, name) {
+    if (!Number.isInteger(value) || value <= 0) {
+        throw new RangeError(
+            `${_CARDINAL_ATTACHMENT_LABEL} ${name} must be a positive integer.`
+        );
+    }
+    return value;
+}
+
+function _cardinalPositiveFinite(value, name) {
+    if (!Number.isFinite(value) || value <= 0) {
+        throw new RangeError(
+            `${_CARDINAL_ATTACHMENT_LABEL} ${name} must be a positive finite number.`
+        );
     }
     return value;
 }
@@ -683,15 +839,13 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         `${caller} spec.intervalUnit`
     );
     const unitsPerCount = spec.unitsPerCount ?? 1;
-    if (!Number.isInteger(unitsPerCount) || unitsPerCount <= 0) {
-        throw new RangeError(
-            `${caller} spec.unitsPerCount must be a positive integer.`
-        );
-    }
+    _cardinalPositiveFinite(unitsPerCount, "spec.unitsPerCount");
     const countsPerMarker = spec.countsPerMarker ?? 1;
-    if (!Number.isInteger(countsPerMarker) || countsPerMarker <= 0) {
+    _cardinalPositiveFinite(countsPerMarker, "spec.countsPerMarker");
+    const unitsPerMarker = unitsPerCount * countsPerMarker;
+    if (!Number.isFinite(unitsPerMarker) || unitsPerMarker <= 0) {
         throw new RangeError(
-            `${caller} spec.countsPerMarker must be a positive integer.`
+            `${caller} spec.unitsPerCount * spec.countsPerMarker must be a positive finite number.`
         );
     }
     const anchorValue = spec.anchorValue ?? 0;
@@ -733,6 +887,9 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
     ) {
         throw new TypeError(`${caller} spec.labelForIndex must be a function.`);
     }
+    const labelEvery = _cardinalHasOwn(spec, "labelEvery")
+        ? _cardinalPositiveInteger(spec.labelEvery, "spec.labelEvery")
+        : 1;
     const markerLength = normalizeMarkerLength(
         _cardinalHasOwn(options, "markerLength")
             ? options.markerLength
@@ -756,6 +913,24 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         typeof options.showLine !== "boolean"
     ) {
         throw new TypeError(`${caller} options.showLine must be a boolean.`);
+    }
+    if (
+        _cardinalHasOwn(options, "showLabels") &&
+        typeof options.showLabels !== "boolean"
+    ) {
+        throw new TypeError(`${caller} options.showLabels must be a boolean.`);
+    }
+    if (
+        _cardinalHasOwn(options, "showTicks") &&
+        typeof options.showTicks !== "boolean"
+    ) {
+        throw new TypeError(`${caller} options.showTicks must be a boolean.`);
+    }
+    if (_cardinalHasOwn(options, "unlabeledMarkerText")) {
+        _cardinalRequiredString(
+            options.unlabeledMarkerText,
+            "options.unlabeledMarkerText"
+        );
     }
 
     const runtime = _cardinalRuntime(bandInfo, options);
@@ -798,6 +973,7 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         startLabel: _cardinalOptionalString(spec.startLabel, "spec.startLabel"),
         endLabel: _cardinalOptionalString(spec.endLabel, "spec.endLabel"),
         labelForIndex: spec.labelForIndex,
+        labelEvery,
         background: false,
         cssClass: _cardinalOptionalString(options.cssClass, "options.cssClass"),
         ...(_cardinalHasOwn(options, "align")
@@ -805,7 +981,18 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
             : bandInfo.markerAlign != null
                 ? { align: bandInfo.markerAlign }
                 : {}),
-        ...(_cardinalHasOwn(options, "showLine") ? { showLine: options.showLine } : {})
+        ...(_cardinalHasOwn(options, "showLine")
+            ? { showLine: options.showLine }
+            : {}),
+        ...(_cardinalHasOwn(options, "showLabels")
+            ? { showLabels: options.showLabels }
+            : {}),
+        ...(_cardinalHasOwn(options, "showTicks")
+            ? { showTicks: options.showTicks }
+            : {}),
+        ...(_cardinalHasOwn(options, "unlabeledMarkerText")
+            ? { unlabeledMarkerText: options.unlabeledMarkerText }
+            : {})
     });
 
     bandInfo.decorators ??= [];

@@ -2,7 +2,9 @@ declare namespace Timeline {
     interface CardinalAxisSpec {
         range: unknown;
         intervalUnit: DateTimeUnitName | number;
+        /** Positive finite interval units represented by one cardinal count. */
         unitsPerCount?: number;
+        /** Positive finite cardinal counts between generated markers. */
         countsPerMarker?: number;
         anchorValue?: number;
         anchor?: CardinalAxisAnchor;
@@ -10,7 +12,10 @@ declare namespace Timeline {
         truncatePreviousMarkerThreshold?: number;
         startLabel?: string | null;
         endLabel?: string | null;
+        /** Receives the normalized anchor-relative cardinal value. */
         labelForIndex?: (index: number) => string;
+        /** Positive integer label cadence over generated marker offsets. */
+        labelEvery?: number;
     }
 
     interface AttachCardinalAxisOptions<T = Date> {
@@ -20,6 +25,12 @@ declare namespace Timeline {
         cssClass?: string | null;
         align?: string;
         showLine?: boolean;
+        /** Whether generated marker label content is visible. Defaults to true. */
+        showLabels?: boolean;
+        /** Whether generated marker tick elements are rendered. Defaults to true. */
+        showTicks?: boolean;
+        /** Content used for marker labels skipped by labelEvery. */
+        unlabeledMarkerText?: string;
     }
 
     interface CardinalAxisOptions<T = Date> {
@@ -30,7 +41,9 @@ declare namespace Timeline {
         startDate: T;
         endDate?: T | null;
         unit: number;
+        /** Positive finite interval units represented by one cardinal count. */
         unitsPerCount?: number;
+        /** Positive finite cardinal counts between generated markers. */
         countsPerMarker?: number;
         anchorValue?: number;
         anchor?: CardinalAxisAnchor;
@@ -38,8 +51,11 @@ declare namespace Timeline {
         truncatePreviousMarkerThreshold?: number;
         startLabel?: string | null;
         endLabel?: string | null;
+        /** Receives the normalized anchor-relative cardinal value. */
         labelForIndex?: (index: number) => string;
-        markerAtIndex?: ((index: number) => T | null) | null;
+        /** Resolves a projected value from a zero-based marker offset. */
+        markerAtIndex?: ((markerOffset: number) => T | null) | null;
+        /** Returns a fractional marker offset for a truncated boundary. */
         indexAtValue?: ((
             value: T,
             context: CardinalAxisIndexContext<T>
@@ -48,6 +64,14 @@ declare namespace Timeline {
         cssClass?: string | null;
         align?: string;
         showLine?: boolean;
+        /** Whether generated marker label content is visible. Defaults to true. */
+        showLabels?: boolean;
+        /** Whether generated marker tick elements are rendered. Defaults to true. */
+        showTicks?: boolean;
+        /** Positive integer label cadence over generated marker offsets. */
+        labelEvery?: number;
+        /** Content used for marker labels skipped by labelEvery. */
+        unlabeledMarkerText?: string;
     }
 
     class CardinalAxis<T = Date> {

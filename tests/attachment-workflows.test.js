@@ -986,10 +986,14 @@ test("attachCardinalAxis uses the band's default native-date runtime", () => {
         anchorValue: 1,
         startLabel: "Start",
         endLabel: "End",
-        labelForIndex: index => String(index)
+        labelForIndex: index => String(index),
+        labelEvery: 4
     }, {
         cssClass: "month-count-axis",
-        showLine: false
+        showLine: false,
+        showLabels: true,
+        showTicks: false,
+        unlabeledMarkerText: "--"
     });
 
     assert.equal(bandInfo.decorators.length, 1);
@@ -1009,6 +1013,29 @@ test("attachCardinalAxis uses the band's default native-date runtime", () => {
     assert.equal(axis._background, false);
     assert.equal(axis._cssClass, "month-count-axis");
     assert.equal(axis._params.showLine, false);
+    assert.equal(axis._params.showLabels, true);
+    assert.equal(axis._params.showTicks, false);
+    assert.equal(axis._params.labelEvery, 4);
+    assert.equal(axis._params.unlabeledMarkerText, "--");
+});
+
+test("attachCardinalAxis accepts positive finite count scales", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const { bandInfo } = makeBand(Timeline, unit);
+
+    Timeline.attachCardinalAxis(bandInfo, {
+        range: { start: 0, end: 0.011 },
+        intervalUnit: "day",
+        unitsPerCount: 0.1,
+        countsPerMarker: 0.1,
+        finishing: "truncate"
+    });
+
+    const axis = bandInfo.decorators[0];
+    assert.equal(axis._unitsPerCount, 0.1);
+    assert.equal(axis._countsPerMarker, 0.1);
+    assert.equal(axis._unitsPerMarker, 0.01);
 });
 
 test("cardinal markerLength inherits from its band and attachment overrides it", () => {
@@ -1264,6 +1291,73 @@ test("legacy theme ids and unsupported flat decorator controls are rejected", ()
             { showLine: null }
         ),
         /options\.showLine must be a boolean/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            { showLabels: null }
+        ),
+        /options\.showLabels must be a boolean/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            { showTicks: null }
+        ),
+        /options\.showTicks must be a boolean/
+    );
+    for (const field of ["unitsPerCount", "countsPerMarker"]) {
+        for (const value of [0, -0.1, Number.POSITIVE_INFINITY, NaN]) {
+            assert.throws(
+                () => Timeline.attachCardinalAxis(bandInfo, {
+                    range: { start: 0, end: 10 },
+                    intervalUnit: "day",
+                    [field]: value
+                }),
+                new RegExp(`spec\\.${field} must be a positive finite number`)
+            );
+        }
+    }
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day",
+                labelEvery: 0
+            }
+        ),
+        /spec\.labelEvery must be a positive integer/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            { labelEvery: 2 }
+        ),
+        /options\.labelEvery is not supported/
+    );
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            {
+                range: { start: 0, end: 10 },
+                intervalUnit: "day"
+            },
+            { unlabeledMarkerText: null }
+        ),
+        /options\.unlabeledMarkerText must be a string/
     );
     assert.throws(
         () => Timeline.attachCardinalAxis(bandInfo, {

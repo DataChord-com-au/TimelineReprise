@@ -143,11 +143,11 @@ cardinal hook returns:
 ```js
 {
     range: { start: projectedStart, end: projectedEnd },
-    markerAtIndex: function (index) {
+    markerAtIndex: function (markerOffset) {
         return projectedMarkerValue;
     },
     indexAtValue: function (value, bracket) {
-        return partialAnchorRelativeIndex;
+        return partialMarkerOffset;
     }
 }
 ```
@@ -155,23 +155,26 @@ cardinal hook returns:
 The context contains the original authored `range`, `intervalUnit`,
 `resolvedIntervalUnit`, `unitsPerCount`, `countsPerMarker`, `anchor`, and
 `finishing`, and `truncatePreviousMarkerThreshold`. `markerAtIndex(0)` must
-return the projected anchor boundary. Each later index is anchor-relative,
-even when the anchor is `range.end`.
+return the projected anchor boundary. Each later marker offset is
+anchor-relative, even when the anchor is `range.end`.
 `indexAtValue()` is optional. Reprise calls it for `finishing: "truncate"` when
 the terminal boundary falls between two complete markers. The `bracket`
 argument contains `previousMarker`, `nextMarker`, `previousIndex`, `nextIndex`,
-`anchor`, and `finishing`. Return a non-negative finite partial index, or
-`null` to let Reprise interpolate in the band's projected primitive coordinate
-space.
+`anchor`, and `finishing`. `previousIndex` and `nextIndex` are complete marker
+offsets despite their retained property names. Return a non-negative finite
+partial marker offset, or `null` to let Reprise interpolate in the band's
+projected primitive coordinate space.
 
 Reprise owns start-anchored and end-anchored marker policy, countdown labelling
-indexes, physical boundary labels, chronological painting order, and incomplete
+values, physical boundary labels, chronological painting order, and incomplete
 final interval handling through `finishing: "drop"`, `"truncate"`, or
-`"extend"`. The runtime owns marker quantum semantics when simple primitive
-stepping would be wrong. For `finishing: "extend"`, Reprise asks
-`markerAtIndex()` for the next complete marker beyond the opposite boundary;
-a Chronicle-style runtime can resolve that marker in Chronicle terms and then
-return its projected primitive timeline value.
+`"extend"`. Marker offsets are converted to cardinal values using
+`anchorValue + markerOffset * countsPerMarker` before labelling. The runtime
+owns marker quantum semantics when simple primitive stepping would be wrong.
+For `finishing: "extend"`, Reprise asks `markerAtIndex()` for the next complete
+marker beyond the opposite boundary; a Chronicle-style runtime can resolve
+that marker in Chronicle terms and then return its projected primitive
+timeline value.
 
 ## Canonical event time
 

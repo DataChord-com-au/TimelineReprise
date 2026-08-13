@@ -53,7 +53,9 @@ declare namespace Timeline {
         readonly range: unknown;
         readonly intervalUnit: DateTimeUnitName | number;
         readonly resolvedIntervalUnit: number;
+        /** Positive finite interval units represented by one cardinal count. */
         readonly unitsPerCount: number;
+        /** Positive finite cardinal counts between generated markers. */
         readonly countsPerMarker: number;
         readonly anchor: CardinalAxisAnchor;
         readonly finishing: CardinalAxisFinishing;
@@ -63,7 +65,9 @@ declare namespace Timeline {
     interface CardinalAxisIndexContext<T = unknown> {
         readonly previousMarker: T;
         readonly nextMarker: T;
+        /** Zero-based offset of previousMarker from the selected anchor. */
         readonly previousIndex: number;
+        /** Zero-based offset of nextMarker from the selected anchor. */
         readonly nextIndex: number;
         readonly anchor: CardinalAxisAnchor;
         readonly finishing: CardinalAxisFinishing;
@@ -71,7 +75,9 @@ declare namespace Timeline {
 
     interface CardinalAxisProjection<T = unknown> {
         readonly range: ClampRange<T>;
-        markerAtIndex(index: number): T | null;
+        /** Resolves a projected value from a zero-based marker offset. */
+        markerAtIndex(markerOffset: number): T | null;
+        /** Returns a fractional marker offset, not a cardinal label value. */
         indexAtValue?(
             value: T,
             context: CardinalAxisIndexContext<T>

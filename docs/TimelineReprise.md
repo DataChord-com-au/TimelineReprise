@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `v3.4.0`
+Version: `v3.5.0`
 <!-- timeline-reprise-version:end -->
 
 Timeline Reprise is an extension layer for the original SIMILE Timeline 2.3.1 browser widget.
@@ -28,6 +28,17 @@ browser ESM entry, each JavaScript source has a matching declaration under
 `src/types/`, and stylesheet inputs live under `src/css/`.
 
 ## Changelog
+
+### v3.5.0
+
+- Added independent cardinal-axis line, tick, and label visibility controls,
+  including grid-only axes.
+- Added `labelEvery` and `unlabeledMarkerText` for sparse labels without
+  changing generated marker, tick, or line positions.
+- Changed `labelForIndex()` to receive the normalized cardinal value derived
+  from `anchorValue`, marker offset, and `countsPerMarker`.
+- Allowed positive finite `unitsPerCount` and `countsPerMarker` values and
+  added count-aware precision for truncated terminal labels.
 
 ### v3.3.0
 

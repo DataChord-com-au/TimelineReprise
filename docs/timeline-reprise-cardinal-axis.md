@@ -38,8 +38,35 @@ Timeline.attachCardinalAxis(bandSet.byId.dayCount, {
 });
 ```
 
-Use an end anchor for countdown scales. Marker index `0` is assigned to
-`range.end`, and later indexes step backwards from that boundary:
+Sparse labels can be requested without replacing `labelForIndex`. The axis
+still generates every marker from `countsPerMarker`, but only every fourth
+generated marker calls the label function here:
+
+```js
+Timeline.attachCardinalAxis(bandSet.byId.age, {
+    ...ageSpec,
+    labelEvery: 4
+}, {
+    showLine: true,
+    showTicks: true,
+    showLabels: true,
+    unlabeledMarkerText: "--"
+});
+```
+
+A grid-only cardinal axis can render guide lines without marker labels or
+ticks:
+
+```js
+Timeline.attachCardinalAxis(bandSet.byId.monthCount, monthSpec, {
+    showLine: true,
+    showTicks: false,
+    showLabels: false
+});
+```
+
+Use an end anchor for countdown scales. Marker offset `0` is assigned to
+`range.end`, and later markers step backwards from that boundary:
 
 ```js
 Timeline.attachCardinalAxis(bandSet.byId.remaining, {
@@ -85,14 +112,32 @@ the actual value change.
 
 ### `unitsPerCount`
 
-Positive integer number of `intervalUnit` values represented by one cardinal
+Positive finite number of `intervalUnit` values represented by one cardinal
 count. Defaults to `1`. For example, `intervalUnit: "month"` with
 `unitsPerCount: 3` makes one cardinal count represent one quarter.
 
 ### `countsPerMarker`
 
-Positive integer number of cardinal counts between displayed markers. Defaults
+Positive finite number of cardinal counts between displayed markers. Defaults
 to `1`.
+
+### `labelEvery`
+
+Positive integer label cadence over the generated markers. Defaults to `1`.
+It does not change marker generation, tick positions, or line positions. On
+skipped markers, the label content is `unlabeledMarkerText`, which defaults to
+an em space.
+
+```js
+unitsPerCount: 3,
+countsPerMarker: 1,
+anchorValue: 1,
+labelEvery: 4
+```
+
+This generates a marker every three interval units and labels marker offsets
+`0`, `4`, `8`, and so on. The corresponding cardinal indexes passed to
+`labelForIndex` are `1`, `5`, `9`, and so on.
 
 ### `anchorValue`
 
@@ -104,9 +149,9 @@ For example, `anchorValue: 0` with `countsPerMarker: 2` labels markers `0`, `2`,
 
 Boundary assigned `anchorValue`. Defaults to `"start"`.
 
-- `"start"` - marker index `0` is `range.start`; markers advance
+- `"start"` - marker offset `0` is `range.start`; markers advance
   chronologically.
-- `"end"` - marker index `0` is `range.end`; markers advance backwards.
+- `"end"` - marker offset `0` is `range.end`; markers advance backwards.
 
 Painting remains in chronological screen order. With an end anchor, default
 labels therefore appear as a countdown toward the end boundary.
@@ -125,9 +170,12 @@ normally for every finishing mode. For an end anchor, the opposite boundary is
 `range.start`.
 
 For an unaligned truncated boundary, the terminal marker receives a fractional
-anchor-relative index between the preceding complete marker and the next
-complete marker. The default label rounds fractional generated values to one
-decimal place.
+anchor-relative marker offset between the preceding complete marker and the
+next complete marker. Its cardinal index is derived from that offset and
+rounded to one decimal place beyond the normal series precision. For example,
+`countsPerMarker: 1` permits a terminal index such as `2.3`, while
+`countsPerMarker: 0.1` permits `0.11`. This normalized index is passed to both
+the default formatter and a custom `labelForIndex`.
 
 ### `truncatePreviousMarkerThreshold`
 
@@ -143,11 +191,13 @@ is not removed by this threshold.
 
 ### `labelForIndex(index)`
 
-Optional label function receiving the zero-based marker index away from the
-selected anchor. The index is anchor-relative, not painting-order-relative.
-For truncated terminal markers, `index` can be fractional. The default returns
-`String(anchorValue + index * countsPerMarker)`, rounded to one decimal place
-when the generated value is fractional.
+Optional label function receiving the normalized cardinal index:
+`anchorValue + markerOffset * countsPerMarker`. The index is anchor-relative,
+not painting-order-relative, and can be fractional for truncated terminal
+markers. Complete markers use the decimal precision required by `anchorValue`
+and `countsPerMarker`; truncated markers allow one additional decimal place.
+The default returns `String(index)`. The function is called only for marker
+offsets selected by `labelEvery`.
 
 ### `startLabel`
 
@@ -187,12 +237,17 @@ By default, the runtime's `projectTimeRange()` interprets the authored `range`.
 The cardinal painter then uses `runtime.unit.cloneValue()`, `compare()`, and
 `change()` for non-date values. The positive delta supplied to `change()` is
 `unitsPerCount * countsPerMarker`. Native JavaScript dates retain SIMILE's
-calendar-aware interval stepping using the same product.
+calendar-aware interval stepping when that product is an integer. A fractional
+native-date marker interval requires a runtime `projectCardinalAxis()` hook;
+fractional scalar and wrapper-unit deltas are passed directly to their runtime
+unit.
 
 A runtime may instead provide `projectCardinalAxis(context)`. That hook returns
-the projected physical range plus `markerAtIndex(index)`, where `index` is the
-non-negative marker count away from the selected anchor. It may also return
-`indexAtValue(value, bracket)` for partial marker positions:
+the projected physical range plus `markerAtIndex(markerOffset)`, where
+`markerOffset` is the non-negative marker count away from the selected anchor.
+It may also return `indexAtValue(value, bracket)` for partial marker offsets.
+These offsets are internal placement coordinates; they are converted to the
+cardinal value passed to `labelForIndex()`.
 
 The context includes `range`, `intervalUnit`, `resolvedIntervalUnit`,
 `unitsPerCount`, `countsPerMarker`, `anchor`, `finishing`, and
@@ -201,26 +256,28 @@ The context includes `range`, `intervalUnit`, `resolvedIntervalUnit`,
 ```js
 {
     range: { start: projectedStart, end: projectedEnd },
-    markerAtIndex: function (index) {
+    markerAtIndex: function (markerOffset) {
         return projectedMarkerValue;
     },
     indexAtValue: function (value, bracket) {
-        return partialAnchorRelativeIndex;
+        return partialMarkerOffset;
     }
 }
 ```
 
 `indexAtValue()` is used for `finishing: "truncate"` when the opposite boundary
 falls between two complete markers. `bracket` contains `previousMarker`,
-`nextMarker`, `previousIndex`, `nextIndex`, `anchor`, and `finishing`. Returning
-`null` lets Reprise fall back to interpolation in the band's projected
-primitive coordinate space.
+`nextMarker`, `previousIndex`, `nextIndex`, `anchor`, and `finishing`.
+`previousIndex` and `nextIndex` are complete marker offsets despite their
+retained property names. Return a non-negative finite partial marker offset;
+returning `null` lets Reprise fall back to interpolation in the band's
+projected primitive coordinate space.
 
 Reprise still owns `anchor`, `finishing`, labels, and painting order, but the
 runtime owns the domain quantum used to produce each marker and any semantic
-partial index. With `finishing: "extend"`, Reprise asks for the next marker
-index; the runtime resolves that marker in domain terms and returns its
-projected timeline value.
+partial marker offset. With `finishing: "extend"`, Reprise asks for the next
+marker offset; the runtime resolves that marker in domain terms and returns
+its projected timeline value.
 
 This is the extension point for another scale type or for a Chronicle Time
 runtime supplied by TimelineUtils. Reprise remains responsible for constructing
@@ -240,6 +297,10 @@ The optional third argument accepts:
 - `align` - cardinal-axis marker alignment value independent of band
   `markerAlign`
 - `showLine` - whether SIMILE draws interval lines
+- `showLabels` - whether marker label content is rendered; defaults to `true`
+- `showTicks` - whether marker tick elements are rendered; defaults to `true`
+- `unlabeledMarkerText` - marker content used when `labelEvery` skips a
+  generated label; defaults to an em space
 
 When `markerLength` is omitted, the attachment inherits the band's
 `markerLength`. An attachment value wins over the band value. If both are
@@ -277,7 +338,7 @@ Projected timeline value where the cardinal axis starts.
 startDate: new Date("2020-02-15T00:00:00Z")
 ```
 
-The first label is index `0` unless `anchor: "end"` is supplied.
+This boundary has marker offset `0` unless `anchor: "end"` is supplied.
 
 ### `endDate`
 Optional projected timeline value where the cardinal axis stops.
@@ -294,14 +355,14 @@ unit: Timeline.DateTime.MONTH
 ```
 
 ### `unitsPerCount`
-Number of interval units represented by one cardinal count.
+Positive finite number of interval units represented by one cardinal count.
 
 ```js
 unitsPerCount: 3
 ```
 
 ### `countsPerMarker`
-Number of cardinal counts between displayed markers.
+Positive finite number of cardinal counts between displayed markers.
 
 ```js
 countsPerMarker: 2
@@ -315,7 +376,7 @@ anchorValue: 0
 ```
 
 ### `anchor`
-Boundary assigned index `0`.
+Boundary assigned marker offset `0`.
 
 ```js
 anchor: "end"
@@ -337,7 +398,7 @@ truncatePreviousMarkerThreshold: 0.4
 ```
 
 ### `labelForIndex(index)`
-Returns the label text for each anchor-relative index.
+Returns the label text for each normalized anchor-relative cardinal index.
 
 ```js
 labelForIndex: function (index) {
@@ -345,13 +406,13 @@ labelForIndex: function (index) {
 }
 ```
 
-### `markerAtIndex(index)`
+### `markerAtIndex(markerOffset)`
 Optional low-level callback returning the projected timeline value for an
-anchor-relative marker index.
+anchor-relative marker offset.
 
 ```js
-markerAtIndex: function (index) {
-    return projectedDomainMarker(index);
+markerAtIndex: function (markerOffset) {
+    return projectedDomainMarker(markerOffset);
 }
 ```
 
@@ -361,11 +422,12 @@ runtime provides that hook. Ordinary callers should prefer
 
 ### `indexAtValue(value, bracket)`
 Optional low-level callback returning a semantic fractional anchor-relative
-index for a truncated boundary value.
+marker offset for a truncated boundary value. This is not the cardinal value
+passed to `labelForIndex()`.
 
 ```js
 indexAtValue: function (value, bracket) {
-    return partialAnchorRelativeIndex;
+    return partialMarkerOffset;
 }
 ```
 
@@ -408,6 +470,29 @@ band's normal date or unit marker alignment.
 
 ### `showLine`
 Controls whether SIMILE draws interval lines.
+
+### `showLabels`
+Controls whether label content is rendered. Defaults to `true`.
+
+### `showTicks`
+Controls whether tick elements are rendered. Defaults to `true`.
+
+### `labelEvery`
+Positive integer cadence for generated marker labels. Defaults to `1`.
+Skipped generated labels use `unlabeledMarkerText`; marker generation and line
+placement are unchanged.
+
+```js
+labelEvery: 4
+```
+
+### `unlabeledMarkerText`
+Text used for generated labels skipped by `labelEvery`. Defaults to an em
+space.
+
+```js
+unlabeledMarkerText: "--"
+```
 
 ### Painter interface
 

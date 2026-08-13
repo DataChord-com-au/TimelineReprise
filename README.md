@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `3.4.0`
+Version: `3.5.0`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.4.0"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.5.0"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -155,7 +155,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [04-timeline-reprise-colors.html](examples/04-timeline-reprise-colors.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/04-timeline-reprise-colors.html) | Reprise Core adds named color support for event markers and duration tapes.<br>Bands can be set with flexible width. |
 | [05-timeline-reprise-overview.html](examples/05-timeline-reprise-overview.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/05-timeline-reprise-overview.html) | Reprise Overview extends theme support for overview bands. |
 | [06-timeline-reprise-scales.html](examples/06-timeline-reprise-scales.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/06-timeline-reprise-scales.html) | Reprise Scaled Zones expands selected date ranges within a band. |
-| [07-timeline-reprise-cardinal-axis.html](examples/07-timeline-reprise-cardinal-axis.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/07-timeline-reprise-cardinal-axis.html) | Reprise Cardinal Axis shows finishing modes, truncate threshold behavior, multi-count markers, and an end anchor. |
+| [07-timeline-reprise-cardinal-axis.html](examples/07-timeline-reprise-cardinal-axis.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/07-timeline-reprise-cardinal-axis.html) | Reprise Cardinal Axis shows finishing modes, truncate threshold behavior, sparse labels over per-count ticks, and an end anchor. |
 | [08-timeline-reprise-imprecise-ranges.html](examples/08-timeline-reprise-imprecise-ranges.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/08-timeline-reprise-imprecise-ranges.html) | Projects open, unresolved, present, and imprecise ranges without rewriting their semantic endpoints, then renders endpoint labels and relative durations through a DisplayProfile. |
 | [09-timeline-reprise-clamp-stress.html](examples/09-timeline-reprise-clamp-stress.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/09-timeline-reprise-clamp-stress.html) | Stresses one clamp with three synchronized bands whose temporal movement per pixel differs by several orders of magnitude. |
 | [10-timeline-reprise-event-layout.html](examples/10-timeline-reprise-event-layout.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/10-timeline-reprise-event-layout.html) | Reprise Event Layout routes duration and point labels across horizontal and vertical timelines. |

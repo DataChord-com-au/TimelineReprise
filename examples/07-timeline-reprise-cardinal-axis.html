@@ -38,14 +38,14 @@
 <body>
   <h1>SIMILE Timeline Reprise: Cardinal Axis</h1>
   <p>
-    This example shows incomplete-range finishing, multi-count markers,
+    This example shows incomplete-range finishing, sparse cardinal labels,
     and an end-anchored count with custom labels.
   </p>
   <ul>
     <li>the first band shows ordinary date markers on their own</li>
     <li>the finishing bands compare drop, truncate, and extend over an unaligned quarterly range</li>
     <li>the two truncate bands show the 0.4 threshold dropping the previous marker at 3.2 and keeping it at 3.6</li>
-    <li>the quarter-count band treats three months as one count and paints every second count</li>
+    <li>the quarter-count band paints every count and labels every second marker</li>
     <li>the anchor band shows an end-anchored count with a non-zero anchor value</li>
   </ul>
 
@@ -122,18 +122,9 @@
     end: cardinalEnd
   };
 
-  function roundedCardinalIndex(index) {
-    var rounded = Math.round(index);
-
-    if (Math.abs(index - rounded) > 1e-9) {
-      rounded = Math.round(index * 10) / 10;
-    }
-    return String(Object.is(rounded, -0) ? 0 : rounded);
-  }
-
   function finishingLabel(mode, isTerminal) {
     return function (index) {
-      return roundedCardinalIndex(index) + (isTerminal(index) ? " " + mode : "");
+      return String(index) + (isTerminal(index) ? " " + mode : "");
     };
   }
 
@@ -226,16 +217,16 @@
       },
       intervalUnit: "month",
       unitsPerCount: 3,
-      countsPerMarker: 2,
+      countsPerMarker: 1,
       anchorValue: 1,
-      startLabel: "Q1",
+      labelEvery: 2,
       labelForIndex: function (index) {
-        return "Q" + (1 + index * 2);
+        return "Q" + index;
       }
     },
     {
       cssClass: "cardinal-quarter-count",
-      showLine: false
+      showLine: true
     }
   );
 
