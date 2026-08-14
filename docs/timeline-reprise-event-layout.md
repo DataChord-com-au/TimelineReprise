@@ -54,7 +54,7 @@ var visualThemes = Timeline.loadVisualThemes([{
         horizontal: {
             eventRoutingThreshold: 36,
             tapeGap: 5,
-            sparklineStagger: 8
+            sparklineStagger: 12
         },
         vertical: {
             eventRoutingThreshold: 36,
@@ -150,9 +150,19 @@ Set to `false` to hide event labels on the band. Defaults to `true`.
 ### `visualTheme.bubbles`
 Set to `false` to stop event bubble popups. Defaults to `true`.
 
+### `visualTheme.tooltips`
+Set to `false` to suppress custom caption tooltips on event labels, icons, and
+tapes. Defaults to `true`. Tooltips open on hover or focus and close on mouse
+leave or blur.
+
+### `visualTheme.tooltip.maxWidth`
+Sets the maximum caption-tooltip width in pixels. It must be a finite positive
+number and defaults to `300`. Captions are rendered as plain text with template
+line breaks preserved. This setting does not affect event bubbles.
+
 ### `visualTheme.bubble.width`
 Sets the event bubble width. The Reprise default is `320`. Narrative consumes
-the same property.
+the same property. It is independent of `visualTheme.tooltip.maxWidth`.
 
 ### `visualTheme.bubble.maxHeight`
 Sets the optional maximum event bubble height. `null` means no maximum.
@@ -337,7 +347,7 @@ spacing or tape-block-to-label-row separation. Defaults to `2`.
 ### `visualTheme.range.horizontal.sparklineStagger`
 Time-axis stagger applied to long-range sparkline attachment points on
 stacked sticky labels. The longest connector is placed on the outside, nearest
-the viewport edge, with shorter connectors staggered inward. Defaults to `8`.
+the viewport edge, with shorter connectors staggered inward. Defaults to `12`.
 
 ### `visualTheme.label.horizontal.stickyInset`
 Viewport inset used when long-range labels stick at the left or right edge.
@@ -372,7 +382,7 @@ unaffected.
 ### `visualTheme.range.vertical.sparklineStagger`
 Time-axis stagger applied to long-range sparkline attachment points on
 stacked sticky labels. The longest connector is placed on the outside, nearest
-the viewport edge, with shorter connectors staggered inward. Defaults to `8`.
+the viewport edge, with shorter connectors staggered inward. Defaults to `12`.
 
 ### `visualTheme.label.vertical.toRangeBlockGap`
 Minimum horizontal-axis gap between the complete tape block and the first routed

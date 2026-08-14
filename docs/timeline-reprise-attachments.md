@@ -149,7 +149,7 @@ Active ranges may also expose elapsed and remaining duration context. Native
 date runtimes obtain the current date automatically; domain runtimes may
 return an opaque semantic value from `readCurrentTime()`. Bubble fields are recalculated
 for every opening. Caption tooltips on labels and graphics are recalculated on
-hover.
+hover or focus.
 
 The canonical result may include `latestStart` and `earliestEnd`. Reprise uses
 those projected values directly for imprecise event layout. This lets an

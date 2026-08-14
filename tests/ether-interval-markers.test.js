@@ -732,6 +732,55 @@ test("cardinal markerLength maps by orientation without mutating its theme", () 
     assert.deepEqual(nativeMarker, nativeMarkerBefore);
 });
 
+test("cardinal label colors apply to label content only in both orientations", () => {
+    const { DAY, Timeline } = loadTimeline();
+    const unit = {
+        cloneValue: value => Number(value),
+        compare: (left, right) => left - right,
+        change: (value, delta) => value + delta
+    };
+    const labelColor = "light-dark(hsl(216, 55%, 38%), hsl(216, 62%, 64%))";
+
+    for (const horizontal of [true, false]) {
+        const fixture = makePainterFixture(
+            horizontal,
+            () => ({ text: "Unused", emphasized: false }),
+            false,
+            {
+                start: 0,
+                end: 20,
+                cloneValue: value => value,
+                dateToPixelOffset: value => value
+            }
+        );
+        const cardinal = new Timeline.CardinalAxis({
+            runtime: { unit },
+            startDate: 0,
+            endDate: 20,
+            theme: Timeline.ClassicTheme.create(),
+            unit: DAY,
+            unitsPerCount: 10,
+            labelColor,
+            showLine: true,
+            showTicks: true
+        });
+
+        cardinal.initialize(fixture.band, fixture.timeline);
+        cardinal.paint();
+
+        const labels = dateLabels(fixture.layer("ether-markers"));
+        assert.ok(labels.length > 0);
+        assert.ok(labels.every(label =>
+            markerContent(label).style.color === labelColor
+        ));
+        assert.ok(labels.every(label => label.style.color === undefined));
+        assert.ok(labels.every(label => markerTick(label).style.color === undefined));
+        assert.ok(fixture.layer("ether-lines").children.every(line =>
+            line.style.color === undefined
+        ));
+    }
+});
+
 test("cardinal axes advance scalar values through the injected unit", () => {
     const { DAY, Timeline } = loadTimeline();
     const changes = [];

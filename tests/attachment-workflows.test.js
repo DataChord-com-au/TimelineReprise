@@ -1206,11 +1206,42 @@ test("attachCardinalAxis uses the band's default native-date runtime", () => {
     assert.equal(axis._endLabel, "End");
     assert.equal(axis._background, false);
     assert.equal(axis._cssClass, "month-count-axis");
+    assert.equal(axis._labelColor, null);
     assert.equal(axis._params.showLine, false);
     assert.equal(axis._params.showLabels, true);
     assert.equal(axis._params.showTicks, false);
     assert.equal(axis._params.labelEvery, 4);
     assert.equal(axis._params.unlabeledMarkerText, "--");
+});
+
+test("attachCardinalAxis supports direct and derived label colors", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+
+    function attach(options) {
+        const { bandInfo } = makeBand(Timeline, unit);
+        Timeline.attachCardinalAxis(bandInfo, {
+            range: { start: 0, end: 10 },
+            intervalUnit: "day"
+        }, options);
+        return bandInfo.decorators[0];
+    }
+
+    const direct = attach({ labelColor: "  rebeccapurple  " });
+    const derived = attach({
+        labelColor: "#2457a6",
+        deriveLabelColor: true
+    });
+    const falseWithoutColor = attach({ deriveLabelColor: false });
+
+    assert.equal(direct._labelColor, "rebeccapurple");
+    assert.equal(direct._params.labelColor, "rebeccapurple");
+    assert.match(
+        derived._labelColor,
+        /^light-dark\(hsl\(\d+, \d+%, \d+%\), hsl\(\d+, \d+%, \d+%\)\)$/
+    );
+    assert.notEqual(derived._labelColor, "#2457a6");
+    assert.equal(falseWithoutColor._labelColor, null);
 });
 
 test("attachCardinalAxis accepts positive finite count scales", () => {
@@ -1507,6 +1538,34 @@ test("legacy theme ids and unsupported flat decorator controls are rejected", ()
             { showTicks: null }
         ),
         /options\.showTicks must be a boolean/
+    );
+    for (const labelColor of ["", "   ", null, 42]) {
+        assert.throws(
+            () => Timeline.attachCardinalAxis(
+                bandInfo,
+                { range: { start: 0, end: 10 }, intervalUnit: "day" },
+                { labelColor }
+            ),
+            /options\.labelColor must be a non-empty CSS color string/
+        );
+    }
+    for (const deriveLabelColor of [null, 0, "true"]) {
+        assert.throws(
+            () => Timeline.attachCardinalAxis(
+                bandInfo,
+                { range: { start: 0, end: 10 }, intervalUnit: "day" },
+                { deriveLabelColor }
+            ),
+            /options\.deriveLabelColor must be a boolean/
+        );
+    }
+    assert.throws(
+        () => Timeline.attachCardinalAxis(
+            bandInfo,
+            { range: { start: 0, end: 10 }, intervalUnit: "day" },
+            { deriveLabelColor: true }
+        ),
+        /options\.deriveLabelColor requires options\.labelColor/
     );
     for (const field of ["unitsPerCount", "countsPerMarker"]) {
         for (const value of [0, -0.1, Number.POSITIVE_INFINITY, NaN]) {

@@ -348,7 +348,9 @@ default values use the runtime's minute-precision fallback text.
 Each bubble opening captures one current value and uses it consistently for
 all fields. Bubble fields are not retained in the attachment render cache, so
 opening the same bubble again recalculates its elapsed and remaining values.
-Caption tooltips are refreshed on `mouseenter` for event labels and graphics.
+Caption tooltips are refreshed when an event or Narrative caption surface is
+entered or focused. They are rendered as plain text, so text-target newlines
+from `{lines(...)}` remain line breaks rather than HTML.
 
 ## Selector extensions
 

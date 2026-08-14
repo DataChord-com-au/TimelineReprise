@@ -15,6 +15,9 @@ var themes = Timeline.loadVisualThemes([
         labels: true,
         bubbles: false,
         tooltips: true,
+        tooltip: {
+            maxWidth: 300
+        },
         instant: {
             iconColor: "orange"
         },
@@ -93,10 +96,15 @@ omitted, or a non-empty CSS color string. `createBand()` and
 the band spec has no `backgroundColor`; an explicit band value, including
 `null`, wins.
 
-`tooltips` is an optional boolean that defaults to `true`. Narrative uses an
-enabled rendered caption as the label's native `title` tooltip. Set
-`tooltips: false` to suppress these caption tooltips without changing bubble
+`tooltips` is an optional boolean that defaults to `true`. Event and Narrative
+caption surfaces use a custom HTML tooltip on hover and focus. Set
+`tooltips: false` to suppress caption tooltips without changing bubble
 behavior.
+
+`tooltip.maxWidth` sets the custom caption tooltip's maximum width in pixels.
+It must be a finite positive number and defaults to `300`. Tooltip content is
+rendered as plain text; newline output from templates such as `{lines(...)}` is
+preserved. This setting is independent of `bubble.width`.
 
 `label.flow` controls label text direction for event and Narrative labels:
 
@@ -129,8 +137,9 @@ label's rendered footprint, including orthogonal labels and labels longer than
 their range. Collision routing, sticky positioning, and viewport limits may
 move that preferred position. For either alignment, a fully visible label may
 slide on its current track only until its trailing edge reaches the range end;
-routing then tries the next track. A finishing label at the viewport edge keeps
-contact-based routing. Instant labels are unaffected.
+routing then tries the next track. A finishing Narrative label at the leading
+viewport edge keeps contact-based routing, while Narrative labels leave the
+trailing edge without sticking. Instant labels are unaffected.
 
 `range.graphic` controls the built-in graphic Narrative draws for range
 records. `span` preserves the filled span default; `start`, `end`, and `both`

@@ -9,6 +9,7 @@ import {
     getAttachedEventContext,
     renderAttachedEventField
 } from "./attachments.js";
+import { installCaptionTooltip } from "./tooltip.js";
 
 (function () {
     if (!window.Timeline || !Timeline.OriginalEventPainter) return;
@@ -428,29 +429,11 @@ import {
         return getAttachedEventContext(evt)?.visualTheme ?? painter._visualTheme;
     }
 
-    function _removeElementTitle(element) {
-        if (typeof element?.removeAttribute === "function") {
-            element.removeAttribute("title");
-        } else if (element != null) {
-            delete element.title;
-        }
-    }
-
-    function _setDynamicCaption(element, value) {
-        if (hasRenderedContent(value)) {
-            element.title = String(value).replace(/<[^>]*>/g, "");
-            element._repriseHasDynamicCaption = true;
-        } else if (element._repriseHasDynamicCaption === true) {
-            _removeElementTitle(element);
-            element._repriseHasDynamicCaption = false;
-        }
-    }
-
     function _refreshEventCaption(painter, evt, element) {
         const attachment = getAttachedEventContext(evt);
         const runtime = attachment?.runtime ?? painter._runtime;
         const visualTheme = attachment?.visualTheme ?? painter._visualTheme;
-        if (visualTheme?.tooltips === false || runtime == null) return;
+        if (visualTheme?.tooltips === false || runtime == null) return "";
 
         let caption;
         if (attachment != null) {
@@ -479,26 +462,17 @@ import {
             );
         }
 
-        _setDynamicCaption(element, caption);
+        return caption;
     }
 
     function _installEventCaptionRefresh(painter, evt, data) {
         const element = data?.elmt;
         const visualTheme = getPainterVisualTheme(painter, evt);
-        if (element == null || visualTheme?.tooltips === false) return;
-
-        const refresh = () => _refreshEventCaption(painter, evt, element);
-        if (typeof element.addEventListener === "function") {
-            element.addEventListener("mouseenter", refresh);
-        } else {
-            const previous = element.onmouseenter;
-            element.onmouseenter = function () {
-                if (typeof previous === "function") {
-                    previous.apply(this, arguments);
-                }
-                refresh();
-            };
-        }
+        installCaptionTooltip(element, {
+            enabled: element != null && visualTheme?.tooltips !== false,
+            maxWidth: visualTheme?.tooltip?.maxWidth,
+            renderCaption: () => _refreshEventCaption(painter, evt, element)
+        });
     }
 
     function ensureTapeSparklineStyles(doc) {
@@ -754,7 +728,7 @@ import {
     }
 
     function getSparklineStagger(painter) {
-        return finiteOr(getTapeSpec(painter).sparklineStagger, 8);
+        return finiteOr(getTapeSpec(painter).sparklineStagger, 12);
     }
 
     function getInstantToLabelGap(painter) {
@@ -1246,7 +1220,7 @@ import {
         sparkDiv.style.position = "absolute";
         sparkDiv.style.pointerEvents = "none";
         sparkDiv.style.zIndex = String(EVENT_SPARKLINE_Z_INDEX);
-        sparkDiv.style.opacity = "0.8";
+        sparkDiv.style.opacity = "0.9";
 
         painter._eventLayer.appendChild(sparkDiv);
 
@@ -1271,8 +1245,8 @@ import {
         const cssColor = getTapeSparklineColor(item.tapeColor);
 
         if (cssColor) {
-            item.spark.elmt.style.backgroundColor =
-                "color-mix(in srgb, " + cssColor + " 70%, white)";
+            item.spark.elmt.style.backgroundColor = cssColor;
+            item.spark.elmt.style.boxShadow = "0 0 2px " + cssColor;
         }
 
         const tapeCenter = getTapeLaneTop(painter, metrics, theme, item.lane) +
@@ -1302,8 +1276,8 @@ import {
         const cssColor = getTapeSparklineColor(item.tapeColor);
 
         if (cssColor) {
-            item.spark.elmt.style.backgroundColor =
-                "color-mix(in srgb, " + cssColor + " 70%, white)";
+            item.spark.elmt.style.backgroundColor = cssColor;
+            item.spark.elmt.style.boxShadow = "0 0 2px " + cssColor;
         }
 
         const tapeCenter = getVerticalTapeLaneLeft(painter, metrics, theme, item.lane) +
@@ -2002,7 +1976,7 @@ import {
             item.height = getDataHeight(item.data, item.height || 0);
         }
 
-        const viewportTop = -painter._band.getViewOffset();
+        const viewportTop = Math.round(-painter._band.getViewOffset());
         clearRoutingStateOnReverseScroll(
             painter,
             "_repriseLastVerticalViewportStart",
@@ -2222,7 +2196,7 @@ import {
         painter._repriseHiddenRoutedEvents = new Set();
         rebuildTapeLanes(painter);
 
-        const viewportLeft = -painter._band.getViewOffset();
+        const viewportLeft = Math.round(-painter._band.getViewOffset());
         clearRoutingStateOnReverseScroll(
             painter,
             "_repriseLastHorizontalViewportStart",

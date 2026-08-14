@@ -29,6 +29,10 @@ declare namespace Timeline {
         showLabels?: boolean;
         /** Whether generated marker tick elements are rendered. Defaults to true. */
         showTicks?: boolean;
+        /** Optional inline color for generated cardinal label content. */
+        labelColor?: string;
+        /** Derive a light/dark label color from labelColor. Defaults to false. */
+        deriveLabelColor?: boolean;
         /** Content used for marker labels skipped by labelEvery. */
         unlabeledMarkerText?: string;
     }
@@ -68,6 +72,8 @@ declare namespace Timeline {
         showLabels?: boolean;
         /** Whether generated marker tick elements are rendered. Defaults to true. */
         showTicks?: boolean;
+        /** @internal Resolved inline color supplied by attachCardinalAxis. */
+        labelColor?: string;
         /** Positive integer label cadence over generated marker offsets. */
         labelEvery?: number;
         /** Content used for marker labels skipped by labelEvery. */

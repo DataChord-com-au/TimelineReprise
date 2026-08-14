@@ -86,6 +86,10 @@ declare namespace Timeline {
         maxHeight?: number | null;
     }
 
+    interface TooltipSpec {
+        maxWidth?: number;
+    }
+
     interface LayerSpec {
         /** Z-index for Narrative range graphics. */
         zIndex?: number;
@@ -112,6 +116,7 @@ declare namespace Timeline {
         range?: OrientableRangeSpec;
         label?: OrientableLabelSpec;
         bubble?: BubbleSpec;
+        tooltip?: TooltipSpec;
         layer?: LayerSpec;
         tagsToIconColor?: Readonly<Record<string, string>>;
         presentation?: DisplayProfileSelection | null;
@@ -137,6 +142,7 @@ declare namespace Timeline {
         readonly range: Readonly<OrientableRangeSpec>;
         readonly label: Readonly<OrientableLabelSpec>;
         readonly bubble: Readonly<BubbleSpec>;
+        readonly tooltip: Readonly<TooltipSpec>;
         readonly layer: Readonly<LayerSpec>;
         readonly tagsToIconColor: Readonly<Record<string, string>>;
         readonly presentation: DisplayProfileSelection | null;

@@ -106,6 +106,31 @@ test("VisualTheme validates tooltips and enables them by default", () => {
     );
 });
 
+test("VisualTheme validates tooltip maxWidth and composes its default", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(new Timeline.VisualTheme().tooltip.maxWidth, 300);
+    assert.equal(
+        new Timeline.VisualTheme({ tooltip: { maxWidth: 240 } })
+            .tooltip.maxWidth,
+        240
+    );
+    assert.equal(
+        Timeline.deriveVisualTheme(
+            new Timeline.VisualTheme(),
+            { tooltip: { maxWidth: 180 } }
+        ).tooltip.maxWidth,
+        180
+    );
+
+    for (const maxWidth of [0, -1, Infinity, NaN, "300", null]) {
+        assert.throws(
+            () => new Timeline.VisualTheme({ tooltip: { maxWidth } }),
+            /tooltip\.maxWidth must be a positive finite number/
+        );
+    }
+});
+
 test("VisualTheme accepts and validates backgroundColor", () => {
     const Timeline = loadTimeline();
 
@@ -147,6 +172,8 @@ test("VisualTheme validates Narrative range graphic mode", () => {
 
     assert.equal(new Timeline.VisualTheme().range.graphic, "span");
     assert.equal(new Timeline.VisualTheme().range.lineWidth, 1);
+    assert.equal(new Timeline.VisualTheme().range.horizontal.sparklineStagger, 12);
+    assert.equal(new Timeline.VisualTheme().range.vertical.sparklineStagger, 12);
     assert.equal(
         new Timeline.VisualTheme({ range: { graphic: "both" } }).range.graphic,
         "both"

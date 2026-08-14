@@ -143,6 +143,9 @@ var visualThemes = Timeline.loadVisualThemes([{
     labels: true,
     bubbles: false,
     tooltips: true,
+    tooltip: {
+        maxWidth: 300
+    },
     eventColorScope: "both",
     track: {
         horizontal: {
@@ -226,10 +229,17 @@ Set to `false` to hide narrative labels.
 Set to `false` to stop narrative bubble popups.
 
 ### `visualTheme.tooltips`
-Set to `false` to suppress caption tooltips on narrative labels. Defaults to
-`true`. An enabled tooltip makes its label pointer-interactive even when
-bubbles are disabled, but only bubbles use the pointer cursor and click
-handler.
+Set to `false` to suppress custom caption tooltips on Narrative labels and
+graphics. Defaults to `true`. An enabled tooltip makes its surface interactive
+even when bubbles are disabled, but only bubbles use the pointer cursor and
+click handler. Tooltips open on hover or focus and close on mouse leave or
+blur.
+
+### `visualTheme.tooltip.maxWidth`
+Maximum width of a caption tooltip in pixels. It must be a finite positive
+number and defaults to `300`. Caption content is plain text and preserves
+newlines, including output from `{lines(...)}`. Tooltip positioning is clamped
+to the viewport where practical. This property does not affect bubbles.
 
 ### `visualTheme.eventColorScope`
 Controls which item-supplied colours may affect rendering.
@@ -382,8 +392,9 @@ range-start placement. `center` prefers the range midpoint using the rendered
 label length, including orthogonal labels and labels longer than their range.
 For either alignment, a fully visible label slides or stacks only until its
 trailing edge reaches the range end, then tries another configured track. A
-finishing label at the viewport edge keeps contact-based routing. Labels hide
-when no configured track remains. Instant labels are unaffected.
+finishing label at the leading viewport edge keeps contact-based routing.
+Narrative labels do not stick at the trailing viewport edge. Labels hide when
+no configured track remains. Instant labels are unaffected.
 
 ### `visualTheme.label.horizontal.toRangeGap`
 Horizontal inset between a range start edge and a `start`-aligned label.
@@ -406,19 +417,20 @@ uses the measured rendered text length up to this cap, independently from
 If omitted, Narrative uses the rendered text length.
 
 ### `visualTheme.label.*.stickyInset`
-Inset from the visible viewport edge used by sticky range labels.
+Inset from the visible leading viewport edge used by sticky range labels.
 It also contributes to the span-contact release threshold. The effective
 threshold is `12px + stickyInset` horizontally and `6px + stickyInset`
 vertically.
 
 ### `visualTheme.label.*.routingGap`
 Minimum gap used between routed labels. For vertical range labels this gap is
-part of the visible stack footprint as labels stick at the viewport edge.
+part of the visible stack footprint as labels stick at the leading viewport
+edge.
 
 ## Bubble Theme
 
 ### `visualTheme.bubble.width`
-Bubble popup width.
+Bubble popup width. It is independent of `visualTheme.tooltip.maxWidth`.
 
 ### `visualTheme.bubble.maxHeight`
 Optional maximum bubble popup height.
@@ -446,9 +458,9 @@ while tapes, icons, and event labels retain precedence where they overlap.
 
 ## Routing
 
-Horizontal range labels slide along their span at the viewport edges and hide when the remaining span contact reaches the effective `12px + stickyInset` threshold. Colliding range labels keep the existing horizontal slide-and-track routing. Instant labels do not slide, but can route to another label track to avoid collisions.
+Horizontal range labels slide along their span at the left viewport edge and hide when the remaining span contact reaches the effective `12px + stickyInset` threshold. They scroll naturally through the right viewport edge. Colliding range labels keep the existing horizontal slide-and-track routing. Instant labels do not slide, but can route to another label track to avoid collisions.
 
-Vertical range labels without an item-level `track` begin in column zero, even when the theme provides several routing columns. A label stops at the viewport edge; later labels continue scrolling until they reach the configured `routingGap`, then remain stacked below it. A departing label uses the same `6px + stickyInset` contact threshold, so a 6px edge inset produces an effective 12px release threshold. When it drops away, the next label retains its pushed position and resumes scrolling naturally instead of jumping to the viewport edge. When scrolling back, that retained offset is released: the label again favours the top of its span and returns to its base column when it fits there.
+Vertical range labels without an item-level `track` begin in column zero, even when the theme provides several routing columns. A label stops at the top viewport edge; later labels continue scrolling until they reach the configured `routingGap`, then remain stacked below it. Labels scroll naturally through the bottom viewport edge. A departing label uses the same `6px + stickyInset` contact threshold, so a 6px edge inset produces an effective 12px release threshold. When it drops away, the next label retains its pushed position and resumes scrolling naturally instead of jumping to the top viewport edge. When scrolling back, that retained offset is released: the label again favours the top of its span and returns to its base column when it fits there.
 
 Routing uses each label's complete rendered height, including wrapped multiline text. A label moves to another column when the same-column stack, including `routingGap`, would extend beyond the end of its own range; the complete rerouted label must still fit within that range. Instant labels can route to another label column when their label box would collide with a span label.
 

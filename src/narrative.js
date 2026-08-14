@@ -10,6 +10,8 @@ import {
     getAttachedEventContext,
     renderAttachedEventField
 } from "./attachments.js";
+import { installCaptionTooltip } from "./tooltip.js";
+import { deriveGraphicLabelColor } from "./color.js";
 
 (function () {
     if (!window.Timeline || Timeline.NarrativeDecorator) return;
@@ -126,65 +128,6 @@ import {
             : fallback;
     }
 
-    function parseColorChannels(color) {
-        const source = String(color ?? "").trim();
-        const rgb = source.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
-        if (rgb) {
-            return [
-                Number(rgb[1]) / 255,
-                Number(rgb[2]) / 255,
-                Number(rgb[3]) / 255
-            ];
-        }
-
-        const hex = source.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
-        if (!hex) return null;
-
-        const value = hex[1];
-        const full = value.length === 3
-            ? value.split("").map(part => part + part).join("")
-            : value.slice(0, 6);
-
-        return [
-            parseInt(full.slice(0, 2), 16) / 255,
-            parseInt(full.slice(2, 4), 16) / 255,
-            parseInt(full.slice(4, 6), 16) / 255
-        ];
-    }
-
-    function deriveSpanLabelColor(color) {
-        const channels = parseColorChannels(color);
-        if (!channels) return color ?? null;
-
-        const [r, g, b] = channels;
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const light = (max + min) / 2;
-
-        if (max === min) return light > 0.55 ? "hsl(0, 0%, 28%)" : "hsl(0, 0%, 72%)";
-
-        const delta = max - min;
-        const sat = light > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-        let hue = max === r
-            ? (g - b) / delta + (g < b ? 6 : 0)
-            : max === g
-                ? (b - r) / delta + 2
-                : (r - g) / delta + 4;
-
-        hue *= 60;
-        const yellowish = hue >= 35 && hue <= 75;
-        const lightSat = yellowish
-            ? Math.max(sat * 0.72, 0.46)
-            : Math.max(sat * 0.55, 0.34);
-        const lightLabel = yellowish ? 40 : light > 0.55 ? 32 : 38;
-        const darkSat = yellowish
-            ? Math.max(sat * 0.65, 0.42)
-            : Math.max(sat * 0.62, 0.40);
-        const darkLabel = yellowish ? 68 : 64;
-
-        return `light-dark(hsl(${Math.round(hue)}, ${Math.round(lightSat * 100)}%, ${lightLabel}%), hsl(${Math.round(hue)}, ${Math.round(darkSat * 100)}%, ${darkLabel}%))`;
-    }
-
     function toNameList(names) {
         return Array.isArray(names) ? names : [names];
     }
@@ -206,24 +149,6 @@ import {
 
         const value = event?.getProperty?.("caption");
         return value !== undefined && value !== null && value !== "";
-    }
-
-    function removeElementTitle(element) {
-        if (typeof element?.removeAttribute === "function") {
-            element.removeAttribute("title");
-        } else if (element != null) {
-            delete element.title;
-        }
-    }
-
-    function setDynamicCaption(element, value) {
-        if (hasRenderedContent(value)) {
-            element.title = String(value).replace(/<[^>]*>/g, "");
-            element._repriseHasDynamicCaption = true;
-        } else if (element._repriseHasDynamicCaption === true) {
-            removeElementTitle(element);
-            element._repriseHasDynamicCaption = false;
-        }
     }
 
     function ownValue(source, names) {
@@ -445,6 +370,7 @@ import {
         this._labels = visualTheme.labels;
         this._bubbles = visualTheme.bubbles;
         this._tooltips = visualTheme.tooltips;
+        this._tooltipMaxWidth = visualTheme.tooltip?.maxWidth ?? 300;
         this._eventColorScope = visualTheme.eventColorScope;
         this._disableEmphasis = visualTheme.disableEmphasis;
         this._emphasisSpecs = isObject(timelineTheme?.emphasisSpecs)
@@ -683,7 +609,7 @@ import {
         if (this._labelColorMode === "inherit") return null;
 
         return record.kind === "range"
-            ? deriveSpanLabelColor(record.graphicColor)
+            ? deriveGraphicLabelColor(record.graphicColor)
             : record.graphicColor ?? null;
     };
 
@@ -833,8 +759,7 @@ import {
         record,
         size,
         naturalMain,
-        viewportStart,
-        viewportEnd
+        viewportStart
     ) {
         const rangeEndMain = record.endPixel - size;
         if (naturalMain + size > record.endPixel) return naturalMain;
@@ -844,7 +769,6 @@ import {
 
         let main = naturalMain;
         if (naturalMain < viewportStart) main = viewportStart;
-        else if (naturalMain + size > viewportEnd) main = viewportEnd - size;
 
         return Math.max(record.startPixel, Math.min(main, rangeEndMain));
     };
@@ -1026,27 +950,13 @@ import {
     ) {
         const enabled = this._tooltips !== false &&
             this._recordHasCaption(record, renderedCaption);
-        if (element == null || !enabled) return false;
-
-        setDynamicCaption(element, renderedCaption);
-        if (element.style) element.style.pointerEvents = "auto";
-
-        const refresh = () => {
-            setDynamicCaption(element, this._renderCaption(record));
-        };
-        if (typeof element.addEventListener === "function") {
-            element.addEventListener("mouseenter", refresh);
-        } else {
-            const previous = element.onmouseenter;
-            element.onmouseenter = function () {
-                if (typeof previous === "function") {
-                    previous.apply(this, arguments);
-                }
-                refresh();
-            };
-        }
-
-        return true;
+        const installed = installCaptionTooltip(element, {
+            enabled,
+            maxWidth: this._tooltipMaxWidth,
+            renderCaption: () => this._renderCaption(record)
+        });
+        if (installed && element.style) element.style.pointerEvents = "auto";
+        return installed;
     };
 
     Timeline.NarrativeDecorator.prototype._makeLabel = function (record, cssClass) {
@@ -1092,9 +1002,6 @@ import {
             setRenderedContent(titleElmt, title, "html");
             elmt.appendChild(titleElmt);
         }
-
-        if (tooltip) setDynamicCaption(elmt, caption);
-        else removeElementTitle(elmt);
 
         const labelColor = this._recordLabelColor(record);
         if (labelColor) elmt.style.color = labelColor;
@@ -1362,10 +1269,9 @@ import {
                 );
                 const left = this._rangeLabelViewportMain(
                     record,
-                    size,
-                    naturalLeft,
-                    stickyLeft,
-                    stickyRight
+                size,
+                naturalLeft,
+                stickyLeft
                 );
 
                 if (!this._rangeLabelRetainedForRouting(
@@ -1559,8 +1465,7 @@ import {
                 record,
                 size,
                 preferredMain,
-                stickyMain,
-                viewportBottom
+                stickyMain
             );
             const retained = this._rangeLabelRetainedForRouting(
                 main,

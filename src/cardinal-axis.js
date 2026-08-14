@@ -4,6 +4,10 @@ import {
     normalizeMarkerLength,
     resolveMarkerPresentationTheme
 } from "./marker-presentation.js";
+import {
+    deriveGraphicLabelColor,
+    normalizeColorString
+} from "./color.js";
 
 (function () {
     if (!window.Timeline || Timeline.CardinalAxis) return;
@@ -83,6 +87,17 @@ import {
     function isEffectivelyInteger(value) {
         return Math.abs(value - Math.round(value)) <=
             Number.EPSILON * Math.max(1, Math.abs(value)) * 8;
+    }
+
+    function cardinalLabelContent(marker) {
+        var children = marker?.children ?? marker?.childNodes ?? [];
+        for (var child of children) {
+            var classes = String(child?.className ?? "").split(/\s+/);
+            if (classes.indexOf("timeline-reprise-date-label-content") >= 0) {
+                return child;
+            }
+        }
+        return null;
     }
 
     Timeline.CardinalAxis = function (params) {
@@ -204,6 +219,7 @@ import {
         };
         this._background = params.background !== false;
         this._cssClass = params.cssClass || null;
+        this._labelColor = params.labelColor ?? null;
     };
 
     Timeline.CardinalAxis.prototype.initialize = function (band, timeline) {
@@ -646,6 +662,10 @@ import {
 
             div.style.cursor = "default";
             div.style.userSelect = "none";
+            var labelContent = cardinalLabelContent(div);
+            if (p._labelColor != null && labelContent?.style) {
+                labelContent.style.color = p._labelColor;
+            }
             if (p._cssClass) div.className += " " + p._cssClass;
         }
 
@@ -681,6 +701,8 @@ const _CARDINAL_OPTION_FIELDS = new Set([
     "showLine",
     "showLabels",
     "showTicks",
+    "labelColor",
+    "deriveLabelColor",
     "unlabeledMarkerText"
 ]);
 
@@ -926,6 +948,24 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
     ) {
         throw new TypeError(`${caller} options.showTicks must be a boolean.`);
     }
+    const hasLabelColor = _cardinalHasOwn(options, "labelColor");
+    let labelColor = hasLabelColor
+        ? normalizeColorString(options.labelColor, `${caller} options.labelColor`)
+        : null;
+    if (
+        _cardinalHasOwn(options, "deriveLabelColor") &&
+        typeof options.deriveLabelColor !== "boolean"
+    ) {
+        throw new TypeError(`${caller} options.deriveLabelColor must be a boolean.`);
+    }
+    if (options.deriveLabelColor === true && !hasLabelColor) {
+        throw new TypeError(
+            `${caller} options.deriveLabelColor requires options.labelColor.`
+        );
+    }
+    if (options.deriveLabelColor === true) {
+        labelColor = deriveGraphicLabelColor(labelColor);
+    }
     if (_cardinalHasOwn(options, "unlabeledMarkerText")) {
         _cardinalRequiredString(
             options.unlabeledMarkerText,
@@ -976,6 +1016,7 @@ function attachCardinalAxis(bandInfo, spec = {}, options = {}) {
         labelEvery,
         background: false,
         cssClass: _cardinalOptionalString(options.cssClass, "options.cssClass"),
+        ...(hasLabelColor ? { labelColor } : {}),
         ...(_cardinalHasOwn(options, "align")
             ? { align: options.align }
             : bandInfo.markerAlign != null

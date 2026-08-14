@@ -44,6 +44,7 @@ function testVisualTheme(overrides = {}) {
         dividers: true,
         labels: true,
         bubbles: true,
+        tooltips: true,
         track: {
             horizontal: { count: 1, offset: 2, size: 18, gap: 4, align: "start" },
             vertical: { count: 1, offset: 2, size: 120, gap: 4, align: "start" }
@@ -100,6 +101,7 @@ function testVisualTheme(overrides = {}) {
             }
         },
         bubble: { width: 320, maxHeight: null },
+        tooltip: { maxWidth: 300 },
         layer: { zIndex: 5, dividerZIndex: 101, labelZIndex: 114 },
         tagsToIconColor: {}
     };
@@ -171,6 +173,7 @@ function loadEventPainter() {
         fillRepriseBubble: () => {},
         getAttachedEventContext: () => null,
         renderAttachedEventField: () => "",
+        installCaptionTooltip: () => false,
         resolveRepriseRuntime: resolveTestRuntime,
         Timeline,
         window: { Timeline }
@@ -251,13 +254,23 @@ function loadNarrativeDecorator() {
         renderAttachedEventField: () => "",
         renderEventField: (_runtime, _visualTheme, _eventTime, event, field) =>
             field === "title" ? event?.title ?? "" : "",
+        installCaptionTooltip: () => false,
         resolveRepriseRuntime: resolveTestRuntime,
         setRenderedContent: () => true,
         Timeline,
         window: { Timeline }
     });
     const filename = path.join(__dirname, "..", "src", "narrative.js");
+    const colorFilename = path.join(__dirname, "..", "src", "color.js");
 
+    vm.runInContext(
+        fs.readFileSync(colorFilename, "utf8").replace(
+            /export\s*\{[\s\S]*?\};?\s*$/m,
+            ""
+        ),
+        context,
+        { filename: colorFilename }
+    );
     vm.runInContext(sourceWithoutImports(filename), context, { filename });
     return Timeline.NarrativeDecorator;
 }
@@ -905,7 +918,22 @@ for (const orientation of ["horizontal", "vertical"]) {
 }
 
 for (const orientation of ["horizontal", "vertical"]) {
-    test(`${orientation} centered narrative range labels slide at the trailing viewport edge`, () => {
+    test(`${orientation} start-aligned narrative range labels leave the trailing viewport naturally`, () => {
+        const decorator = makeNarrative(orientation);
+        const range = narrativeRange(decorator, 0, 180, 260, 40, 40);
+        decorator._rangeRecords = [range];
+
+        decorator.softPaint();
+
+        assert.equal(
+            orientation === "horizontal"
+                ? range.labelElmt.style.left
+                : range.labelElmt.style.top,
+            "184px"
+        );
+    });
+
+    test(`${orientation} centered narrative range labels leave the trailing viewport naturally`, () => {
         const decorator = makeNarrative(orientation);
         decorator._rangeLabelAlign = "center";
         const range = narrativeRange(decorator, 0, 180, 260, 40, 40);
@@ -917,7 +945,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             orientation === "horizontal"
                 ? range.labelElmt.style.left
                 : range.labelElmt.style.top,
-            "180px"
+            "200px"
         );
     });
 
@@ -1223,8 +1251,8 @@ test("vertical pinned duration labels route the earliest ending range furthest o
 
     assert.ok(early.data.left > middle.data.left);
     assert.ok(middle.data.left > late.data.left);
-    assert.deepEqual([early.data.top, middle.data.top, late.data.top], [0, 8, 16]);
-    assert.deepEqual([early.spark.top, middle.spark.top, late.spark.top], [2, 10, 18]);
+    assert.deepEqual([early.data.top, middle.data.top, late.data.top], [0, 12, 24]);
+    assert.deepEqual([early.spark.top, middle.spark.top, late.spark.top], [2, 14, 26]);
 });
 
 test("vertical duration labels keep their routed column after a blocker leaves", () => {
@@ -1339,6 +1367,83 @@ test("vertical sticky duration sparklines follow the configured stagger", () => 
             positions[index] - positions[index - 1] >= 8,
             `expected sparkline gap >= 8px, got ${positions[index] - positions[index - 1]}px`
         );
+    }
+});
+
+test("sticky duration sparklines default to a 12px stagger", () => {
+    for (const orientation of ["horizontal", "vertical"]) {
+        const painter = makeEventPainter(orientation, 200);
+        delete painter._visualTheme.range[orientation].sparklineStagger;
+        const labels = orientation === "horizontal"
+            ? [
+                tapeLabel(untrackedEvent("early", -100, 100), 0, 60, 16),
+                tapeLabel(untrackedEvent("middle", -100, 180), 0, 60, 16),
+                tapeLabel(untrackedEvent("late", -100, 260), 0, 60, 16)
+            ]
+            : [
+                tapeLabel(untrackedEvent("early", -100, 100), 0, 80, 20),
+                tapeLabel(untrackedEvent("middle", -100, 180), 0, 80, 20),
+                tapeLabel(untrackedEvent("late", -100, 260), 0, 80, 20)
+            ];
+
+        painter._repriseTapeLabels.push(...labels);
+        painter.paint();
+
+        const positions = labels
+            .map((item) => sparklineMainPosition(orientation, item))
+            .sort((a, b) => a - b);
+        assert.deepEqual(
+            positions.slice(1).map((position, index) => position - positions[index]),
+            [12, 12]
+        );
+    }
+});
+
+test("event routing ignores fractional reversals within one rendered pixel", () => {
+    for (const orientation of ["horizontal", "vertical"]) {
+        const painter = makeEventPainter(orientation, 200);
+        let viewportStart = 80.49;
+        let clearCount = 0;
+        const routeState = new Map();
+        routeState.clear = function () {
+            clearCount++;
+            Map.prototype.clear.call(this);
+        };
+
+        painter._band.getViewOffset = () => -viewportStart;
+        painter._repriseRoutedLaneState = routeState;
+        if (orientation === "vertical") {
+            painter._repriseRoutedRangeLaneState = routeState;
+        }
+
+        const labels = orientation === "horizontal"
+            ? [
+                tapeLabel(untrackedEvent("first", -100, 180), 0, 60, 16),
+                tapeLabel(untrackedEvent("second", -80, 220), 0, 60, 16)
+            ]
+            : [
+                tapeLabel(untrackedEvent("first", -100, 180), 0, 80, 20),
+                tapeLabel(untrackedEvent("second", -80, 220), 0, 80, 20)
+            ];
+
+        painter._repriseTapeLabels.push(...labels);
+        painter.paint();
+        const firstPositions = labels.map((item) =>
+            orientation === "horizontal" ? item.data.left : item.data.top
+        );
+        const firstTracks = labels.map((item) => item.labelTrack);
+
+        viewportStart = 79.51;
+        painter.paint();
+
+        assert.equal(clearCount, 0);
+        assert.deepEqual(
+            labels.map((item) =>
+                orientation === "horizontal" ? item.data.left : item.data.top
+            ),
+            firstPositions
+        );
+        assert.deepEqual(labels.map((item) => item.labelTrack), firstTracks);
     }
 });
 
@@ -2104,10 +2209,50 @@ for (const orientation of ["horizontal", "vertical"]) {
 
         assert.equal(
             label.spark.elmt.style.backgroundColor,
-            "color-mix(in srgb, blue 70%, white)"
+            "blue"
         );
+        assert.equal(label.spark.elmt.style.boxShadow, "0 0 2px blue");
+    });
+
+    test(`${orientation} range sparklines use the resolved tape color directly`, () => {
+        const painter = makeEventPainter(orientation);
+        const label = tapeLabel(event("resolved-color", 20, 120), 20, 60, 16);
+
+        label.tapeColor = "#2457a6";
+        painter._repriseTapeLabels.push(label);
+        painter.paint();
+
+        assert.equal(label.spark.elmt.style.backgroundColor, "#2457a6");
+        assert.equal(label.spark.elmt.style.boxShadow, "0 0 2px #2457a6");
     });
 }
+
+test("created range sparklines use increased opacity in both orientations", () => {
+    for (const orientation of ["horizontal", "vertical"]) {
+        const painter = makeEventPainter(orientation);
+        const theme = painter._params.theme;
+        const doc = {
+            getElementById: () => null,
+            createElement: () => ({ className: "", style: {} }),
+            head: { appendChild() {} }
+        };
+
+        painter._timeline.getDocument = () => doc;
+        painter._eventLayer = { appendChild() {} };
+        painter._paintEventLabel(
+            event("opacity", 20, 120),
+            "Range",
+            20,
+            0,
+            60,
+            16,
+            theme,
+            "timeline-event-label"
+        );
+
+        assert.equal(painter._repriseTapeLabels[0].spark.elmt.style.opacity, "0.9");
+    }
+});
 
 function buildShortRangeGapFixture(
     orientation,

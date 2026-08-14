@@ -77,8 +77,9 @@ value. If none of the three fields has a template, all applicable values use
 the runtime's minute-precision fallback text. Templates may also use the
 `elapsed` and `remaining` selectors directly, including from a label
 `caption`. Bubble values are recalculated on every opening, while caption
-tooltips on labels and graphics are recalculated when their hover surface is
-entered.
+tooltips on labels and graphics are recalculated when their surface is entered
+or focused. Caption tooltip output is plain text and preserves text-target
+newlines from `{lines(...)}`.
 
 `relativeDuration` selects `duration` for a bounded range, `elapsed` for a
 concrete start with an open or unresolved end, and `remaining` for an open or

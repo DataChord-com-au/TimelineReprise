@@ -65,6 +65,25 @@ Timeline.attachCardinalAxis(bandSet.byId.monthCount, monthSpec, {
 });
 ```
 
+Cardinal labels can use a caller-supplied CSS color directly or derive the same
+light/dark label color used for Narrative range graphics:
+
+```js
+Timeline.attachCardinalAxis(bands.lifeEvents, schoolYears, {
+    cssClass: "school-year-axis",
+    markerLength: "label",
+    align: "Left",
+    showLine: true,
+    showTicks: false,
+    labelColor:
+        styles.visualThemes.lifeStructure.tagsToIconColor["life-chapter"],
+    deriveLabelColor: true
+});
+```
+
+The source color is supplied by the caller; CardinalAxis does not resolve a
+visual-theme registry.
+
 Use an end anchor for countdown scales. Marker offset `0` is assigned to
 `range.end`, and later markers step backwards from that boundary:
 
@@ -299,6 +318,10 @@ The optional third argument accepts:
 - `showLine` - whether SIMILE draws interval lines
 - `showLabels` - whether marker label content is rendered; defaults to `true`
 - `showTicks` - whether marker tick elements are rendered; defaults to `true`
+- `labelColor` - optional CSS color applied inline to generated label content
+- `deriveLabelColor` - whether `labelColor` is converted to the same
+  `light-dark(...)` label color used by Narrative range labels; defaults to
+  `false`
 - `unlabeledMarkerText` - marker content used when `labelEvery` skips a
   generated label; defaults to an em space
 
@@ -306,6 +329,14 @@ When `markerLength` is omitted, the attachment inherits the band's
 `markerLength`. An attachment value wins over the band value. If both are
 omitted, the Reprise/native orientation default applies. Accepted values are a
 CSS length, `"label"`, and `null`.
+
+`labelColor` must be a non-empty CSS color string. With
+`deriveLabelColor: false` or omitted, it is applied directly. With
+`deriveLabelColor: true`, its derived result is applied. Supplying
+`deriveLabelColor: true` without `labelColor` is rejected as malformed;
+`deriveLabelColor: false` without a color is allowed and has no effect. Label
+coloring does not apply to cardinal lines or ticks and behaves the same for
+horizontal and vertical axes.
 
 ## Low-level Timeline.CardinalAxis
 

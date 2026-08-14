@@ -87,9 +87,22 @@ function loadTimeline() {
     };
     OriginalEventPainter.prototype._prepareForPainting = function () {};
     OriginalEventPainter.prototype._findFreeTrack = function () { return 0; };
-    OriginalEventPainter.prototype._paintEventIcon = function () {};
-    OriginalEventPainter.prototype._paintEventTape = function () {};
-    OriginalEventPainter.prototype._paintEventLabel = function () {};
+    function paintedData(painter, width = 80, height = 18, evt = null) {
+        const elmt = painter._timeline.getDocument().createElement("div");
+        const caption = evt?.getProperty?.("caption");
+        if (caption != null && caption !== "") elmt.title = String(caption);
+        return { left: 0, top: 0, width, height, elmt };
+    }
+
+    OriginalEventPainter.prototype._paintEventIcon = function (evt) {
+        return paintedData(this, 9, 9, evt);
+    };
+    OriginalEventPainter.prototype._paintEventTape = function (evt) {
+        return paintedData(this, 80, 4, evt);
+    };
+    OriginalEventPainter.prototype._paintEventLabel = function (evt) {
+        return paintedData(this, 80, 18, evt);
+    };
     OriginalEventPainter.prototype._showBubble = function () {};
     OriginalEventPainter.prototype.paint = function () {};
     OriginalEventPainter.prototype.softPaint = function () {};
@@ -164,8 +177,16 @@ function makeDocument() {
                 removeAttribute(name) {
                     delete this.attributes[name];
                 },
+                getAttribute(name) {
+                    return this.attributes[name] ?? null;
+                },
                 getBoundingClientRect() {
-                    return { width: this.offsetWidth, height: this.offsetHeight };
+                    return {
+                        left: 0,
+                        top: 0,
+                        width: this.offsetWidth,
+                        height: this.offsetHeight
+                    };
                 }
             };
             return element;
@@ -178,6 +199,15 @@ function makeDocument() {
             };
         }
     };
+
+    doc.defaultView = {
+        innerWidth: 1024,
+        innerHeight: 768,
+        pageXOffset: 0,
+        pageYOffset: 0
+    };
+    doc.documentElement = { clientWidth: 1024, clientHeight: 768 };
+    doc.body = doc.createElement("body");
 
     return doc;
 }
@@ -253,6 +283,11 @@ function hasClass(element, className) {
 
 function childWithClass(element, className) {
     return element.childNodes.find(child => hasClass(child, className));
+}
+
+function showCaptionTooltip(doc, element, event = { clientX: 20, clientY: 20 }) {
+    element.onmouseenter(event);
+    return childWithClass(doc.body, "timeline-reprise-tooltip");
 }
 
 test("NativeDateUnit parses JavaScript Date values through the unit contract", () => {
@@ -867,7 +902,7 @@ test("open endpoint presentation and relative duration stay semantic across labe
             }
         }
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [source],
@@ -883,7 +918,11 @@ test("open endpoint presentation and relative duration stay semantic across labe
     assert.equal(source.end, "open");
     assert.equal(record.eventTime.end, 100);
     assert.equal(title.innerHTML, "Open work<br>2 calendar months");
-    assert.equal(record.labelElmt.title, "present / 2 calendar months");
+    assert.equal(
+        showCaptionTooltip(doc, record.labelElmt).textContent,
+        "present / 2 calendar months"
+    );
+    assert.equal(record.labelElmt.title, undefined);
 
     decorator._showBubble(record, { pageX: 10, pageY: 20 });
     const table = bubbleCalls[0][0].childNodes
@@ -1606,7 +1645,7 @@ test("Narrative range graphic none renders labels without built-in graphics", ()
         unit,
         labeller: unit.createLabeller()
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [{ startDate: 1, endDate: 5, title: "Chapter" }],
@@ -1627,7 +1666,7 @@ test("Narrative caption tooltips enable pointer events without bubble behavior",
         unit,
         labeller: unit.createLabeller()
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [{ startDate: 1, endDate: 5, title: "Chapter", caption: "Details" }],
@@ -1636,7 +1675,11 @@ test("Narrative caption tooltips enable pointer events without bubble behavior",
     );
     const label = decorator._rangeRecords[0].labelElmt;
 
-    assert.equal(label.title, "Details");
+    const tooltip = showCaptionTooltip(doc, label);
+
+    assert.equal(label.title, undefined);
+    assert.equal(tooltip.textContent, "Details");
+    assert.equal(tooltip.style.display, "block");
     assert.equal(label.style.pointerEvents, "auto");
     assert.equal(label.style.cursor, "default");
     assert.equal(label.onclick, undefined);
@@ -1681,7 +1724,7 @@ test("Narrative caption tooltips can be suppressed independently of bubbles", ()
         unit,
         labeller: unit.createLabeller()
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [{ startDate: 1, endDate: 5, title: "Chapter", caption: "Details" }],
@@ -1691,6 +1734,7 @@ test("Narrative caption tooltips can be suppressed independently of bubbles", ()
     const label = decorator._rangeRecords[0].labelElmt;
 
     assert.equal(label.title, undefined);
+    assert.equal(childWithClass(doc.body, "timeline-reprise-tooltip"), undefined);
     assert.equal(label.style.pointerEvents, "none");
     assert.equal(label.style.cursor, "default");
     assert.equal(label.onclick, undefined);
@@ -1703,7 +1747,7 @@ test("Narrative labels without rendered captions remain non-interactive without 
         unit,
         labeller: unit.createLabeller()
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [{ startDate: 1, endDate: 5, title: "Chapter", caption: "" }],
@@ -1733,7 +1777,7 @@ test("Narrative caption templates use Reprise duration as the label tooltip", ()
             }
         }
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [{ startDate: 1, endDate: 5, title: "Chapter" }],
@@ -1745,7 +1789,10 @@ test("Narrative caption templates use Reprise duration as the label tooltip", ()
     );
     const label = decorator._rangeRecords[0].labelElmt;
 
-    assert.equal(label.title, "Duration: 4 days");
+    const tooltip = showCaptionTooltip(doc, label);
+
+    assert.equal(label.title, undefined);
+    assert.equal(tooltip.textContent, "Duration: 4 days");
     assert.equal(label.style.pointerEvents, "auto");
 });
 
@@ -1766,7 +1813,7 @@ test("Narrative labels and graphics refresh dynamic captions on hover", () => {
             }
         }
     });
-    const { decorator } = paintNarrative(
+    const { decorator, doc } = paintNarrative(
         Timeline,
         runtime,
         [{ startDate: 0, endDate: 10, title: "Chapter" }],
@@ -1778,15 +1825,157 @@ test("Narrative labels and graphics refresh dynamic captions on hover", () => {
     );
     const record = decorator._rangeRecords[0];
 
-    assert.equal(record.labelElmt.title, "4 days / 6 days");
+    let tooltip = showCaptionTooltip(doc, record.labelElmt);
+    assert.equal(record.labelElmt.title, undefined);
+    assert.equal(tooltip.textContent, "4 days / 6 days");
     current = 7;
     record.labelElmt.onmouseenter();
-    assert.equal(record.labelElmt.title, "7 days / 3 days");
+    assert.equal(tooltip.textContent, "7 days / 3 days");
 
     assert.equal(record.spanElmt.title, undefined);
     record.spanElmt.onmouseenter();
-    assert.equal(record.spanElmt.title, "7 days / 3 days");
+    tooltip = childWithClass(doc.body, "timeline-reprise-tooltip");
+    assert.equal(tooltip.textContent, "7 days / 3 days");
     assert.equal(record.spanElmt.style.pointerEvents, "auto");
+});
+
+test("caption tooltips preserve lines, render plain text, and honor maxWidth", () => {
+    const { Timeline } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const profile = new Timeline.DisplayProfile({
+        id: "multilineCaption",
+        label: {
+            caption: {
+                range: "{lines(caption, duration)}"
+            }
+        }
+    });
+    const { decorator, doc } = paintNarrative(
+        Timeline,
+        runtime,
+        [{
+            startDate: 0,
+            endDate: 4,
+            title: "Chapter",
+            caption: "<strong>Plain</strong>"
+        }],
+        [],
+        {
+            presentation: profile,
+            tooltip: { maxWidth: 300 }
+        }
+    );
+    const label = decorator._rangeRecords[0].labelElmt;
+    const tooltip = showCaptionTooltip(doc, label);
+
+    assert.equal(tooltip.textContent, "<strong>Plain</strong>\n4 days");
+    assert.equal(tooltip.innerHTML, "");
+    assert.equal(tooltip.style.maxWidth, "300px");
+    assert.equal(label.title, undefined);
+});
+
+test("caption tooltips show on focus and hide on blur or mouse leave", () => {
+    const { Timeline } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const { decorator, doc } = paintNarrative(
+        Timeline,
+        runtime,
+        [{ startDate: 1, endDate: 5, title: "Chapter", caption: "Details" }],
+        [],
+        { bubbles: false }
+    );
+    const label = decorator._rangeRecords[0].labelElmt;
+
+    label.onfocus();
+    const tooltip = childWithClass(doc.body, "timeline-reprise-tooltip");
+    assert.equal(tooltip.style.display, "block");
+    assert.equal(label.attributes.tabindex, "0");
+
+    label.onblur();
+    assert.equal(tooltip.style.display, "none");
+    label.onmouseenter({ clientX: 20, clientY: 20 });
+    assert.equal(tooltip.style.display, "block");
+    label.onmousemove({ clientX: 1018, clientY: 760 });
+    assert.equal(tooltip.style.left, "936px");
+    assert.equal(tooltip.style.top, "732px");
+    label.onmouseleave();
+    assert.equal(tooltip.style.display, "none");
+});
+
+test("event caption surfaces use custom tooltips and tooltips false removes native titles", () => {
+    const { Timeline } = loadTimeline();
+    const doc = makeDocument();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const visualTheme = new Timeline.VisualTheme({
+        tooltip: { maxWidth: 180 }
+    });
+    const nativeTheme = makeNativeTheme(visualTheme);
+    const band = { _theme: nativeTheme, getLabeller: () => runtime.labeller };
+    const timeline = {
+        getDocument: () => doc,
+        getUnit: () => unit,
+        isHorizontal: () => false,
+        isVertical: () => false
+    };
+    const evt = {
+        isInstant: () => false,
+        getProperty: name => name === "caption" ? "Line one\nLine two" : null,
+        getColor: () => null,
+        getTextColor: () => null,
+        getClassName: () => null
+    };
+    const painter = new Timeline.OriginalEventPainter({
+        theme: nativeTheme,
+        runtime
+    });
+    painter.initialize(band, timeline);
+
+    const surfaces = [
+        painter._paintEventIcon(evt, 0, 0, {}, nativeTheme),
+        painter._paintEventTape(evt, 0, 0, 80, "blue", 100, {}, nativeTheme),
+        painter._paintEventLabel(evt, "Event", 0, 0, 80, 18, nativeTheme)
+    ];
+    for (const surface of surfaces) {
+        const tooltip = showCaptionTooltip(doc, surface.elmt);
+        assert.equal(surface.elmt.title, undefined);
+        assert.equal(tooltip.textContent, "Line one\nLine two");
+        assert.equal(tooltip.style.maxWidth, "180px");
+        surface.elmt.onmouseleave();
+    }
+
+    const disabledTheme = new Timeline.VisualTheme({ tooltips: false });
+    const disabledNativeTheme = makeNativeTheme(disabledTheme);
+    const disabledPainter = new Timeline.OriginalEventPainter({
+        theme: disabledNativeTheme,
+        runtime
+    });
+    disabledPainter.initialize(
+        { _theme: disabledNativeTheme, getLabeller: () => runtime.labeller },
+        timeline
+    );
+    const disabled = disabledPainter._paintEventLabel(
+        evt,
+        "Event",
+        0,
+        0,
+        80,
+        18,
+        disabledNativeTheme
+    );
+    assert.equal(disabled.elmt.title, undefined);
+    assert.equal(disabled.elmt.onmouseenter, undefined);
 });
 
 test("DisplayProfile-only structured bubble fields select the table layout", () => {

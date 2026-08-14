@@ -111,6 +111,7 @@ const _VISUAL_THEME_FIELDS = new Set([
     'range',
     'label',
     'bubble',
+    'tooltip',
     'layer',
     'tagsToIconColor',
     'presentation'
@@ -175,6 +176,9 @@ const _BUBBLE_FIELDS = new Set([
     'width',
     'maxHeight'
 ]);
+const _TOOLTIP_FIELDS = new Set([
+    'maxWidth'
+]);
 const _LAYER_FIELDS = new Set([
     'zIndex',
     'dividerZIndex',
@@ -227,11 +231,12 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         horizontal: {
             eventRoutingThreshold: 28,
             tapeGap: 6,
-            sparklineStagger: 8
+            sparklineStagger: 12
         },
         vertical: {
             eventRoutingThreshold: 28,
             tapeGap: 6,
+            sparklineStagger: 12,
             toEventGap: 12
         }
     },
@@ -266,6 +271,9 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
     bubble: {
         width: 320,
         maxHeight: null
+    },
+    tooltip: {
+        maxWidth: 300
     },
     layer: {
         zIndex: 5,
@@ -443,6 +451,12 @@ class VisualTheme {
         }
     }
 
+    static #assertTooltipSpec(spec, caller) {
+        this.#assertPlainObject(spec, caller);
+        this.#assertKnownFields(spec, _TOOLTIP_FIELDS, caller);
+        this.#assertNumber(spec.maxWidth, `${caller}.maxWidth`, { positive: true });
+    }
+
     static #assertOrientableSpec(spec, caller, validator) {
         validator.call(this, spec, caller);
 
@@ -521,6 +535,10 @@ class VisualTheme {
 
         if (theme.bubble !== undefined) {
             this.#assertBubbleSpec(theme.bubble, `${caller}.bubble`);
+        }
+
+        if (theme.tooltip !== undefined) {
+            this.#assertTooltipSpec(theme.tooltip, `${caller}.tooltip`);
         }
 
         if (theme.layer !== undefined) {
