@@ -412,7 +412,8 @@ threshold is `12px + stickyInset` horizontally and `6px + stickyInset`
 vertically.
 
 ### `visualTheme.label.*.routingGap`
-Minimum gap used between routed labels.
+Minimum gap used between routed labels. For vertical range labels this gap is
+part of the visible stack footprint as labels stick at the viewport edge.
 
 ## Bubble Theme
 
@@ -447,9 +448,9 @@ while tapes, icons, and event labels retain precedence where they overlap.
 
 Horizontal range labels slide along their span at the viewport edges and hide when the remaining span contact reaches the effective `12px + stickyInset` threshold. Colliding range labels keep the existing horizontal slide-and-track routing. Instant labels do not slide, but can route to another label track to avoid collisions.
 
-Vertical range labels without an item-level `track` begin in column zero, even when the theme provides several routing columns. A label stops at the viewport edge; later labels continue scrolling until they meet it, then remain stacked below it. A departing label uses the same `6px + stickyInset` contact threshold, so a 6px edge inset produces an effective 12px release threshold. When it drops away, the next label retains its pushed position and resumes scrolling naturally instead of jumping to the viewport edge. When scrolling back, that retained offset is released: the label again favours the top of its span and returns to its base column when it fits there.
+Vertical range labels without an item-level `track` begin in column zero, even when the theme provides several routing columns. A label stops at the viewport edge; later labels continue scrolling until they reach the configured `routingGap`, then remain stacked below it. A departing label uses the same `6px + stickyInset` contact threshold, so a 6px edge inset produces an effective 12px release threshold. When it drops away, the next label retains its pushed position and resumes scrolling naturally instead of jumping to the viewport edge. When scrolling back, that retained offset is released: the label again favours the top of its span and returns to its base column when it fits there.
 
-Routing uses each label's complete rendered height, including wrapped multiline text. A label moves to another column only when the same-column stack would extend beyond the end of its own range; the complete rerouted label must still fit within that range. Instant labels can route to another label column when their label box would collide with a span label.
+Routing uses each label's complete rendered height, including wrapped multiline text. A label moves to another column when the same-column stack, including `routingGap`, would extend beyond the end of its own range; the complete rerouted label must still fit within that range. Instant labels can route to another label column when their label box would collide with a span label.
 
 ## CSS Hooks
 

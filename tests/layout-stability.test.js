@@ -3444,7 +3444,7 @@ test("vertical narrative range labels use label toRangeGap at the range edge", (
     assert.equal(range.labelElmt.style.top, "26px");
 });
 
-test("vertical narrative range labels prefer visible same-column nudging before routing", () => {
+test("vertical narrative range labels route when same-column gap cannot fit", () => {
     const decorator = makeNarrative("vertical");
     const short = narrativeRange(decorator, 0, 0, 20, 40, 20);
     const following = narrativeRange(decorator, 1, 20, 44, 40, 20);
@@ -3454,7 +3454,7 @@ test("vertical narrative range labels prefer visible same-column nudging before 
 
     assert.equal(short.track, 0);
     assert.equal(short.labelElmt.style.top, "4px");
-    assert.equal(following.track, 0);
+    assert.equal(following.track, 1);
     assert.equal(following.labelElmt.style.top, "24px");
     assert.equal(following.labelElmt.style.display, "");
 });
@@ -3493,7 +3493,7 @@ test("vertical narrative routing refreshes label heights after band CSS applies"
     assert.deepEqual([covid.height, unravelling.height], [30, 15]);
     assert.equal(covid.labelElmt.style.top, "4px");
     assert.equal(unravelling.track, 0);
-    assert.equal(unravelling.labelElmt.style.top, "34px");
+    assert.equal(unravelling.labelElmt.style.top, "39px");
 });
 
 for (const {
@@ -3701,7 +3701,7 @@ test("vertical narrative range labels route with the orthogonal text-length foot
     assert.equal(first.labelElmt.style.height, "40px");
     assert.equal(first.labelElmt.style.width, "");
     assert.equal(first.labelElmt.style.transform, "translateY(90px) rotate(-90deg)");
-    assert.equal(second.labelElmt.style.top, "94px");
+    assert.equal(second.labelElmt.style.top, "99px");
     assert.deepEqual([first.track, second.track], [0, 0]);
 });
 
@@ -3995,8 +3995,9 @@ test("narrative range toRangeGap resolves from the oriented label theme", () => 
     assert.equal(decorator._rangeToLabelGap, 7);
 });
 
-test("vertical sticky narrative labels stack forward in their base column while they fit", () => {
+test("vertical sticky narrative labels stack forward with routingGap while they fit", () => {
     const decorator = makeNarrative("vertical");
+    decorator._stickyGap = 7;
     const ranges = [
         narrativeRange(decorator, 0, -100, 120, 40, 20),
         narrativeRange(decorator, 1, -90, 120, 40, 25),
@@ -4010,8 +4011,8 @@ test("vertical sticky narrative labels stack forward in their base column while 
     assert.equal(ranges[2].labelElmt.style.display, "");
     assert.deepEqual(ranges.map((record) => record.labelElmt.style.top), [
         "0px",
-        "20px",
-        "45px"
+        "27px",
+        "59px"
     ]);
     assert.deepEqual(ranges.map((record) => record.labelElmt.style.left), [
         "0px",
@@ -4020,7 +4021,7 @@ test("vertical sticky narrative labels stack forward in their base column while 
     ]);
 });
 
-test("a multiline vertical narrative label uses same-column space before routing", () => {
+test("a multiline vertical narrative label routes when its gap footprint exceeds same-column space", () => {
     const decorator = makeNarrative("vertical");
     decorator._labelOffset = 2;
 
@@ -4040,14 +4041,14 @@ test("a multiline vertical narrative label uses same-column space before routing
     decorator.softPaint();
 
     assert.equal(multiline.height, 55, "routing must use the rendered multiline scroll height");
-    assert.deepEqual([first.track, multiline.track, third.track], [0, 0, 0]);
+    assert.deepEqual([first.track, multiline.track, third.track], [0, 0, 1]);
     assert.equal(third.labelElmt.style.display, "");
     assert.deepEqual(
         [first.labelElmt.style.top, multiline.labelElmt.style.top],
-        ["2px", "22px"]
+        ["2px", "27px"]
     );
     assert.equal(multiline.labelElmt.style.left, "0px");
-    assert.equal(third.labelElmt.style.left, "0px");
+    assert.equal(third.labelElmt.style.left, "45px");
     assert.ok(
         Number.parseInt(multiline.labelElmt.style.top, 10) + 6 <= multiline.endPixel,
         "the routed label must keep contact with its own duration"
@@ -4071,7 +4072,7 @@ test("a short vertical range fixes its long orthogonal label before routing othe
     assert.equal(longLabel.labelElmt.style.display, "");
     assert.equal(top + longLabel.height, longLabel.endPixel);
     assert.equal(leading.track, 0);
-    assert.equal(leading.labelElmt.style.top, "40px");
+    assert.equal(leading.labelElmt.style.top, "45px");
 });
 
 test("vertical fixed overlong narrative labels reserve before sliding earlier ranges", () => {
@@ -4129,14 +4130,14 @@ test("vertical narrative labels push a same-column stack before changing tracks"
     assert.deepEqual([first.track, second.track], [0, 0]);
     assert.deepEqual(
         [first.labelElmt.style.top, second.labelElmt.style.top],
-        ["25px", "45px"]
+        ["25px", "50px"]
     );
 
     decorator.setViewOffset(-30);
     decorator.softPaint();
     assert.deepEqual(
         [first.labelElmt.style.top, second.labelElmt.style.top],
-        ["30px", "50px"],
+        ["30px", "55px"],
         "colliding labels must try later same-column positions within their range"
     );
 });
@@ -4162,7 +4163,7 @@ test("vertical narrative placement remains stable across scrolling and repeated 
     assert.deepEqual(narrativePlacement(ranges), scrolled);
     assert.deepEqual(scrolled.map((placement) => placement.track), [0, 0, 1]);
     assert.equal(scrolled[2].display, "");
-    assert.deepEqual(scrolled.map((placement) => placement.top), ["20px", "40px", "20px"]);
+    assert.deepEqual(scrolled.map((placement) => placement.top), ["20px", "45px", "20px"]);
     assert.deepEqual(
         scrolled.slice(0, 2).map(
             (placement, index) => Number.parseInt(placement.top, 10) - originalTops[index]
@@ -4194,7 +4195,7 @@ test("a pushed vertical label returns to the top of its span when scrolling back
     decorator.setViewOffset(-25);
     decorator.softPaint();
     assert.equal(follower.track, 0);
-    assert.equal(follower.labelElmt.style.top, "45px");
+    assert.equal(follower.labelElmt.style.top, "50px");
 
     decorator.setViewOffset(0);
     decorator.softPaint();
@@ -4202,7 +4203,7 @@ test("a pushed vertical label returns to the top of its span when scrolling back
     assert.equal(follower.labelElmt.style.top, "44px");
 });
 
-test("reverse scrolling preserves track zero after visible-clear range nudging", () => {
+test("reverse scrolling returns a gap-rerouted label to track zero after the gap clears", () => {
     const decorator = makeNarrative("vertical");
     const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
     const constrained = narrativeRange(decorator, 1, 40, 65, 40, 20);
@@ -4210,7 +4211,7 @@ test("reverse scrolling preserves track zero after visible-clear range nudging",
 
     decorator.setViewOffset(-21);
     decorator.softPaint();
-    assert.equal(constrained.track, 0);
+    assert.equal(constrained.track, 1);
     assert.equal(constrained.labelElmt.style.top, "44px");
 
     decorator.setViewOffset(0);
@@ -4219,7 +4220,7 @@ test("reverse scrolling preserves track zero after visible-clear range nudging",
     assert.equal(constrained.labelElmt.style.top, "44px");
 });
 
-test("vertical narrative labels route only after same-column placement exceeds their range", () => {
+test("vertical narrative labels route when same-column placement plus routingGap exceeds their range", () => {
     const decorator = makeNarrative("vertical");
     const leading = narrativeRange(decorator, 0, -100, 100, 40, 20);
     const constrained = narrativeRange(decorator, 1, 40, 65, 40, 20);
@@ -4230,7 +4231,7 @@ test("vertical narrative labels route only after same-column placement exceeds t
 
     assert.equal(leading.track, 0);
     assert.equal(leading.labelElmt.style.top, "21px");
-    assert.equal(constrained.track, 0);
+    assert.equal(constrained.track, 1);
     assert.equal(constrained.labelElmt.style.top, "44px");
     assert.equal(constrained.labelElmt.style.display, "");
 });
@@ -4290,14 +4291,14 @@ test("a departing vertical span releases the next stacked label without a jump",
     assert.equal(departing.labelElmt.style.display, "");
     assert.equal(departing.labelElmt.style.top, "30px");
     assert.equal(follower.track, 0);
-    assert.equal(follower.labelElmt.style.top, "50px");
+    assert.equal(follower.labelElmt.style.top, "55px");
 
     decorator.setViewOffset(-50);
     decorator.softPaint();
 
     assert.equal(departing.labelElmt.style.display, "");
     assert.equal(follower.track, 0);
-    assert.equal(follower.labelElmt.style.top, "50px");
+    assert.equal(follower.labelElmt.style.top, "55px");
 
     decorator.setViewOffset(-451);
     decorator.softPaint();
@@ -4361,12 +4362,12 @@ test("a vertical label slides in column while preserving range contact", () => {
     decorator.setViewOffset(-35);
     decorator.softPaint();
     assert.equal(constrained.track, 0);
-    assert.equal(constrained.labelElmt.style.top, "50px");
+    assert.equal(constrained.labelElmt.style.top, "55px");
 
     decorator.setViewOffset(-36);
     decorator.softPaint();
     assert.equal(constrained.track, 0);
-    assert.equal(constrained.labelElmt.style.top, "50px");
+    assert.equal(constrained.labelElmt.style.top, "55px");
     assert.ok(
         Number.parseInt(constrained.labelElmt.style.top, 10) + 6 <=
             constrained.endPixel

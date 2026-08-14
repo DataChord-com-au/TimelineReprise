@@ -1170,7 +1170,8 @@ import {
             const spanColor = this._recordGraphicColor(
                 record,
                 "spanColor",
-                cycleValue(this._spanColors, index)
+                cycleValue(this._spanColors, index),
+                this._itemTagColor(record.item)
             );
             record.graphicColor = spanColor;
 
@@ -1491,45 +1492,14 @@ import {
             }
         };
 
-        const placeRangeLabelInTrackVisibleOnly = (track, start, size, record) => {
-            const maxMain = record.endPixel - size - this._labelOffset;
-            let main = start;
-
-            while (true) {
-                const collision = collidedRangeLabel(
-                    track,
-                    main,
-                    size,
-                    record,
-                    false
-                );
-                if (collision) {
-                    main = Math.max(main, collision.visibleEnd);
-                    if (main > maxMain) return null;
-                    continue;
-                }
-
-                const gapCollision = collidedRangeLabel(track, main, size, record);
-                if (!gapCollision || gapCollision.visible) return main;
-
-                if (gapCollision && !gapCollision.visible) {
-                    main = Math.max(main, gapCollision.end);
-                    if (main > maxMain) return null;
-                }
-            }
-        };
-
         const placeRangeLabelInTrack = (track, start, size, record, fixedMain) => {
-            const main = placeRangeLabelInTrackWithGap(
+            return placeRangeLabelInTrackWithGap(
                 track,
                 start,
                 size,
                 record,
                 fixedMain
             );
-            if (main != null || fixedMain) return main;
-
-            return placeRangeLabelInTrackVisibleOnly(track, start, size, record);
         };
 
         const placeRangeLabel = (start, size, startTrack, record, fixedMain) => {
@@ -1638,8 +1608,7 @@ import {
                 record.track,
                 placement.main,
                 size,
-                record,
-                retained ? 0 : this._stickyGap
+                record
             );
         }
 

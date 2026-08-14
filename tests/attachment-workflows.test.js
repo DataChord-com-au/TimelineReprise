@@ -107,7 +107,7 @@ function loadTimeline(defaultUnit = makeNumericUnit()) {
     OriginalEventPainter.prototype._findFreeTrack = function () { return 0; };
     OriginalEventPainter.prototype._paintEventIcon = function (event) {
         event.getClassName();
-        return { elmt: null };
+        return { icon: event.getIcon(), elmt: null };
     };
     OriginalEventPainter.prototype._paintEventTape = function (
         _event,
@@ -206,6 +206,146 @@ function makeBand(Timeline, unit, visualTheme = null) {
     };
 }
 
+function makePaintDocument() {
+    const document = {
+        createTextNode: text => ({ nodeType: 3, nodeValue: String(text) }),
+        createElement: () => ({
+            children: [],
+            childNodes: [],
+            className: "",
+            innerHTML: "",
+            ownerDocument: document,
+            style: {},
+            offsetWidth: 80,
+            offsetHeight: 18,
+            scrollWidth: 80,
+            scrollHeight: 18,
+            appendChild(child) {
+                this.children.push(child);
+                this.childNodes.push(child);
+            },
+            setAttribute(name, value) {
+                this[name] = value;
+            },
+            removeAttribute(name) {
+                delete this[name];
+            },
+            getBoundingClientRect() {
+                return { width: this.offsetWidth, height: this.offsetHeight };
+            }
+        })
+    };
+
+    return document;
+}
+
+function paintAttachedGraphicColors(Timeline, unit, visualThemeSpec, eventOverrides = {}) {
+    const visualTheme = new Timeline.VisualTheme({
+        eventColorScope: "graphic",
+        range: {
+            iconColor: "theme-range",
+            colors: ["theme-range"]
+        },
+        instant: {
+            iconColor: "theme-instant"
+        },
+        ...visualThemeSpec
+    });
+    const { bandInfo, eventPainter, records, theme } = makeBand(
+        Timeline,
+        unit,
+        visualTheme
+    );
+    const range = {
+        start: 1,
+        end: 4,
+        title: "Range",
+        tags: ["release"],
+        ...eventOverrides
+    };
+    const instant = {
+        date: 2,
+        title: "Instant",
+        tags: ["release"],
+        ...eventOverrides
+    };
+
+    Timeline.attachEvents(bandInfo, [range, instant]);
+    Timeline.attachNarrativeDecorators(bandInfo, [range, instant]);
+
+    eventPainter.initialize(
+        {
+            _theme: theme,
+            getLabeller: () => unit.createLabeller()
+        },
+        {
+            getUnit: () => unit,
+            isHorizontal: () => false,
+            isVertical: () => false
+        }
+    );
+
+    const eventRange = eventPainter._paintEventTape(
+        records[0],
+        0,
+        10,
+        40,
+        "native-range",
+        100,
+        { iconWidth: 9, iconHeight: 9 },
+        theme,
+        0
+    );
+    const eventInstant = eventPainter._paintEventIcon(
+        records[1],
+        0,
+        20,
+        { iconWidth: 9, iconHeight: 9 },
+        theme,
+        0
+    );
+
+    const document = makePaintDocument();
+    const layers = [];
+    const band = {
+        _theme: theme,
+        _div: { className: "" },
+        createLayerDiv(zIndex, className = "") {
+            const layer = document.createElement("div");
+            layer.zIndex = zIndex;
+            layer.className = className;
+            layers.push(layer);
+            return layer;
+        },
+        removeLayerDiv() {},
+        dateToPixelOffset: value => value,
+        getLabeller: () => unit.createLabeller(),
+        getViewOffset: () => 0,
+        getViewLength: () => 200,
+        getViewWidth: () => 200
+    };
+    const timeline = {
+        getDocument: () => document,
+        getUnit: () => unit,
+        isHorizontal: () => true,
+        isVertical: () => false
+    };
+    const decorator = bandInfo.decorators[0];
+
+    decorator.initialize(band, timeline);
+    decorator.paint();
+
+    const eventInstantColor = /^theme-icon:([^:]+):/.exec(eventInstant.icon)?.[1] ??
+        eventInstant.icon;
+
+    return {
+        eventRange: eventRange.color,
+        eventInstant: eventInstantColor,
+        narrativeRange: decorator._rangeRecords[0].spanElmt.style.backgroundColor,
+        narrativeInstant: decorator._instantRecords[0].lineElmt.style.backgroundColor
+    };
+}
+
 test("both attachment methods resolve the band VisualTheme by default", () => {
     const unit = makeNumericUnit();
     const Timeline = loadTimeline(unit);
@@ -229,6 +369,60 @@ test("both attachment methods resolve the band VisualTheme by default", () => {
     assert.equal(eventPainter._params.visualTheme, bandVisualTheme);
     assert.equal(bandInfo.decorators[0]._visualTheme, bandVisualTheme);
     assert.equal(bandInfo.decorators[0]._ranges[0].visualTheme, bandVisualTheme);
+});
+
+test("attached event and narrative graphics use opted-in tag colors", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const colors = paintAttachedGraphicColors(Timeline, unit, {
+        tagsToIconColor: { release: "tag-color" }
+    });
+
+    assert.deepEqual(colors, {
+        eventRange: "tag-color",
+        eventInstant: "tag-color",
+        narrativeRange: "tag-color",
+        narrativeInstant: "tag-color"
+    });
+});
+
+test("attached event and narrative tags do not affect graphics without a matching theme map", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+
+    for (const visualThemeSpec of [
+        {},
+        { tagsToIconColor: {} },
+        { tagsToIconColor: { other: "tag-color" } }
+    ]) {
+        assert.deepEqual(
+            paintAttachedGraphicColors(Timeline, unit, visualThemeSpec),
+            {
+                eventRange: "theme-range",
+                eventInstant: "theme-instant",
+                narrativeRange: "theme-range",
+                narrativeInstant: "theme-instant"
+            }
+        );
+    }
+});
+
+test("attached event and narrative event colors take precedence over tag colors", () => {
+    const unit = makeNumericUnit();
+    const Timeline = loadTimeline(unit);
+    const colors = paintAttachedGraphicColors(
+        Timeline,
+        unit,
+        { tagsToIconColor: { release: "tag-color" } },
+        { color: "event-color" }
+    );
+
+    assert.deepEqual(colors, {
+        eventRange: "event-color",
+        eventInstant: "event-color",
+        narrativeRange: "event-color",
+        narrativeInstant: "event-color"
+    });
 });
 
 test("events and Narrative on one band can use different named and instance themes", () => {
