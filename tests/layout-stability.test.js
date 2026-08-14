@@ -3586,12 +3586,12 @@ test("fixed vertical orthogonal narrative range labels use collision routing", (
 
     decorator.softPaint();
 
-    assert.equal(first.height, 120);
-    assert.equal(second.height, 120);
+    assert.equal(first.height, 90);
+    assert.equal(second.height, 90);
     assert.deepEqual([first.track, second.track], [0, 1]);
     assert.deepEqual(
         [first.labelElmt.style.top, second.labelElmt.style.top],
-        ["10px", "10px"]
+        ["25px", "25px"]
     );
     assert.deepEqual(
         [first.labelElmt.style.display, second.labelElmt.style.display],
@@ -3617,10 +3617,19 @@ for (const { orientation, flow, fixedMetric } of [
         decorator._instantRecords = [instant];
         decorator.softPaint();
 
-        assert.equal(range.labelElmt.style.width, "120px");
-        assert.equal(instant.labelElmt.style.width, "120px");
-        assert.equal(range[fixedMetric], 120);
-        assert.equal(instant[fixedMetric], 120);
+        if (orientation === "vertical" && flow === "orthogonal") {
+            assert.equal(range.labelElmt.style.width, "");
+            assert.equal(instant.labelElmt.style.width, "");
+            assert.equal(range.labelElmt.style.maxWidth, "120px");
+            assert.equal(instant.labelElmt.style.maxWidth, "120px");
+            assert.equal(range[fixedMetric], 60);
+            assert.equal(instant[fixedMetric], 60);
+        } else {
+            assert.equal(range.labelElmt.style.width, "120px");
+            assert.equal(instant.labelElmt.style.width, "120px");
+            assert.equal(range[fixedMetric], 120);
+            assert.equal(instant[fixedMetric], 120);
+        }
     });
 }
 
@@ -3719,15 +3728,15 @@ test("vertical orthogonal narrative label width is independent of physical track
     assert.equal(decorator._trackStart(1), 80);
     assert.equal(first.labelElmt.style.left, "32px");
     assert.equal(second.labelElmt.style.left, "80px");
-    assert.equal(first.labelElmt.style.width, "120px");
-    assert.equal(first.labelElmt.style.maxWidth, "");
+    assert.equal(first.labelElmt.style.width, "");
+    assert.equal(first.labelElmt.style.maxWidth, "120px");
     assert.equal(first.labelElmt.style.height, "40px");
     assert.equal(first.width, 40);
-    assert.equal(first.height, 120);
-    assert.equal(first.labelElmt.style.transform, "translateY(120px) rotate(-90deg)");
+    assert.equal(first.height, 90);
+    assert.equal(first.labelElmt.style.transform, "translateY(90px) rotate(-90deg)");
 });
 
-test("vertical orthogonal narrative label width sets route length", () => {
+test("vertical orthogonal narrative label width caps but does not force route length", () => {
     const decorator = makeNarrative("vertical");
     decorator._labelFlow = "orthogonal";
     decorator._band.getViewLength = () => 400;
@@ -3743,10 +3752,10 @@ test("vertical orthogonal narrative label width sets route length", () => {
 
     decorator.softPaint();
 
-    assert.equal(first.labelElmt.style.width, "120px");
-    assert.equal(first.labelElmt.style.maxWidth, "");
-    assert.equal(first.height, 120);
-    assert.equal(second.labelElmt.style.top, "124px");
+    assert.equal(first.labelElmt.style.width, "");
+    assert.equal(first.labelElmt.style.maxWidth, "120px");
+    assert.equal(first.height, 90);
+    assert.equal(second.labelElmt.style.top, "104px");
     assert.deepEqual([first.track, second.track], [0, 0]);
 });
 

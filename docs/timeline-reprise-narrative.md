@@ -291,8 +291,7 @@ Outer offset before the first narrative track.
 Track size across the band. On horizontal timelines this is the label row height.
 On vertical timelines this is the physical label column width. With
 `label.flow: "orthogonal"`, it remains the physical left-to-right lane width;
-use `visualTheme.label.vertical.width` to control the rotated up/down label
-length.
+use `visualTheme.label.vertical.width` to cap the rotated up/down label length.
 
 If omitted, a fixed intrinsic default is used instead of being derived from the band's rendered size: `18` on horizontal timelines, `120` on vertical timelines.
 
@@ -401,10 +400,10 @@ Horizontal gap between an instant divider line and its label. Defaults to `4`.
 Vertical gap between an instant divider line and its label. Defaults to `4`.
 
 ### `visualTheme.label.vertical.width`
-Optional pre-rotation inline width for vertical orthogonal labels. This sets
-the visible up/down label length independently from `track.vertical.size`, so
-`track.vertical.size` can stay a physical lane width. If omitted, Narrative
-uses the rendered text length.
+Optional pre-rotation inline width cap for vertical orthogonal labels. Routing
+uses the measured rendered text length up to this cap, independently from
+`track.vertical.size`, so `track.vertical.size` can stay a physical lane width.
+If omitted, Narrative uses the rendered text length.
 
 ### `visualTheme.label.*.stickyInset`
 Inset from the visible viewport edge used by sticky range labels.

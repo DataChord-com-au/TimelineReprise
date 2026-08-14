@@ -736,13 +736,25 @@ import {
         record._measuredBandClassName = this._band?._div?.className ?? null;
 
         if (this._labelFlow === "orthogonal") {
+            const vertical = !this._isHorizontal();
             const configuredWidth = this._labelWidth;
-            const rawWidth = Math.max(
-                configuredWidth ?? 0,
-                configuredWidth == null ? record.labelElmt.scrollWidth || 0 : 0,
-                configuredWidth == null ? record.labelElmt.offsetWidth || 0 : 0,
-                record.rawWidth || 0
+            if (vertical && configuredWidth != null) {
+                record.labelElmt.style.width = "";
+                record.labelElmt.style.maxWidth = Math.round(configuredWidth) + "px";
+            }
+
+            const measuredWidth = Math.max(
+                record.labelElmt.scrollWidth || 0,
+                record.labelElmt.offsetWidth || 0
             );
+            const fallbackWidth = measuredWidth || record.rawWidth || configuredWidth || 0;
+            const rawWidth = vertical && configuredWidth != null
+                ? Math.min(fallbackWidth, configuredWidth)
+                : Math.max(
+                    configuredWidth ?? 0,
+                    measuredWidth,
+                    record.rawWidth || 0
+                );
             const rawHeight = Math.max(
                 record.labelElmt.scrollHeight || 0,
                 record.labelElmt.offsetHeight || 0,
@@ -860,8 +872,9 @@ import {
         const trackSize = this._trackSizeValue();
         const adjustedMainStart = mainStart + this._labelOffset;
         const labelWidth = this._labelWidth;
+        const horizontal = this._isHorizontal();
 
-        if (labelWidth != null) {
+        if (labelWidth != null && (this._labelFlow !== "orthogonal" || horizontal)) {
             record.labelElmt.style.width = Math.round(labelWidth) + "px";
             if (this._labelFlow === "orthogonal") {
                 record.rawWidth = labelWidth;
@@ -871,7 +884,7 @@ import {
             }
         }
 
-        if (this._isHorizontal()) {
+        if (horizontal) {
             if (this._labelFlow === "orthogonal") {
                 this._setRect(record.labelElmt, {
                     left: adjustedMainStart,
@@ -893,15 +906,13 @@ import {
             if (this._labelFlow === "orthogonal") {
                 record.labelElmt.style.top = Math.round(adjustedMainStart) + "px";
                 record.labelElmt.style.left = Math.round(trackStart) + "px";
-                record.labelElmt.style.width = labelWidth == null ? "" : Math.round(labelWidth) + "px";
-                record.labelElmt.style.maxWidth = "";
+                record.labelElmt.style.width = "";
+                record.labelElmt.style.maxWidth = labelWidth == null
+                    ? ""
+                    : Math.round(labelWidth) + "px";
                 record.labelElmt.style.height = Math.round(trackSize) + "px";
                 record.labelElmt.style.whiteSpace = "normal";
                 record.labelElmt.style.overflowWrap = "break-word";
-                if (labelWidth != null) {
-                    record.rawWidth = labelWidth;
-                    record.height = labelWidth;
-                }
                 record.rawHeight = trackSize;
                 record.width = trackSize;
                 this._updateLabelFlow(record);
