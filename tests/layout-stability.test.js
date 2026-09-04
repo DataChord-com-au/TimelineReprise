@@ -287,6 +287,38 @@ function element(width, height) {
     };
 }
 
+function browserSizedElement(intrinsicWidth, lineHeight, containingWidth) {
+    const style = {};
+    const pixelValue = value => {
+        const number = Number.parseFloat(value);
+        return Number.isFinite(number) ? number : null;
+    };
+    const usedWidth = () => {
+        const maxWidth = pixelValue(style.maxWidth) ?? Infinity;
+        if (style.width === "max-content") {
+            return Math.min(intrinsicWidth, maxWidth);
+        }
+
+        return Math.min(intrinsicWidth, containingWidth, maxWidth);
+    };
+    const contentHeight = () => lineHeight * Math.ceil(intrinsicWidth / usedWidth());
+    const usedHeight = () => pixelValue(style.height) ?? contentHeight();
+
+    return {
+        className: "",
+        style,
+        get offsetWidth() { return usedWidth(); },
+        get offsetHeight() { return usedHeight(); },
+        get scrollWidth() { return usedWidth(); },
+        get scrollHeight() { return contentHeight(); },
+        getBoundingClientRect() {
+            return style.transform?.includes("rotate(-90deg)")
+                ? { width: usedHeight(), height: usedWidth() }
+                : { width: usedWidth(), height: usedHeight() };
+        }
+    };
+}
+
 function paintedData(left, top, width, height) {
     return {
         left,
@@ -3114,10 +3146,10 @@ function narrativeRange(
     end,
     width,
     renderedHeight,
-    { item = {}, lineBoxHeight = renderedHeight } = {}
+    { item = {}, lineBoxHeight = renderedHeight, labelElmt = null } = {}
 ) {
-    const labelElmt = element(width, lineBoxHeight);
-    labelElmt.scrollHeight = renderedHeight;
+    const resolvedLabelElmt = labelElmt || element(width, lineBoxHeight);
+    if (labelElmt == null) resolvedLabelElmt.scrollHeight = renderedHeight;
 
     const record = {
         item,
@@ -3129,7 +3161,7 @@ function narrativeRange(
         startPixel: 0,
         endPixel: 0,
         _verticalPlacement: decorator._rangePlacementState.get(item) || null,
-        labelElmt
+        labelElmt: resolvedLabelElmt
     };
 
     record.track = record.baseTrack;
@@ -3763,8 +3795,8 @@ for (const { orientation, flow, fixedMetric } of [
         decorator.softPaint();
 
         if (orientation === "vertical" && flow === "orthogonal") {
-            assert.equal(range.labelElmt.style.width, "");
-            assert.equal(instant.labelElmt.style.width, "");
+            assert.equal(range.labelElmt.style.width, "max-content");
+            assert.equal(instant.labelElmt.style.width, "max-content");
             assert.equal(range.labelElmt.style.maxWidth, "120px");
             assert.equal(instant.labelElmt.style.maxWidth, "120px");
             assert.equal(range[fixedMetric], 60);
@@ -3777,6 +3809,71 @@ for (const { orientation, flow, fixedMetric } of [
         }
     });
 }
+
+test("short vertical orthogonal narrative labels ignore narrow band shrink-to-fit", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+    decorator._labelWidth = 500;
+    decorator._trackSize = 94;
+    const labelElmt = browserSizedElement(108, 18, 94);
+    const range = narrativeRange(decorator, 0, 0, 300, 108, 18, {
+        item: { title: "Primary School" },
+        labelElmt
+    });
+
+    decorator._setLabelPosition(range, 4);
+    decorator._measureLabel(range);
+
+    assert.equal(labelElmt.style.width, "max-content");
+    assert.equal(labelElmt.style.maxWidth, "500px");
+    assert.equal(labelElmt.offsetWidth, 108);
+    assert.equal(labelElmt.scrollHeight, 18);
+    assert.equal(range.width, 94);
+    assert.equal(range.height, 108);
+});
+
+test("long vertical orthogonal narrative labels wrap at their configured width cap", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+    decorator._labelWidth = 120;
+    decorator._trackSize = 94;
+    const labelElmt = browserSizedElement(360, 18, 94);
+    const range = narrativeRange(decorator, 0, 0, 300, 360, 18, { labelElmt });
+
+    decorator._setLabelPosition(range, 4);
+    decorator._measureLabel(range);
+
+    assert.equal(labelElmt.offsetWidth, 120);
+    assert.ok(labelElmt.scrollHeight > 18);
+    assert.equal(range.width, 94);
+    assert.equal(range.height, 120);
+    assert.equal(
+        labelElmt.style.transform,
+        "translateY(120px) rotate(-90deg)"
+    );
+});
+
+test("vertical orthogonal narrative remeasurement and reposition keep intrinsic sizing", () => {
+    const decorator = makeNarrative("vertical");
+    decorator._labelFlow = "orthogonal";
+    decorator._labelWidth = 500;
+    decorator._trackSize = 94;
+    decorator._band._div = { className: "timeline-band" };
+    const labelElmt = browserSizedElement(108, 18, 94);
+    const range = narrativeRange(decorator, 0, 0, 300, 108, 18, { labelElmt });
+    decorator._rangeRecords = [range];
+
+    decorator.softPaint();
+    decorator._band._div.className = "timeline-band timeline-band-themed";
+    decorator.softPaint();
+    decorator._setLabelPosition(range, 30);
+
+    assert.equal(labelElmt.style.width, "max-content");
+    assert.equal(labelElmt.style.maxWidth, "500px");
+    assert.equal(labelElmt.offsetWidth, 108);
+    assert.equal(range.width, 94);
+    assert.equal(range.height, 108);
+});
 
 test("horizontal narrative range labels route with the orthogonal visual footprint", () => {
     const decorator = makeNarrative("horizontal");
@@ -3844,7 +3941,7 @@ test("vertical narrative range labels route with the orthogonal text-length foot
     assert.equal(first.height, 90);
     assert.equal(first.labelElmt.style.top, "4px");
     assert.equal(first.labelElmt.style.height, "40px");
-    assert.equal(first.labelElmt.style.width, "");
+    assert.equal(first.labelElmt.style.width, "max-content");
     assert.equal(first.labelElmt.style.transform, "translateY(90px) rotate(-90deg)");
     assert.equal(second.labelElmt.style.top, "99px");
     assert.deepEqual([first.track, second.track], [0, 0]);
@@ -3873,7 +3970,7 @@ test("vertical orthogonal narrative label width is independent of physical track
     assert.equal(decorator._trackStart(1), 80);
     assert.equal(first.labelElmt.style.left, "32px");
     assert.equal(second.labelElmt.style.left, "80px");
-    assert.equal(first.labelElmt.style.width, "");
+    assert.equal(first.labelElmt.style.width, "max-content");
     assert.equal(first.labelElmt.style.maxWidth, "120px");
     assert.equal(first.labelElmt.style.height, "40px");
     assert.equal(first.width, 40);
@@ -3897,7 +3994,7 @@ test("vertical orthogonal narrative label width caps but does not force route le
 
     decorator.softPaint();
 
-    assert.equal(first.labelElmt.style.width, "");
+    assert.equal(first.labelElmt.style.width, "max-content");
     assert.equal(first.labelElmt.style.maxWidth, "120px");
     assert.equal(first.height, 90);
     assert.equal(second.labelElmt.style.top, "104px");

@@ -664,9 +664,11 @@ import { deriveGraphicLabelColor } from "./color.js";
         if (this._labelFlow === "orthogonal") {
             const vertical = !this._isHorizontal();
             const configuredWidth = this._labelWidth;
-            if (vertical && configuredWidth != null) {
-                record.labelElmt.style.width = "";
-                record.labelElmt.style.maxWidth = Math.round(configuredWidth) + "px";
+            if (vertical) {
+                record.labelElmt.style.width = "max-content";
+                record.labelElmt.style.maxWidth = configuredWidth == null
+                    ? ""
+                    : Math.round(configuredWidth) + "px";
             }
 
             const measuredWidth = Math.max(
@@ -830,7 +832,7 @@ import { deriveGraphicLabelColor } from "./color.js";
             if (this._labelFlow === "orthogonal") {
                 record.labelElmt.style.top = Math.round(adjustedMainStart) + "px";
                 record.labelElmt.style.left = Math.round(trackStart) + "px";
-                record.labelElmt.style.width = "";
+                record.labelElmt.style.width = "max-content";
                 record.labelElmt.style.maxWidth = labelWidth == null
                     ? ""
                     : Math.round(labelWidth) + "px";

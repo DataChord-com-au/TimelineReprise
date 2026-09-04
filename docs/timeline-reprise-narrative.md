@@ -414,7 +414,10 @@ Vertical gap between an instant divider line and its label. Defaults to `4`.
 Optional pre-rotation inline width cap for vertical orthogonal labels. Routing
 uses the measured rendered text length up to this cap, independently from
 `track.vertical.size`, so `track.vertical.size` can stay a physical lane width.
-If omitted, Narrative uses the rendered text length.
+Text shorter than the cap keeps its intrinsic single-line width even when the
+unrotated label is wider than its containing band. Text longer than the cap may
+wrap at the cap before rotation. If omitted, Narrative uses the rendered text
+length.
 
 ### `visualTheme.label.*.stickyInset`
 Inset from the visible leading viewport edge used by sticky range labels.
