@@ -60,7 +60,8 @@ Range items create range graphic decorators.
     startDate: "2020-01-01",
     endDate: "2020-02-01",
     title: "Chapter 1",
-    caption: "Set the scene."
+    caption: "Set the scene.",
+    context: "Planning"
 }
 ```
 
@@ -74,6 +75,7 @@ Optional:
 - `title` - label text.
 - `caption` - tooltip text and bubble fallback.
 - `description` - bubble description.
+- `context` - scalar category available to templates and `showContext`.
 - `track` - preferred label track.
 - `trackExplicit` - set to `false` to let routing ignore a provided track.
 - `labels` - set to `false` to hide only this label.
@@ -94,7 +96,8 @@ Instant items create divider-line decorators.
 {
     date: "2020-02-14",
     title: "Turning point",
-    caption: "The narrative changes direction."
+    caption: "The narrative changes direction.",
+    context: "Decision"
 }
 ```
 
@@ -107,6 +110,7 @@ Optional:
 - `title` - label text.
 - `caption` - tooltip text and bubble fallback.
 - `description` - bubble description.
+- `context` - scalar category available to templates and `showContext`.
 - `track` - preferred label track.
 - `trackExplicit` - set to `false` to let routing ignore a provided track.
 - `labels` - set to `false` to hide only this label.
@@ -143,6 +147,10 @@ var visualThemes = Timeline.loadVisualThemes([{
     labels: true,
     bubbles: false,
     tooltips: true,
+    contextToIconColor: {
+        planning: "#3f7fc4",
+        decision: "#b54a4a"
+    },
     tooltip: {
         maxWidth: 300
     },
@@ -228,6 +236,12 @@ Set to `false` to hide narrative labels.
 ### `visualTheme.bubbles`
 Set to `false` to stop narrative bubble popups.
 
+### `visualTheme.showContext`
+Set to `true` to show a non-empty scalar Narrative `context` as one chip row
+immediately above the tags row in a structured bubble. Defaults to `false`.
+The field remains available as `{context}` in DisplayProfile templates when
+this switch is off.
+
 ### `visualTheme.tooltips`
 Set to `false` to suppress custom caption tooltips on Narrative labels and
 graphics. Defaults to `true`. An enabled tooltip makes its surface interactive
@@ -243,6 +257,13 @@ to the viewport where practical. This property does not affect bubbles.
 
 ### `visualTheme.eventColorScope`
 Controls which item-supplied colours may affect rendering.
+
+### `visualTheme.contextToIconColor`
+Maps a scalar Narrative `context` to the range span or instant divider colour.
+It accepts the object-map and mapping-array forms documented by
+[`VisualTheme`](timeline-reprise-visual-theme.md). A matching tag colour takes
+precedence over a matching context colour. Both mappings sit below explicit
+item colours and emphasis, and above theme/default graphic colours.
 
 Values:
 

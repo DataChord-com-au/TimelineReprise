@@ -137,6 +137,7 @@
   white-space: nowrap;
 }
 
+.timeline-event-bubble-context,
 .timeline-event-bubble-tags {
   display: flex;
   flex-wrap: wrap;
@@ -144,6 +145,7 @@
   margin-top: 0.5em;
 }
 
+.timeline-event-bubble-context-value,
 .timeline-event-bubble-tag {
   background: color-mix(in srgb, currentColor 12%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 28%, transparent);

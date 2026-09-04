@@ -239,6 +239,21 @@ import { installCaptionTooltip } from "./tooltip.js";
         return null;
     }
 
+    function getEventContextGraphicColor(evt, visualTheme) {
+        if (!isObject(visualTheme.contextToIconColor)) return null;
+
+        const name = stringValue(getEventProperty(evt, "context"));
+        if (
+            name == null ||
+            !hasDefinedOwn(visualTheme.contextToIconColor, name)
+        ) {
+            return null;
+        }
+
+        const color = stringValue(visualTheme.contextToIconColor[name]);
+        return color != null ? resolveCssColor(color) || color : null;
+    }
+
     function getExplicitLabelColor(evt) {
         return stringValue(getEventProperty(evt, "labelColor")) ||
             stringValue(evt?.getTextColor?.()) ||
@@ -284,9 +299,12 @@ import { installCaptionTooltip } from "./tooltip.js";
         const tagColor = getEventTagGraphicColor(evt, visualTheme);
         if (tagColor != null) return tagColor;
 
+        const contextColor = getEventContextGraphicColor(evt, visualTheme);
+        if (contextColor != null) return contextColor;
+
         // An authored icon URL is already a more specific graphic than the
         // theme/default dot colour. Event and emphasis colour overrides above
-        // still replace it deliberately, as does tagsToIconColor.
+        // still replace it deliberately, as do tag and context colour mappings.
         if (stringValue(evt?.getIcon?.()) != null) return null;
 
         return stringValue(visualTheme.instant.iconColor) ||
@@ -1206,6 +1224,9 @@ import { installCaptionTooltip } from "./tooltip.js";
 
         const tagColor = getEventTagGraphicColor(evt, visualTheme);
         if (tagColor != null) return tagColor;
+
+        const contextColor = getEventContextGraphicColor(evt, visualTheme);
+        if (contextColor != null) return contextColor;
 
         return resolveCssColor(visualTheme.range.iconColor) ||
             getDefaultGraphicColor(evt, theme, fallback);

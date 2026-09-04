@@ -26,6 +26,11 @@ var visualThemes = Timeline.loadVisualThemes([{
     id: "events",
     labels: true,
     bubbles: true,
+    showContext: false,
+    contextToIconColor: {
+        planning: "#3f7fc4",
+        release: "#2f855a"
+    },
     bubble: {
         width: 320,
         maxHeight: null
@@ -150,6 +155,12 @@ Set to `false` to hide event labels on the band. Defaults to `true`.
 ### `visualTheme.bubbles`
 Set to `false` to stop event bubble popups. Defaults to `true`.
 
+### `visualTheme.showContext`
+Set to `true` to show a non-empty scalar event `context` as one chip row
+immediately above the tags row in a structured bubble. Defaults to `false`.
+The field remains available as `{context}` in DisplayProfile templates when
+this switch is off.
+
 ### `visualTheme.tooltips`
 Set to `false` to suppress custom caption tooltips on event labels, icons, and
 tapes. Defaults to `true`. Tooltips open on hover or focus and close on mouse
@@ -265,9 +276,11 @@ Instant-dot colour precedence, from lowest to highest, is:
 
 1. timeline default blue
 2. `visualTheme.instant.iconColor`
-3. the event's `color` when the scope includes `graphic`
-4. the event's `iconColor` when the scope includes `graphic`
-5. an applied emphasis `iconColor`
+3. the event's mapped `contextToIconColor` colour
+4. the first mapped `tagsToIconColor` colour
+5. the event's `color` when the scope includes `graphic`
+6. the event's `iconColor` when the scope includes `graphic`
+7. an applied emphasis `iconColor`
 
 The scope can come from the theme or event. `iconColor` is the more specific
 event field and therefore wins over `color`.
@@ -463,8 +476,10 @@ includes `graphic`.
 }
 ```
 
-Within a graphic-enabled scope, `tapeColor` wins over `color`. Otherwise the
-theme range colour is used.
+Range graphic colour uses the same precedence: an applied emphasis wins over
+`tapeColor`, which wins over `color`, the first mapped tag colour, a mapped
+context colour, and finally the theme/native range colour. Event `tapeColor`
+and `color` participate only when `eventColorScope` includes `graphic`.
 
 ---
 [Back to top](#event-layout)<br>

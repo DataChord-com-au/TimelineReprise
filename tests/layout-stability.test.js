@@ -103,6 +103,7 @@ function testVisualTheme(overrides = {}) {
         bubble: { width: 320, maxHeight: null },
         tooltip: { maxWidth: 300 },
         layer: { zIndex: 5, dividerZIndex: 101, labelZIndex: 114 },
+        contextToIconColor: {},
         tagsToIconColor: {}
     };
 
@@ -370,9 +371,10 @@ function styledInstantEvent(id, start, {
     icon = null,
     iconColor = null,
     emphasis = null,
+    context = null,
     tags = null
 } = {}) {
-    const properties = { iconColor, emphasis, tags };
+    const properties = { iconColor, emphasis, context, tags };
 
     return {
         ...instantEvent(id, start),
@@ -2443,6 +2445,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             eventColor,
             eventIconColor,
             emphasisIconColor,
+            context = null,
             tags = null,
             disableEmphasis = false,
             scope = "graphic",
@@ -2455,6 +2458,7 @@ for (const orientation of ["horizontal", "vertical"]) {
                 icon,
                 iconColor: eventIconColor,
                 emphasis: "critical",
+                context,
                 tags
             });
 
@@ -2466,6 +2470,7 @@ for (const orientation of ["horizontal", "vertical"]) {
             };
             painter._visualTheme = testVisualTheme({
                 instant: { iconColor: themeColor || "blue" },
+                contextToIconColor: { work: "context-color" },
                 tagsToIconColor: { release: "tag-color" },
                 eventColorScope: scope,
                 disableEmphasis
@@ -2488,7 +2493,15 @@ for (const orientation of ["horizontal", "vertical"]) {
             "theme-icon:green:10"
         );
         assert.equal(
+            paint({ themeColor: "orange", context: "work" }),
+            "theme-icon:context-color:10"
+        );
+        assert.equal(
             paint({ themeColor: "orange", tags: ["release"] }),
+            "theme-icon:tag-color:10"
+        );
+        assert.equal(
+            paint({ themeColor: "orange", context: "work", tags: ["release"] }),
             "theme-icon:tag-color:10"
         );
         assert.equal(
@@ -2597,15 +2610,16 @@ test("duration emphasis iconColor overrides event tapeColor", () => {
     assert.equal(tape.color, "red");
 });
 
-test("duration tapeColor obeys eventColorScope", () => {
-    function paint(scope) {
+test("duration tapeColor obeys eventColorScope and mapped colour precedence", () => {
+    function paint(scope, { tags = ["release"], context = "work" } = {}) {
         const painter = makeEventPainter("horizontal");
         const theme = painter._params.theme;
         const evt = {
             ...event("duration", 20, 80),
             getColor: () => "purple",
             getProperty: name => ({
-                tags: ["release"],
+                context,
+                tags,
                 tapeColor: "green"
             })[name] ?? null
         };
@@ -2613,6 +2627,7 @@ test("duration tapeColor obeys eventColorScope", () => {
         painter._visualTheme = testVisualTheme({
             eventColorScope: scope,
             range: { iconColor: "orange" },
+            contextToIconColor: { work: "context-color" },
             tagsToIconColor: { release: "tag-color" }
         });
 
@@ -2633,6 +2648,7 @@ test("duration tapeColor obeys eventColorScope", () => {
     assert.equal(paint("both"), "green");
     assert.equal(paint("label"), "tag-color");
     assert.equal(paint("none"), "tag-color");
+    assert.equal(paint("none", { tags: null }), "context-color");
 });
 
 test("event tape and label DOM receive visual theme classes", () => {
@@ -4119,6 +4135,7 @@ test("narrative event colours obey eventColorScope while emphasis overrides it",
 test("narrative tag colours apply to span and instant graphics", () => {
     const decorator = makeNarrative("horizontal");
     decorator._tagsToIconColor = { release: "tag-color" };
+    decorator._contextToIconColor = { work: "context-color" };
     decorator._spanColors = ["theme-span"];
     decorator._instantIconColor = "theme-instant";
 
@@ -4134,9 +4151,16 @@ test("narrative tag colours apply to span and instant graphics", () => {
     assert.equal(
         decorator._recordInstantLineColor({
             kind: "instant",
-            item: { tags: ["release"] }
+            item: { context: "work", tags: ["release"] }
         }),
         "tag-color"
+    );
+    assert.equal(
+        decorator._recordInstantLineColor({
+            kind: "instant",
+            item: { context: "work" }
+        }),
+        "context-color"
     );
 });
 

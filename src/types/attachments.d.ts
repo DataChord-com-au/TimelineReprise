@@ -13,6 +13,7 @@ declare namespace Timeline {
         title?: RenderedContent;
         caption?: RenderedContent;
         description?: RenderedContent;
+        context?: string;
         tags?: readonly string[];
         duration?: RenderedContent;
         minimumDuration?: RenderedContent;
@@ -51,6 +52,7 @@ declare namespace Timeline {
         labels?: boolean;
         bubbles?: boolean;
         tooltips?: boolean;
+        showContext?: boolean;
     }
 
     function attachEvents<T = unknown>(

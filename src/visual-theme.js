@@ -106,6 +106,7 @@ const _VISUAL_THEME_FIELDS = new Set([
     'labels',
     'bubbles',
     'tooltips',
+    'showContext',
     'track',
     'instant',
     'range',
@@ -113,6 +114,7 @@ const _VISUAL_THEME_FIELDS = new Set([
     'bubble',
     'tooltip',
     'layer',
+    'contextToIconColor',
     'tagsToIconColor',
     'presentation'
 ]);
@@ -184,6 +186,10 @@ const _LAYER_FIELDS = new Set([
     'dividerZIndex',
     'labelZIndex'
 ]);
+const _CONTEXT_ICON_COLOR_MAPPING_FIELDS = new Set([
+    'context',
+    'iconColor'
+]);
 const _VISUAL_THEME_DEFAULTS = Object.freeze({
     backgroundColor: null,
     disableEmphasis: false,
@@ -193,6 +199,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
     labels: true,
     bubbles: true,
     tooltips: true,
+    showContext: false,
     track: {
         horizontal: {
             count: 1,
@@ -280,6 +287,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         dividerZIndex: 101,
         labelZIndex: 114
     },
+    contextToIconColor: {},
     tagsToIconColor: {},
     presentation: null
 });
@@ -476,17 +484,44 @@ class VisualTheme {
         this.#assertNumber(spec.labelZIndex, `${caller}.labelZIndex`);
     }
 
-    static #assertTagsToIconColor(spec, caller) {
+    static #assertValueToIconColor(spec, caller, valueLabel) {
         this.#assertPlainObject(spec, caller);
 
-        for (const [tag, color] of Object.entries(spec)) {
-            const tagName = tag.trim().toLowerCase();
-            if (tagName === '') {
-                throw new TypeError(`${caller} tag names must not be empty.`);
+        for (const [name, color] of Object.entries(spec)) {
+            const normalizedName = name.trim().toLowerCase();
+            if (normalizedName === '') {
+                throw new TypeError(`${caller} ${valueLabel} names must not be empty.`);
             }
 
-            assertColorString(color, `${caller}.${tagName}`);
+            assertColorString(color, `${caller}.${normalizedName}`);
         }
+    }
+
+    static #normalizeContextToIconColor(spec, caller) {
+        if (!Array.isArray(spec)) return spec;
+
+        const result = Object.create(null);
+        spec.forEach((mapping, index) => {
+            const path = `${caller}[${index}]`;
+            this.#assertPlainObject(mapping, path);
+            this.#assertKnownFields(
+                mapping,
+                _CONTEXT_ICON_COLOR_MAPPING_FIELDS,
+                path
+            );
+            if (typeof mapping.context !== 'string' || mapping.context.trim() === '') {
+                throw new TypeError(`${path}.context must be a non-empty string.`);
+            }
+
+            const context = mapping.context.trim();
+            if (Object.prototype.hasOwnProperty.call(result, context)) {
+                throw new TypeError(`${caller} duplicate context: ${context}.`);
+            }
+            assertColorString(mapping.iconColor, `${path}.iconColor`);
+            result[context] = mapping.iconColor;
+        });
+
+        return result;
     }
 
     static #assertPresentation(value, caller) {
@@ -517,6 +552,7 @@ class VisualTheme {
         this.#assertBoolean(theme.labels, `${caller}.labels`);
         this.#assertBoolean(theme.bubbles, `${caller}.bubbles`);
         this.#assertBoolean(theme.tooltips, `${caller}.tooltips`);
+        this.#assertBoolean(theme.showContext, `${caller}.showContext`);
         if (theme.track !== undefined) {
             this.#assertOrientableSpec(theme.track, `${caller}.track`, this.#assertTrackSpec);
         }
@@ -545,8 +581,19 @@ class VisualTheme {
             this.#assertLayerSpec(theme.layer, `${caller}.layer`);
         }
 
+        if (theme.contextToIconColor !== undefined) {
+            this.#assertValueToIconColor(
+                theme.contextToIconColor,
+                `${caller}.contextToIconColor`,
+                "context"
+            );
+        }
         if (theme.tagsToIconColor !== undefined) {
-            this.#assertTagsToIconColor(theme.tagsToIconColor, `${caller}.tagsToIconColor`);
+            this.#assertValueToIconColor(
+                theme.tagsToIconColor,
+                `${caller}.tagsToIconColor`,
+                "tag"
+            );
         }
         this.#assertPresentation(theme.presentation, `${caller}.presentation`);
     }
@@ -566,6 +613,11 @@ class VisualTheme {
         } else {
             theme.id = id;
         }
+
+        theme.contextToIconColor = this.constructor.#normalizeContextToIconColor(
+            theme.contextToIconColor,
+            `${caller}.contextToIconColor`
+        );
 
         theme.backgroundColor = theme.backgroundColor == null
             ? null

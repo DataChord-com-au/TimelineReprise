@@ -1,7 +1,7 @@
 # Timeline Reprise
 
 <!-- timeline-reprise-version:start -->
-Version: `3.5.4`
+Version: `3.6.0`
 <!-- timeline-reprise-version:end -->
 Base library: SIMILE Timeline `2.3.1`
 
@@ -32,7 +32,7 @@ For npm/git consumers:
 
 <!-- timeline-reprise-install:start -->
 ```json
-"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.5.4"
+"timeline-reprise": "github:DataChord-com-au/TimelineReprise#v3.6.0"
 ```
 <!-- timeline-reprise-install:end -->
 
@@ -163,7 +163,7 @@ See [Timeline Reprise docs](docs/TimelineReprise.md) for feature reference notes
 | [12-timeline-reprise-filtered-theme.html](examples/12-timeline-reprise-filtered-theme.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/12-timeline-reprise-filtered-theme.html) | Loads visual theme configuration from embedded JSON and filters a larger event set by tags. |
 | [13-timeline-reprise-planning-unit.html](examples/13-timeline-reprise-planning-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/13-timeline-reprise-planning-unit.html) | Uses the supported planning-day unit for day zero, numeric strings, ranges, labels, durations, and bubbles. |
 | [14-timeline-reprise-geochrono-unit.html](examples/14-timeline-reprise-geochrono-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/14-timeline-reprise-geochrono-unit.html) | Uses the supported Ma value and unit APIs, including duration labels, and normalizes narrative spans to older-to-younger order. |
-| [15-timeline-reprise-historical-year-unit.html](examples/15-timeline-reprise-historical-year-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/15-timeline-reprise-historical-year-unit.html) | Uses astronomical whole-year values with BCE/CE labels to compare ancient Egypt, the Greek world, and Rome without JavaScript dates. |
+| [15-timeline-reprise-historical-year-unit.html](examples/15-timeline-reprise-historical-year-unit.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/15-timeline-reprise-historical-year-unit.html) | Uses astronomical whole-year values with BCE/CE labels and context-assigned colours to compare ancient Egypt, the Greek world, and Rome without JavaScript dates. |
 | [16-timeline-reprise-orthogonal-label-flow.html](examples/16-timeline-reprise-orthogonal-label-flow.html) [⧉](https://DataChord-com-au.github.io/TimelineReprise/examples/16-timeline-reprise-orthogonal-label-flow.html) | Uses the Narrative example setup with orthogonal label flow, so event and Narrative labels read up the page. |
 
 <!-- EOF -->

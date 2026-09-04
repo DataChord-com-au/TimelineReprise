@@ -12,7 +12,8 @@ const _ATTACHMENT_VISUAL_THEME_OVERRIDE_NAMES = [
     "dividers",
     "labels",
     "bubbles",
-    "tooltips"
+    "tooltips",
+    "showContext"
 ];
 const _ATTACHMENT_OPTION_NAMES = new Set([
     "visualTheme",

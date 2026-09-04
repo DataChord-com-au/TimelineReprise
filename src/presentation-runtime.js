@@ -1317,10 +1317,16 @@ function fillRepriseBubble(
             "minimumDuration",
             { surface: "bubble", eventTime: canonicalTime }
         );
+    const renderedContext = visualTheme.showContext === true
+        ? render("context", "text")
+        : null;
+    const normalizedContext = String(renderedContext ?? "").trim();
+    const showsContext = normalizedContext !== "";
     const hasStructuredBubble =
         derivedDurations.duration != null ||
         derivedDurations.elapsed != null ||
         derivedDurations.remaining != null ||
+        showsContext ||
         structuredFields.some(([field, fallback]) =>
             _hasEventOrPresentationField(
                 event,
@@ -1400,6 +1406,18 @@ function fillRepriseBubble(
     }
 
     if (!hasExplicitByline && hasStructuredBubble) {
+        if (showsContext) {
+            const contextContainer = doc.createElement("div");
+            _styleBubbleElement(nativeTheme, "bodyStyler", contextContainer);
+            _appendClass(contextContainer, "timeline-event-bubble-context");
+
+            const contextValue = doc.createElement("span");
+            contextValue.className = "timeline-event-bubble-context-value";
+            contextValue.textContent = normalizedContext;
+            contextContainer.appendChild(contextValue);
+            element.appendChild(contextContainer);
+        }
+
         const renderedTags = render("bubbleTags", "text");
         const tags = Array.isArray(renderedTags)
             ? renderedTags

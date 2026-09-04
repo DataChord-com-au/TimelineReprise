@@ -323,7 +323,9 @@ The default runtime interprets string templates through
 `endpointLabel()`. `lines()` emits a newline for a text target and `<br>` for
 an HTML target.
 
-Bare selectors read generic event fields. Reprise also supplies `eventTime`,
+Bare selectors read generic event fields, including a scalar `context` field.
+For example, `{lines(context, comments)}` can compose both fields into a
+caption or bubble template. Reprise also supplies `eventTime`,
 `start`, `latestStart`, `earliestEnd`, `end`, `duration`, and
 `minimumDuration`, `elapsed`, `remaining`, and `relativeDuration`. The relative
 selector resolves to total duration for a bounded range, elapsed for a
@@ -410,7 +412,11 @@ The wrapper is a full-width, non-floating block. The native SIMILE
 `imageStyler()` still styles the `img`, while Reprise constrains that image to
 the bubble content width, includes native image padding in its border-box
 sizing, and preserves its aspect ratio. The remaining bubble sections follow
-in this order: title, structured fields or byline, description, and tags.
+in this order: title, structured fields or byline, description, optional
+context, and tags. `visualTheme.showContext` defaults to `false`; when enabled,
+a non-empty scalar `context` is rendered as one chip in its own row immediately
+above the tags row. Template access to `{context}` is independent of this
+switch.
 Events without images do not receive an image container.
 
 ## Runtime injection and renderer replacement

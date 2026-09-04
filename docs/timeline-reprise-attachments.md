@@ -94,8 +94,10 @@ Normal events and Narrative on one band may deliberately use different themes.
 The normal-event selection remains associated with its attached records, so
 painting does not revert those records to the band's fallback theme.
 
-There is no `visualThemeId` alias and no flat attachment-level visual options.
-Put visual values in `Timeline.VisualTheme`.
+There is no `visualThemeId` alias. Attachment options may override the boolean
+VisualTheme switches `disableEmphasis`, `spans`, `dividers`, `labels`,
+`bubbles`, `tooltips`, and `showContext`. Put all other visual values in
+`Timeline.VisualTheme`.
 
 ## Runtime selection
 
@@ -176,6 +178,10 @@ Normal events and Narrative use one preparation pipeline for:
 Prepared normal-event records implement the methods required by SIMILE's event
 source and painter without routing values through SIMILE's Gregorian JSON
 parser. This is what preserves numeric and wrapped unit values.
+
+Arbitrary event fields are also preserved for presentation. In particular, a
+scalar `context` remains available to DisplayProfile templates as `{context}`
+and to the default-off `visualTheme.showContext` bubble row.
 
 ---
 [Back to top](#event-and-narrative-attachment)<br>

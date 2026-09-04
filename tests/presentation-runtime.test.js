@@ -1382,7 +1382,8 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
         label: {
             title: {
                 range: "{lines(title, prefix('Known extent: ', duration))}"
-            }
+            },
+            caption: "{lines(context, comments)}"
         },
         bubble: {
             bubbleDuration: {
@@ -1391,7 +1392,13 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
         }
     });
     const visualTheme = new Timeline.VisualTheme({ presentation: profile });
-    const event = { start: 0, end: 12, title: "Release" };
+    const event = {
+        start: 0,
+        end: 12,
+        title: "Release",
+        context: "Work",
+        comments: "Review required"
+    };
     const eventTime = runtime.readEventTime(event);
     const template = profile.resolveTemplate("title", {
         surface: "label",
@@ -1419,6 +1426,91 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
             eventTime
         }),
         null
+    );
+    assert.equal(
+        runtime.render(
+            profile.resolveTemplate("caption", {
+                surface: "label",
+                eventTime
+            }),
+            event,
+            { ...context, field: "caption", target: "text" }
+        ),
+        "Work\nReview required"
+    );
+});
+
+test("showContext renders one context chip immediately before tags", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const doc = makeDocument();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: unit.createLabeller()
+    });
+    const event = {
+        date: 3,
+        title: "Rendered title",
+        context: "Work",
+        tags: ["release", "planning"],
+        getProperty(name) {
+            return this[name] ?? null;
+        },
+        getStart() {
+            return this.date;
+        },
+        isInstant() {
+            return true;
+        }
+    };
+    const showBubble = visualTheme => {
+        const nativeTheme = makeNativeTheme(visualTheme);
+        const painter = new Timeline.OriginalEventPainter({
+            theme: nativeTheme,
+            runtime
+        });
+        painter.initialize(
+            {
+                _theme: nativeTheme,
+                getLabeller: () => runtime.labeller
+            },
+            {
+                getDocument: () => doc,
+                getUnit: () => unit,
+                isHorizontal: () => true,
+                isVertical: () => false
+            }
+        );
+        painter._showBubble(10, 20, event);
+        return bubbleCalls.at(-1)[0];
+    };
+    const hidden = showBubble(new Timeline.VisualTheme());
+    const shown = showBubble(new Timeline.VisualTheme({ showContext: true }));
+
+    assert.equal(
+        childWithClass(hidden, "timeline-event-bubble-context"),
+        undefined
+    );
+
+    const context = childWithClass(shown, "timeline-event-bubble-context");
+    const contextValue = childWithClass(
+        context,
+        "timeline-event-bubble-context-value"
+    );
+    const tags = childWithClass(shown, "timeline-event-bubble-tags");
+
+    assert.equal(context.childNodes.length, 1);
+    assert.equal(contextValue.textContent, "Work");
+    assert.equal(
+        shown.childNodes.indexOf(context) + 1,
+        shown.childNodes.indexOf(tags)
+    );
+
+    event.context = "   ";
+    const blank = showBubble(new Timeline.VisualTheme({ showContext: true }));
+    assert.equal(
+        childWithClass(blank, "timeline-event-bubble-context"),
+        undefined
     );
 });
 

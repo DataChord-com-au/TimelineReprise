@@ -101,6 +101,11 @@ declare namespace Timeline {
         labelZIndex?: number;
     }
 
+    interface ContextIconColorMapping {
+        context: string;
+        iconColor: string;
+    }
+
     interface VisualThemeConfig {
         id?: string;
         backgroundColor?: string | null;
@@ -111,6 +116,7 @@ declare namespace Timeline {
         labels?: boolean;
         bubbles?: boolean;
         tooltips?: boolean;
+        showContext?: boolean;
         track?: OrientableTrackSpec;
         instant?: OrientableInstantSpec;
         range?: OrientableRangeSpec;
@@ -118,6 +124,9 @@ declare namespace Timeline {
         bubble?: BubbleSpec;
         tooltip?: TooltipSpec;
         layer?: LayerSpec;
+        contextToIconColor?:
+            | Readonly<Record<string, string>>
+            | readonly ContextIconColorMapping[];
         tagsToIconColor?: Readonly<Record<string, string>>;
         presentation?: DisplayProfileSelection | null;
     }
@@ -137,6 +146,7 @@ declare namespace Timeline {
         readonly labels: boolean;
         readonly bubbles: boolean;
         readonly tooltips: boolean;
+        readonly showContext: boolean;
         readonly track: Readonly<OrientableTrackSpec>;
         readonly instant: Readonly<OrientableInstantSpec>;
         readonly range: Readonly<OrientableRangeSpec>;
@@ -144,6 +154,7 @@ declare namespace Timeline {
         readonly bubble: Readonly<BubbleSpec>;
         readonly tooltip: Readonly<TooltipSpec>;
         readonly layer: Readonly<LayerSpec>;
+        readonly contextToIconColor: Readonly<Record<string, string>>;
         readonly tagsToIconColor: Readonly<Record<string, string>>;
         readonly presentation: DisplayProfileSelection | null;
     }

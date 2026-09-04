@@ -116,6 +116,29 @@ import { getAttachedEventContext } from "./attachments.js";
             }
         }
 
+        if (isObject(visualTheme.contextToIconColor)) {
+            const contextValue = getProperty("context");
+            const name = typeof contextValue === "string" &&
+                contextValue.trim() !== ""
+                ? contextValue.trim()
+                : null;
+            if (
+                name != null &&
+                Object.prototype.hasOwnProperty.call(
+                    visualTheme.contextToIconColor,
+                    name
+                ) &&
+                visualTheme.contextToIconColor[name] !== undefined
+            ) {
+                const contextColor = resolveColor(
+                    visualTheme.contextToIconColor[name]
+                );
+                if (contextColor != null) {
+                    return { color: contextColor, eventOverride: true };
+                }
+            }
+        }
+
         return {
             color: resolveColor(visualTheme[themeField].iconColor),
             eventOverride: false

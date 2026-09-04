@@ -123,8 +123,13 @@ Orientation branches under `range` are ignored by the overview painter.
 Overview uses the standard event colour contract. When `eventColorScope` is
 `graphic` or `both`, `iconColor` overrides one instant tick, `tapeColor`
 overrides one range tape, and `color` is their fallback. With `label` or
-`none`, overview graphics use their theme colours. Emphasis remains above the
-scope unless disabled.
+`none`, those event-supplied colour fields are ignored. Emphasis remains above
+the scope unless disabled.
+
+Between event-supplied and theme colours, the first matching
+`tagsToIconColor` entry takes precedence over a matching
+`contextToIconColor` entry. Context is scalar; tag lookup follows tag-array
+order. Both mappings apply regardless of `eventColorScope`.
 
 ## Notes
 

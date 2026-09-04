@@ -379,6 +379,9 @@ import { deriveGraphicLabelColor } from "./color.js";
         this._tagsToIconColor = isObject(visualTheme.tagsToIconColor)
             ? visualTheme.tagsToIconColor
             : {};
+        this._contextToIconColor = isObject(visualTheme.contextToIconColor)
+            ? visualTheme.contextToIconColor
+            : {};
         this._bubbleWidth = themedFinite({}, bubbleTheme, "width", 320);
         this._bubbleMaxHeight = themedValue({}, bubbleTheme, "maxHeight", null);
     };
@@ -508,6 +511,17 @@ import { deriveGraphicLabelColor } from "./color.js";
         return null;
     };
 
+    Timeline.NarrativeDecorator.prototype._itemContextColor = function (item) {
+        const value = this._itemValue(item, "context");
+        const name = value.found ? stringValue(value.value) : null;
+        if (name == null || !hasDefinedOwn(this._contextToIconColor, name)) {
+            return null;
+        }
+
+        const color = stringValue(this._contextToIconColor[name]);
+        return color != null ? resolveCssColor(color) || color : null;
+    };
+
     Timeline.NarrativeDecorator.prototype._recordLabels = function (record) {
         return this._itemLabels(record.item);
     };
@@ -531,7 +545,8 @@ import { deriveGraphicLabelColor } from "./color.js";
         record,
         explicitNames,
         fallback,
-        taggedFallback
+        taggedFallback,
+        contextFallback
     ) {
         const emphasis = ownValue(
             this._itemEmphasisSpec(record.item),
@@ -557,6 +572,11 @@ import { deriveGraphicLabelColor } from "./color.js";
         const tagColor = stringValue(taggedFallback);
         if (tagColor != null) return resolveCssColor(tagColor) || tagColor;
 
+        const contextColor = stringValue(contextFallback);
+        if (contextColor != null) {
+            return resolveCssColor(contextColor) || contextColor;
+        }
+
         const fallbackColor = stringValue(fallback);
         return fallbackColor != null
             ? resolveCssColor(fallbackColor) || fallbackColor
@@ -570,7 +590,8 @@ import { deriveGraphicLabelColor } from "./color.js";
             record,
             "lineColor",
             fallback,
-            this._itemTagColor(record.item)
+            this._itemTagColor(record.item),
+            this._itemContextColor(record.item)
         );
     };
 
@@ -1080,7 +1101,8 @@ import { deriveGraphicLabelColor } from "./color.js";
                 record,
                 "spanColor",
                 cycleValue(this._spanColors, index),
-                this._itemTagColor(record.item)
+                this._itemTagColor(record.item),
+                this._itemContextColor(record.item)
             );
             record.graphicColor = spanColor;
 

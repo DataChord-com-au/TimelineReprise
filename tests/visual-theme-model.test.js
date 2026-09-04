@@ -106,6 +106,58 @@ test("VisualTheme validates tooltips and enables them by default", () => {
     );
 });
 
+test("VisualTheme validates showContext and disables it by default", () => {
+    const Timeline = loadTimeline();
+
+    assert.equal(new Timeline.VisualTheme().showContext, false);
+    assert.equal(new Timeline.VisualTheme({ showContext: true }).showContext, true);
+    assert.throws(
+        () => new Timeline.VisualTheme({ showContext: "true" }),
+        /showContext must be a boolean/
+    );
+});
+
+test("VisualTheme validates contextToIconColor mappings", () => {
+    const Timeline = loadTimeline();
+
+    assert.deepEqual(
+        Object.keys(new Timeline.VisualTheme().contextToIconColor),
+        []
+    );
+    assert.equal(
+        new Timeline.VisualTheme({
+            contextToIconColor: { work: "blue", personal: "#008000" }
+        }).contextToIconColor.work,
+        "blue"
+    );
+    assert.deepEqual(
+        { ...new Timeline.VisualTheme({
+            contextToIconColor: [
+                { context: "work", iconColor: "blue" },
+                { context: "personal", iconColor: "green" }
+            ]
+        }).contextToIconColor },
+        { work: "blue", personal: "green" }
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({ contextToIconColor: { " ": "blue" } }),
+        /context names must not be empty/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({ contextToIconColor: { work: "" } }),
+        /contextToIconColor\.work must be a non-empty CSS color string/
+    );
+    assert.throws(
+        () => new Timeline.VisualTheme({
+            contextToIconColor: [
+                { context: "work", iconColor: "blue" },
+                { context: "work", iconColor: "green" }
+            ]
+        }),
+        /contextToIconColor duplicate context: work/
+    );
+});
+
 test("VisualTheme validates tooltip maxWidth and composes its default", () => {
     const Timeline = loadTimeline();
 
@@ -798,6 +850,9 @@ test("overview uses standard event colours and eventColorScope", () => {
             },
             tagsToIconColor: {
                 release: "tag-color"
+            },
+            contextToIconColor: {
+                work: "context-color"
             }
         }
     };
@@ -860,6 +915,16 @@ test("overview uses standard event colours and eventColorScope", () => {
     assert.equal(tape({ tapeColor: "range", eventColorScope: "none" }), "theme-range");
     assert.equal(tick({ tags: ["release"] }), "tag-color");
     assert.equal(tape({ tags: ["release"] }), "tag-color");
+    assert.equal(tick({ context: "work" }), "context-color");
+    assert.equal(tape({ context: "work" }), "context-color");
+    assert.equal(
+        tick({ context: "work", eventColorScope: "none" }),
+        "context-color"
+    );
+    assert.equal(
+        tick({ context: "work", tags: ["release"] }),
+        "tag-color"
+    );
     assert.equal(
         tick({ emphasis: "critical", eventColorScope: "none" }),
         "emphasis"

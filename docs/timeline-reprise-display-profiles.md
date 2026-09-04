@@ -16,7 +16,7 @@ var displayProfiles = Timeline.loadDisplayProfiles([
                 range: "{lines(title, prefix('Known extent: ', duration))}"
             },
             caption: {
-                range: "{duration}"
+                range: "{lines(context, comments, duration)}"
             }
         },
         bubble: {
@@ -68,6 +68,12 @@ to format their runtime-derived values.
 Profile construction validates surface names, output fields, shape names,
 template syntax, formatter names, and formatted selector references. Instances
 are immutable.
+
+`context` is a normal scalar event field and is available through the generic
+`{context}` selector in every template. For example, it may be composed with
+`comments` in a label `caption`, bubble `description`, or `bubbleByline`.
+Template use is independent of the VisualTheme's `showContext` switch; that
+switch only controls the automatic context chip row in structured bubbles.
 
 For active ranges, `bubbleElapsed` and `bubbleRemaining` default to the
 runtime-derived `elapsed` and `remaining` values. When either field has no

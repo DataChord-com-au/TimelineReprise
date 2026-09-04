@@ -476,7 +476,8 @@ test("attachment options derive selected themes with boolean overrides", () => {
         dividers: true,
         labels: true,
         bubbles: true,
-        tooltips: true
+        tooltips: true,
+        showContext: false
     }]);
     const { bandInfo, eventPainter, records } = makeBand(Timeline, unit);
 
@@ -486,7 +487,8 @@ test("attachment options derive selected themes with boolean overrides", () => {
         {
             visualTheme: "residences",
             labels: false,
-            bubbles: false
+            bubbles: false,
+            showContext: true
         }
     );
     Timeline.attachNarrativeDecorators(
@@ -499,7 +501,8 @@ test("attachment options derive selected themes with boolean overrides", () => {
             dividers: false,
             labels: false,
             bubbles: false,
-            tooltips: false
+            tooltips: false,
+            showContext: true
         }
     );
 
@@ -507,6 +510,7 @@ test("attachment options derive selected themes with boolean overrides", () => {
     assert.equal(records[0].visualTheme.labels, false);
     assert.equal(records[0].visualTheme.bubbles, false);
     assert.equal(records[0].visualTheme.tooltips, true);
+    assert.equal(records[0].visualTheme.showContext, true);
     assert.equal(eventPainter._params.visualTheme, records[0].visualTheme);
 
     const narrativeTheme = bandInfo.decorators[0]._visualTheme;
@@ -517,10 +521,12 @@ test("attachment options derive selected themes with boolean overrides", () => {
     assert.equal(narrativeTheme.labels, false);
     assert.equal(narrativeTheme.bubbles, false);
     assert.equal(narrativeTheme.tooltips, false);
+    assert.equal(narrativeTheme.showContext, true);
     assert.equal(bandInfo.decorators[0]._ranges[0].visualTheme, narrativeTheme);
 
     assert.equal(themes.residences.labels, true);
     assert.equal(themes.residences.bubbles, true);
+    assert.equal(themes.residences.showContext, false);
 });
 
 test("attachEvents and attachNarrativeDecorators share label.vertical.width", () => {

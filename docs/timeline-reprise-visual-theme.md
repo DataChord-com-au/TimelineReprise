@@ -15,6 +15,11 @@ var themes = Timeline.loadVisualThemes([
         labels: true,
         bubbles: false,
         tooltips: true,
+        showContext: false,
+        contextToIconColor: [
+            { context: "work", iconColor: "blue" },
+            { context: "personal", iconColor: "green" }
+        ],
         tooltip: {
             maxWidth: 300
         },
@@ -100,6 +105,35 @@ the band spec has no `backgroundColor`; an explicit band value, including
 caption surfaces use a custom HTML tooltip on hover and focus. Set
 `tooltips: false` to suppress caption tooltips without changing bubble
 behavior.
+
+`showContext` is an optional boolean that defaults to `false`. When enabled,
+an event or Narrative record with a non-empty scalar `context` displays it as a
+single chip row immediately above the tags row in its structured bubble. It does
+not affect use of the `{context}` selector in DisplayProfile templates.
+
+`contextToIconColor` maps a scalar event `context` to a graphic colour. It may
+be an object map, matching `tagsToIconColor`:
+
+```js
+contextToIconColor: {
+    work: "blue",
+    personal: "green"
+}
+```
+
+It may instead be an array of mapping objects:
+
+```js
+contextToIconColor: [
+    { context: "work", iconColor: "blue" },
+    { context: "personal", iconColor: "green" }
+]
+```
+
+Array input is normalized to an immutable object map. Context names must be
+non-empty, array entries must be unique, and each `iconColor` must be a
+non-empty CSS colour string. Matching is exact and case-sensitive. A matching
+tag colour takes precedence over a matching context colour.
 
 `tooltip.maxWidth` sets the custom caption tooltip's maximum width in pixels.
 It must be a finite positive number and defaults to `300`. Tooltip content is
