@@ -412,11 +412,13 @@ The wrapper is a full-width, non-floating block. The native SIMILE
 `imageStyler()` still styles the `img`, while Reprise constrains that image to
 the bubble content width, includes native image padding in its border-box
 sizing, and preserves its aspect ratio. The remaining bubble sections follow
-in this order: title, structured fields or byline, description, optional
-context, and tags. `visualTheme.showContext` defaults to `false`; when enabled,
-a non-empty scalar `context` is rendered as one chip in its own row immediately
-above the tags row. Template access to `{context}` is independent of this
-switch.
+in this order: title, structured fields or byline, description, and tags.
+`visualTheme.showContext` and `visualTheme.showTags` both default to `true`.
+Context is a regular structured field directly after Location; tags are badges
+at the bottom with a slightly smaller font than the body. Each switch controls
+only its automatic display, and empty or missing values produce no row.
+Template access to `{context}` and `{tags}` is independent of both switches.
+`bubbleTags` can customize badge content; use `showTags` for visibility.
 Events without images do not receive an image container.
 
 ## Runtime injection and renderer replacement

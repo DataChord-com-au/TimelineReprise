@@ -1301,7 +1301,7 @@ function fillRepriseBubble(
         ["bubbleRemaining", null],
         ["bubbleLocation", "location"],
         ["bubblePeople", "people"],
-        ["bubbleTags", "tags"]
+        ...(visualTheme.showTags ? [["bubbleTags", "tags"]] : [])
     ];
     const derivedDurations = runtime.deriveDurations(event, {
         eventTime: canonicalTime,
@@ -1364,13 +1364,14 @@ function fillRepriseBubble(
             ["Elapsed", "bubbleElapsed"],
             ["Remaining", "bubbleRemaining"],
             ["Location", "bubbleLocation"],
+            ...(showsContext ? [["Context", "context"]] : []),
             ["People", "bubblePeople"]
         ];
         const table = doc.createElement("table");
         table.className = "timeline-event-bubble-byline-table";
 
         for (const [label, field] of rows) {
-            const value = render(field);
+            const value = field === "context" ? normalizedContext : render(field);
             if (!hasRenderedContent(value)) continue;
 
             const row = doc.createElement("tr");
@@ -1381,7 +1382,7 @@ function fillRepriseBubble(
                 hasMinimumDuration
                     ? "Longest"
                     : label;
-            setRenderedContent(cell, value, "html");
+            setRenderedContent(cell, value, field === "context" ? "text" : "html");
             row.appendChild(heading);
             row.appendChild(cell);
             table.appendChild(row);
@@ -1405,19 +1406,7 @@ function fillRepriseBubble(
         element.appendChild(descriptionContainer);
     }
 
-    if (!hasExplicitByline && hasStructuredBubble) {
-        if (showsContext) {
-            const contextContainer = doc.createElement("div");
-            _styleBubbleElement(nativeTheme, "bodyStyler", contextContainer);
-            _appendClass(contextContainer, "timeline-event-bubble-context");
-
-            const contextValue = doc.createElement("span");
-            contextValue.className = "timeline-event-bubble-context-value";
-            contextValue.textContent = normalizedContext;
-            contextContainer.appendChild(contextValue);
-            element.appendChild(contextContainer);
-        }
-
+    if (!hasExplicitByline && hasStructuredBubble && visualTheme.showTags) {
         const renderedTags = render("bubbleTags", "text");
         const tags = Array.isArray(renderedTags)
             ? renderedTags

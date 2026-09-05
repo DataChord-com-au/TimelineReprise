@@ -106,10 +106,18 @@ test("VisualTheme validates tooltips and enables them by default", () => {
     );
 });
 
-test("VisualTheme validates showContext and disables it by default", () => {
+test("VisualTheme validates independent bubble visibility switches, enabled by default", () => {
     const Timeline = loadTimeline();
 
-    assert.equal(new Timeline.VisualTheme().showContext, false);
+    assert.equal(new Timeline.VisualTheme().showContext, true);
+    assert.equal(new Timeline.VisualTheme().showTags, true);
+    assert.equal(new Timeline.VisualTheme({ showTags: false }).showContext, true);
+    assert.equal(new Timeline.VisualTheme({ showContext: false }).showTags, true);
+    assert.equal(new Timeline.VisualTheme({ showTags: false }).showTags, false);
+    assert.throws(
+        () => new Timeline.VisualTheme({ showTags: "true" }),
+        /showTags must be a boolean/
+    );
     assert.equal(new Timeline.VisualTheme({ showContext: true }).showContext, true);
     assert.throws(
         () => new Timeline.VisualTheme({ showContext: "true" }),

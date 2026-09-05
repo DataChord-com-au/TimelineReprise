@@ -1440,79 +1440,80 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
     );
 });
 
-test("showContext renders one context chip immediately before tags", () => {
-    const { Timeline, bubbleCalls } = loadTimeline();
-    const doc = makeDocument();
-    const unit = makePlanningUnit();
-    const runtime = new Timeline.RepriseRuntime({
-        unit,
-        labeller: unit.createLabeller()
-    });
-    const event = {
-        date: 3,
-        title: "Rendered title",
-        context: "Work",
-        tags: ["release", "planning"],
-        getProperty(name) {
-            return this[name] ?? null;
-        },
-        getStart() {
-            return this.date;
-        },
-        isInstant() {
-            return true;
-        }
-    };
-    const showBubble = visualTheme => {
-        const nativeTheme = makeNativeTheme(visualTheme);
-        const painter = new Timeline.OriginalEventPainter({
-            theme: nativeTheme,
-            runtime
+for (const kind of ["event", "narrative"]) {
+    test(kind + " bubble visibility is independent and preserves template selectors", () => {
+        const { Timeline, bubbleCalls } = loadTimeline();
+        const unit = makePlanningUnit();
+        const runtime = new Timeline.RepriseRuntime({ unit, labeller: unit.createLabeller() });
+        const event = {
+            date: 3, startDate: 3, endDate: 5, title: "Title",
+            location: "Adelaide", context: "Work", tags: ["release", "planning"],
+            getProperty(name) { return this[name] ?? null; },
+            getStart() { return this.date; },
+            isInstant() { return true; }
+        };
+        const profile = new Timeline.DisplayProfile({
+            id: "visibility",
+            label: { caption: "{context}: {tags}" },
+            bubble: { description: "{context}: {tags}", bubbleTags: "{tags}, featured" }
         });
-        painter.initialize(
-            {
-                _theme: nativeTheme,
-                getLabeller: () => runtime.labeller
-            },
-            {
-                getDocument: () => doc,
-                getUnit: () => unit,
-                isHorizontal: () => true,
-                isVertical: () => false
+        const showBubble = config => {
+            if (kind === "narrative") {
+                const { decorator } = paintNarrative(Timeline, runtime, [event], [], config);
+                decorator._showBubble(decorator._rangeRecords[0], { pageX: 10, pageY: 20 });
+            } else {
+                const doc = makeDocument();
+                const nativeTheme = makeNativeTheme(new Timeline.VisualTheme(config));
+                const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme, runtime });
+                painter.initialize(
+                    { _theme: nativeTheme, getLabeller: () => runtime.labeller },
+                    { getDocument: () => doc, getUnit: () => unit,
+                      isHorizontal: () => true, isVertical: () => false }
+                );
+                painter._showBubble(10, 20, event);
             }
-        );
-        painter._showBubble(10, 20, event);
-        return bubbleCalls.at(-1)[0];
-    };
-    const hidden = showBubble(new Timeline.VisualTheme());
-    const shown = showBubble(new Timeline.VisualTheme({ showContext: true }));
-
-    assert.equal(
-        childWithClass(hidden, "timeline-event-bubble-context"),
-        undefined
-    );
-
-    const context = childWithClass(shown, "timeline-event-bubble-context");
-    const contextValue = childWithClass(
-        context,
-        "timeline-event-bubble-context-value"
-    );
-    const tags = childWithClass(shown, "timeline-event-bubble-tags");
-
-    assert.equal(context.childNodes.length, 1);
-    assert.equal(contextValue.textContent, "Work");
-    assert.equal(
-        shown.childNodes.indexOf(context) + 1,
-        shown.childNodes.indexOf(tags)
-    );
-
-    event.context = "   ";
-    const blank = showBubble(new Timeline.VisualTheme({ showContext: true }));
-    assert.equal(
-        childWithClass(blank, "timeline-event-bubble-context"),
-        undefined
-    );
-});
+            return bubbleCalls.at(-1)[0];
+        };
+        const rows = content => childWithClass(
+            childWithClass(content, "timeline-event-bubble-byline"),
+            "timeline-event-bubble-byline-table"
+        )?.childNodes ?? [];
+        for (const showContext of [false, true]) {
+            for (const showTags of [false, true]) {
+                const content = showBubble({ showContext, showTags, presentation: profile });
+                const fields = rows(content);
+                const contextIndex = fields.findIndex(row => row.childNodes[0].textContent === "Context");
+                assert.equal(contextIndex >= 0, showContext);
+                if (showContext) {
+                    assert.equal(fields[contextIndex - 1].childNodes[0].textContent, "Location");
+                    assert.equal(fields[contextIndex].childNodes[1].textContent, "Work");
+                }
+                const tags = childWithClass(content, "timeline-event-bubble-tags");
+                assert.equal(Boolean(tags), showTags);
+                if (showTags) {
+                    assert.equal(content.childNodes.at(-1), tags);
+                    assert.deepEqual(Array.from(tags.childNodes, chip => chip.textContent),
+                        ["release", "planning", "featured"]);
+                }
+                const description = childWithClass(content, "timeline-event-bubble-description");
+                assert.match(description.innerHTML, /Work:.*release.*planning/);
+                assert.match(runtime.render("{context}: {tags}", event, {
+                    visualTheme: new Timeline.VisualTheme({ showContext, showTags }),
+                    displayProfile: profile, surface: "label", field: "caption", target: "text"
+                }), /Work:.*release.*planning/);
+            }
+        }
+        for (const empty of [undefined, null, "", "   "]) {
+            event.context = empty;
+            event.tags = empty;
+            const content = showBubble({});
+            assert.equal(rows(content).some(row => row.childNodes[0].textContent === "Context"), false);
+            assert.equal(childWithClass(content, "timeline-event-bubble-tags"), undefined);
+        }
+        event.tags = [];
+        assert.equal(childWithClass(showBubble({}), "timeline-event-bubble-tags"), undefined);
+    });
+}
 
 test("TemplateRenderer validates and delegates formatted domain selectors", () => {
     const { Timeline } = loadTimeline();

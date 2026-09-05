@@ -73,7 +73,12 @@ are immutable.
 `{context}` selector in every template. For example, it may be composed with
 `comments` in a label `caption`, bubble `description`, or `bubbleByline`.
 Template use is independent of the VisualTheme's `showContext` switch; that
-switch only controls the automatic context chip row in structured bubbles.
+switch only controls the automatic Context field after Location in structured bubbles.
+Likewise, `{tags}` remains available regardless of `showTags`. Both switches
+default to `true` and omit empty values. `bubbleTags` customizes badge content
+(for example, `"{tags}, featured"`); use `showTags: false` to hide automatic
+badges instead of requiring an empty `bubbleTags` template. No `bubbleContext`
+alias is needed.
 
 For active ranges, `bubbleElapsed` and `bubbleRemaining` default to the
 runtime-derived `elapsed` and `remaining` values. When either field has no

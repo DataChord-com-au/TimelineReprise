@@ -107,6 +107,7 @@ const _VISUAL_THEME_FIELDS = new Set([
     'bubbles',
     'tooltips',
     'showContext',
+    'showTags',
     'track',
     'instant',
     'range',
@@ -199,7 +200,8 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
     labels: true,
     bubbles: true,
     tooltips: true,
-    showContext: false,
+    showContext: true,
+    showTags: true,
     track: {
         horizontal: {
             count: 1,
@@ -553,6 +555,7 @@ class VisualTheme {
         this.#assertBoolean(theme.bubbles, `${caller}.bubbles`);
         this.#assertBoolean(theme.tooltips, `${caller}.tooltips`);
         this.#assertBoolean(theme.showContext, `${caller}.showContext`);
+        this.#assertBoolean(theme.showTags, `${caller}.showTags`);
         if (theme.track !== undefined) {
             this.#assertOrientableSpec(theme.track, `${caller}.track`, this.#assertTrackSpec);
         }

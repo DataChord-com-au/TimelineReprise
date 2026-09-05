@@ -15,7 +15,8 @@ var themes = Timeline.loadVisualThemes([
         labels: true,
         bubbles: false,
         tooltips: true,
-        showContext: false,
+        showContext: true,
+        showTags: true,
         contextToIconColor: [
             { context: "work", iconColor: "blue" },
             { context: "personal", iconColor: "green" }
@@ -106,10 +107,16 @@ caption surfaces use a custom HTML tooltip on hover and focus. Set
 `tooltips: false` to suppress caption tooltips without changing bubble
 behavior.
 
-`showContext` is an optional boolean that defaults to `false`. When enabled,
-an event or Narrative record with a non-empty scalar `context` displays it as a
-single chip row immediately above the tags row in its structured bubble. It does
-not affect use of the `{context}` selector in DisplayProfile templates.
+`showContext` and `showTags` are optional booleans that default to `true`.
+They independently control automatic display in event and Narrative structured
+bubbles. Context is a regular field directly after Location. Tags are badges at
+the bottom, with a slightly smaller font than the bubble body. Empty or missing
+values produce no row. An explicit `bubbleByline` continues to replace the
+structured fields and badges.
+
+These switches do not affect `{context}` or `{tags}` in templates, including
+captions and descriptions. Use `showTags: false` to hide automatic badges;
+`bubbleTags` remains a content override for customizing badges.
 
 `contextToIconColor` maps a scalar event `context` to a graphic colour. It may
 be an object map, matching `tagsToIconColor`:

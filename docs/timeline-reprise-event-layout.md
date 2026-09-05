@@ -26,7 +26,8 @@ var visualThemes = Timeline.loadVisualThemes([{
     id: "events",
     labels: true,
     bubbles: true,
-    showContext: false,
+    showContext: true,
+    showTags: true,
     contextToIconColor: {
         planning: "#3f7fc4",
         release: "#2f855a"
