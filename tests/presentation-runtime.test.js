@@ -4,6 +4,90 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { test } = require("@jest/globals");
 
+test("missing-field provider preserves explicit content and native fallback", () => {
+    const { Timeline } = loadTimeline();
+    const calls = [];
+    let result = "provided";
+    const runtime = new Timeline.RepriseRuntime({
+        unit: makePlanningUnit(),
+        renderDefault(event, context) {
+            assert.equal(this, runtime);
+            calls.push({ event, context });
+            return result;
+        }
+    });
+    const event = { date: 3, bubbleByline: "authored" };
+    const context = { field: "bubbleByline", target: "html", surface: "bubble" };
+    assert.equal(runtime.render("template", event, context), "template");
+    assert.equal(runtime.render("", event, context), "");
+    assert.equal(runtime.render(null, event, context), "authored");
+    assert.equal(runtime.render(null, { ...event, bubbleByline: "" }, context), "");
+    assert.equal(runtime.render(null, { duration: "" }, { field: "bubbleDuration" }), "");
+    assert.equal(calls.length, 0);
+    const missing = { date: 3 };
+    assert.equal(runtime.render(null, missing, context), "provided");
+    assert.equal(calls[0].event, missing);
+    assert.equal(calls[0].context.field, "bubbleByline");
+    assert.equal(calls[0].context.target, "html");
+    assert.equal(calls[0].context.surface, "bubble");
+    assert.equal(calls[0].context.eventTime.value, 3);
+    result = "";
+    assert.equal(runtime.render(null, missing, context), "");
+    result = undefined;
+    assert.equal(runtime.render(null, missing, context), "day-precise:3");
+    const native = new Timeline.RepriseRuntime({ unit: makePlanningUnit() });
+    assert.equal(native.render(null, missing, context), "day-precise:3");
+    for (const marker of ["open", "unresolved", "present"]) {
+        const source = { eventTime: { kind: "range", start: marker, end: marker } };
+        const rangeContext = { ...context, eventTime: { kind: "range", start: 2, end: 5 } };
+        for (const field of ["bubbleStart", "bubbleEnd", "bubbleByline"]) {
+            const input = { ...rangeContext, field };
+            assert.equal(runtime.render(null, source, input), native.render(null, source, input));
+        }
+    }
+    for (const renderDefault of [null, false, 0, "", {}]) {
+        assert.throws(() => new Timeline.RepriseRuntime({
+            unit: makePlanningUnit(), renderDefault
+        }), /renderDefault must be a function/);
+    }
+});
+
+test("bubble providers reach caption-only and partial shape profiles", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = makePlanningUnit();
+    for (const shape of ["instant", "range"]) {
+        for (const bubble of [{}, { bubbleByline: { [shape === "instant" ? "range" : "instant"]: "other" } }, { bubbleByline: "" }, { bubbleByline: "explicit" }]) {
+            let calls = 0;
+            const runtime = new Timeline.RepriseRuntime({
+                unit,
+                renderDefault(event, context) {
+                    if (context.field !== "bubbleByline") return undefined;
+                    calls += 1;
+                    assert.equal(context.eventTime.kind, shape);
+                    return "provider byline";
+                }
+            });
+            const profile = new Timeline.DisplayProfile({
+                id: "partial", label: { caption: "caption" }, bubble
+            });
+            const nativeTheme = makeNativeTheme(new Timeline.VisualTheme({ presentation: profile }));
+            const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme, runtime });
+            painter.initialize({ _theme: nativeTheme, getLabeller: () => runtime.labeller }, {
+                getDocument: () => makeDocument(), getUnit: () => unit,
+                isHorizontal: () => true, isVertical: () => false
+            });
+            const event = shape === "instant" ? { date: 3 } : { start: 2, end: 5 };
+            painter._showBubble(10, 20, event);
+            const explicit = typeof bubble.bubbleByline === "string";
+            assert.equal(calls, explicit ? 0 : 1);
+            const content = bubbleCalls.at(-1)[0];
+            const byline = content.childNodes.find(node => String(node.className).includes("timeline-event-bubble-byline"));
+            if (bubble.bubbleByline === "") assert.equal(byline, undefined);
+            else assert.equal(byline.innerHTML, explicit ? "explicit" : "provider byline");
+        }
+    }
+});
+
 function makeLabeller(prefix = "") {
     return {
         labelPrecise: value => `${prefix}precise:${String(value)}`,

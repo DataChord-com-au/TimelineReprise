@@ -837,6 +837,11 @@ function _defaultRender(template, event, context) {
     const value = _readDisplayValue(event, context.field, context);
     if (value !== undefined) return _normalizeRenderedValue(value);
 
+    if (this.renderDefault !== undefined) {
+        const rendered = this.renderDefault(event, context);
+        if (rendered !== undefined) return _normalizeRenderedValue(rendered);
+    }
+
     const eventTime = context.eventTime;
     const boundaries = eventTime?.kind === "range"
         ? _eventRangeBoundaries(event)
@@ -947,6 +952,9 @@ function assertRepriseRuntime(runtime, caller = _RUNTIME_LABEL) {
     if (typeof runtime.render !== "function") {
         throw new TypeError(`${caller}.render must be a function.`);
     }
+    if (runtime.renderDefault !== undefined && typeof runtime.renderDefault !== "function") {
+        throw new TypeError(`${caller}.renderDefault must be a function.`);
+    }
 
     return runtime;
 }
@@ -966,6 +974,7 @@ class RepriseRuntime {
         deriveDurations = _defaultDeriveDurations,
         durationPrecision = "minute",
         templateRenderer = new TemplateRenderer(),
+        renderDefault,
         render = _defaultRender
     } = {}) {
         if (!(templateRenderer instanceof TemplateRenderer)) {
@@ -997,6 +1006,7 @@ class RepriseRuntime {
         this._projectTimeRange = projectTimeRange;
         this._deriveDurations = deriveDurations;
         this._render = render;
+        if (renderDefault !== undefined) this.renderDefault = renderDefault;
 
         if (projectCardinalAxis != null) {
             if (typeof projectCardinalAxis !== "function") {

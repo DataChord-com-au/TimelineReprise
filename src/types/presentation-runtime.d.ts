@@ -123,6 +123,7 @@ declare namespace Timeline {
     }
 
     interface RepriseRuntimeContract<T = unknown> {
+        renderDefault?(event: object, context: RenderContext<T>): RenderedContent;
         readonly unit: TimelineUnit<T>;
         readonly labeller: TimelineLabeller<T>;
         readonly durationPrecision?: ElapsedDurationPrecision;
@@ -145,6 +146,12 @@ declare namespace Timeline {
     }
 
     interface RepriseRuntimeOptions<T = unknown> {
+        /** Called after templates and event fields. Undefined declines; empty string is handled. */
+        renderDefault?: (
+            this: RepriseRuntimeContract<T>,
+            event: object,
+            context: RenderContext<T>
+        ) => RenderedContent;
         unit?: TimelineUnit<T>;
         labeller?: TimelineLabeller<T> | null;
         durationPrecision?: ElapsedDurationPrecision;
@@ -192,6 +199,7 @@ declare namespace Timeline {
         readonly labeller: TimelineLabeller<T>;
         readonly durationPrecision: ElapsedDurationPrecision;
         readonly templateRenderer: TemplateRenderer;
+        renderDefault?(event: object, context: RenderContext<T>): RenderedContent;
         readCurrentTime(): unknown;
         projectTimeValue(value: unknown): T | null;
         projectTimeRange(value: unknown): ClampRange<T> | null;

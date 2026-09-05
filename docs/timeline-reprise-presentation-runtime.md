@@ -317,6 +317,38 @@ Reprise resolves the field template from the selected
 surface and canonical event-time shape. A missing template delegates to the
 default field renderer.
 
+`RepriseRuntime` accepts an optional `renderDefault(event, context)` callback
+for missing presentation fields. Native rendering checks, in order:
+
+1. The explicit template selected for the field, surface, and event shape.
+2. The existing event field lookup, including native getters and field aliases.
+3. `renderDefault(event, context)`, when configured.
+4. The existing native field fallback.
+
+Empty templates and explicit empty string fields stop this lookup. A provider
+returning `undefined` declines the field; an empty string is handled and hides
+its content. Other values use the native rendered-value normalization (including
+`null` becoming empty content). The callback receives the event and the full
+render context, including `field`, `target`, `surface`, and canonical `eventTime`;
+`this` is the runtime.
+
+Caption-only profiles and templates for another event shape do not block the
+callback for missing bubble fields. Bubble byline/table selection is unchanged:
+the callback supplies defaults for fields requested by that layout. If it
+declines, native endpoint sentinel labels and other fallback behavior remain
+unchanged. Omitting the callback preserves existing behavior. A supplied value
+other than a function or `undefined` is invalid. A custom `render` implementation
+still owns rendering and must implement any desired delegation itself.
+
+```js
+var runtime = new Timeline.RepriseRuntime({
+    renderDefault: function (event, context) {
+        if (context.field === "bubbleByline") return event.summary;
+        return undefined;
+    }
+});
+```
+
 The default runtime interprets string templates through
 `Timeline.TemplateRenderer`. Its built-in macros are `join()`, `joinUnique()`,
 `wrap()`, `paren()`, `prefix()`, `suffix()`, `lines()`, and
