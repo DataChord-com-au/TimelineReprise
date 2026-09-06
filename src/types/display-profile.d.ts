@@ -23,7 +23,9 @@ declare namespace Timeline {
         bubbleDuration?: DisplayTemplateSpec;
         bubbleMinimumDuration?: DisplayTemplateSpec;
         bubbleElapsed?: DisplayTemplateSpec;
+        bubbleMinimumElapsed?: DisplayTemplateSpec;
         bubbleRemaining?: DisplayTemplateSpec;
+        bubbleMinimumRemaining?: DisplayTemplateSpec;
         bubbleLocation?: DisplayTemplateSpec;
         bubblePeople?: DisplayTemplateSpec;
         bubbleTags?: DisplayTemplateSpec;

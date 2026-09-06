@@ -53,15 +53,15 @@ The `bubble` surface accepts:
 - `image`, `title`, `link`, `summary`, and `description`;
 - `bubbleByline`;
 - `bubbleStart`, `bubbleLatestStart`, `bubbleEarliestEnd`, and `bubbleEnd`;
-- `bubbleDuration`, `bubbleMinimumDuration`, `bubbleElapsed`, and
-  `bubbleRemaining`;
+- `bubbleDuration`, `bubbleMinimumDuration`, `bubbleElapsed`,
+  `bubbleMinimumElapsed`, `bubbleRemaining`, and `bubbleMinimumRemaining`;
 - `bubbleLocation`, `bubblePeople`, and `bubbleTags`.
 
 A field may be a template string, which applies to instants and ranges, or an
 object with optional `instant` and `range` templates. A missing surface, field,
 or shape delegates that output to Reprise's default renderer. For example, a
 label-only `title` template does not alter the bubble title. Default bubble
-duration, minimum-duration, elapsed, and remaining fields still pass through
+duration, elapsed, remaining, and their minimum fields still pass through
 the profile's TemplateRenderer selector pipeline, allowing a domain extension
 to format their runtime-derived values.
 
@@ -115,6 +115,17 @@ the runtime's minute-precision fallback text. Templates may also use the
 tooltips on labels and graphics are recalculated when their surface is entered
 or focused. Caption tooltip output is plain text and preserves text-target
 newlines from `{lines(...)}`.
+
+Uncertain bounds appear automatically as `Latest Start` and `Earliest End`
+when they differ from the outer endpoints. `bubbleLatestStart` and
+`bubbleEarliestEnd` can override or suppress those rows.
+
+`bubbleMinimumElapsed` and `bubbleMinimumRemaining` default to the provider's
+`minimumElapsed` and `minimumRemaining` selectors. Like `bubbleMinimumDuration`,
+each minimum field can have its own template; it does not inherit
+`bubbleDuration`. An available minimum adds a shortest row and labels the
+matching elapsed or remaining row as longest. Exact ranges retain their
+single-value rows.
 
 `relativeDuration` selects `duration` for a bounded range, `elapsed` for a
 concrete start with an open or unresolved end, and `remaining` for an open or

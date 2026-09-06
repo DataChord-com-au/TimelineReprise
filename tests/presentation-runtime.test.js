@@ -895,7 +895,9 @@ test("injected duration derivation preserves opaque semantic values", () => {
         duration: Object.freeze({ kind: "semantic-total" }),
         minimumDuration: Object.freeze({ kind: "semantic-minimum" }),
         elapsed: Object.freeze({ kind: "semantic-elapsed" }),
-        remaining: Object.freeze({ kind: "semantic-remaining" })
+        minimumElapsed: Object.freeze({ kind: "semantic-minimum-elapsed" }),
+        remaining: Object.freeze({ kind: "semantic-remaining" }),
+        minimumRemaining: Object.freeze({ kind: "semantic-minimum-remaining" })
     });
     let renderContext;
     const runtime = new Timeline.RepriseRuntime({
@@ -912,7 +914,9 @@ test("injected duration derivation preserves opaque semantic values", () => {
                     text: "11 months"
                 },
                 elapsed: { value: values.elapsed, text: "8 months" },
-                remaining: { value: values.remaining, text: "6 months" }
+                minimumElapsed: { value: values.minimumElapsed, text: "5 months" },
+                remaining: { value: values.remaining, text: "6 months" },
+                minimumRemaining: { value: values.minimumRemaining, text: "3 months" }
             };
         },
         render(_template, _event, context) {
@@ -935,7 +939,182 @@ test("injected duration derivation preserves opaque semantic values", () => {
     assert.equal(renderContext.duration.text, "1 year, 2 months");
     assert.equal(renderContext.minimumDuration.text, "11 months");
     assert.equal(renderContext.elapsed.text, "8 months");
+    assert.equal(renderContext.minimumElapsed.text, "5 months");
     assert.equal(renderContext.remaining.text, "6 months");
+    assert.equal(renderContext.minimumRemaining.text, "3 months");
+});
+
+test.each([
+    [{ latestStart: 3, earliestEnd: 9 }, 5,
+        { duration: 12, minimumDuration: 6, elapsed: 5, minimumElapsed: 2, remaining: 7, minimumRemaining: 4 }],
+    [{ latestStart: 3 }, 1,
+        { duration: 12, minimumDuration: 9, elapsed: 1, minimumElapsed: 0, remaining: 11 }],
+    [{ earliestEnd: 9 }, 11,
+        { duration: 12, minimumDuration: 9, elapsed: 11, remaining: 1, minimumRemaining: 0 }],
+    [{ latestStart: 9, earliestEnd: 3 }, 5,
+        { duration: 12, minimumDuration: 0, elapsed: 5, minimumElapsed: 0, remaining: 7, minimumRemaining: 0 }],
+    [{ latestStart: 3, earliestEnd: 9 }, -1, { duration: 12, minimumDuration: 6 }],
+    [{ latestStart: 3, earliestEnd: 9 }, 13, { duration: 12, minimumDuration: 6 }],
+    [{ latestStart: 3, earliestEnd: 9 }, null, { duration: 12, minimumDuration: 6 }],
+    [{}, 5, { duration: 12, elapsed: 5, remaining: 7 }],
+    [{ latestStart: 0, earliestEnd: 12 }, 5, { duration: 12, elapsed: 5, remaining: 7 }],
+    [{ latestStart: 3, eventTime: { kind: "range", start: 0, end: "open" } }, 5,
+        { elapsed: 5, minimumElapsed: 2 }],
+    [{ earliestEnd: 9, eventTime: { kind: "range", start: "unresolved", end: 12 } }, 5,
+        { remaining: 7, minimumRemaining: 4 }]
+])("unit duration bounds for %j at %s", (fields, currentTime, expected) => {
+    const { Timeline } = loadTimeline();
+    const runtime = new Timeline.RepriseRuntime({ unit: Timeline.PlanningDayUnit });
+    const event = { start: 0, end: 12, ...fields };
+    const durations = runtime.deriveDurations(event, {
+        eventTime: runtime.readEventTime(event), currentTime
+    });
+    assert.deepEqual(
+        Object.fromEntries(Object.entries(durations).map(([name, value]) => [name, value.value])),
+        expected
+    );
+});
+
+test("native Date minimum durations use the configured precision", () => {
+    const { Timeline } = loadTimeline();
+    const event = {
+        start: new Date("2020-01-01T00:00:00Z"),
+        latestStart: new Date("2020-01-01T00:10:15Z"),
+        earliestEnd: new Date("2020-01-01T00:50:45Z"),
+        end: new Date("2020-01-01T01:00:00Z")
+    };
+    const runtime = new Timeline.RepriseRuntime({
+        readCurrentTime: () => new Date("2020-01-01T00:30:30Z")
+    });
+    for (const field of ["bubbleMinimumElapsed", "bubbleMinimumRemaining"]) {
+        assert.equal(runtime.render(null, event, { field }), "20 minutes");
+        assert.equal(runtime.render(null, event, { field, durationPrecision: "second" }),
+            "20 minutes, 15 seconds");
+    }
+});
+
+function renderDurationRows(Timeline, bubbleCalls, runtime, event, kind = "event", bubble) {
+    const config = bubble == null ? {} : {
+        presentation: new Timeline.DisplayProfile({ id: "durationBounds", bubble })
+    };
+    if (kind === "narrative") {
+        const { decorator } = paintNarrative(Timeline, runtime, [event], [], config);
+        decorator._showBubble(decorator._rangeRecords[0], { pageX: 10, pageY: 20 });
+    } else {
+        const nativeTheme = makeNativeTheme(new Timeline.VisualTheme(config));
+        const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme, runtime });
+        painter.initialize(
+            { _theme: nativeTheme, getLabeller: () => runtime.labeller },
+            { getDocument: () => makeDocument(), getUnit: () => runtime.unit,
+              isHorizontal: () => true, isVertical: () => false }
+        );
+        painter._showBubble(10, 20, event);
+    }
+    const content = bubbleCalls.at(-1)[0];
+    const table = content.childNodes.flatMap(node => node.childNodes)
+        .find(node => node.tagName === "TABLE");
+    return Object.fromEntries((table?.childNodes ?? []).map(row => [
+        row.childNodes[0].textContent, row.childNodes[1].innerHTML
+    ]));
+}
+
+test.each(["event", "narrative"])("%s bubbles show uncertainty bounds and revert to exact rows", kind => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    let current = 5;
+    const runtime = new Timeline.RepriseRuntime({
+        unit,
+        labeller: Object.assign(unit.createLabeller(), { labelPrecise: String }),
+        readCurrentTime: () => current
+    });
+    const event = { startDate: 0, latestStart: 3, earliestEnd: 9, endDate: 12 };
+    const rows = () => renderDurationRows(Timeline, bubbleCalls, runtime, event, kind);
+    assert.deepEqual(rows(), {
+        Start: "0", "Latest Start": "3", "Earliest End": "9", End: "12",
+        Longest: "12 days", Shortest: "6 days",
+        "Longest Elapsed": "5 days", "Shortest Elapsed": "2 days",
+        "Longest Remaining": "7 days", "Shortest Remaining": "4 days"
+    });
+    current = 10;
+    assert.equal(rows()["Shortest Remaining"], "0 days");
+    assert.equal(rows()["Shortest Elapsed"], "7 days");
+    const exact = { startDate: 0, endDate: 12, latestStart: 0, earliestEnd: 12 };
+    assert.deepEqual(renderDurationRows(Timeline, bubbleCalls, runtime, exact, kind), {
+        Start: "0", End: "12", Duration: "12 days", Elapsed: "10 days", Remaining: "2 days"
+    });
+    const templates = {
+        bubbleMinimumDuration: "{minimumDuration}",
+        bubbleMinimumElapsed: "{minimumElapsed}",
+        bubbleMinimumRemaining: "{minimumRemaining}"
+    };
+    assert.deepEqual(renderDurationRows(Timeline, bubbleCalls, runtime, exact, kind, templates), {
+        Start: "0", End: "12", Duration: "12 days", Elapsed: "10 days", Remaining: "2 days"
+    });
+});
+
+test("bubble endpoint defaults work without a duration-capable unit and allow overrides", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const runtime = new Timeline.RepriseRuntime({ unit: makePlanningUnit() });
+    const event = { start: 0, latestStart: 3, earliestEnd: 9, end: 12 };
+    const rows = renderDurationRows(Timeline, bubbleCalls, runtime, event);
+    assert.deepEqual(rows, {
+        Start: "day-precise:0", "Latest Start": "day-precise:3",
+        "Earliest End": "day-precise:9", End: "day-precise:12"
+    });
+    assert.equal(runtime.render(null, { ...event, bubbleLatestStart: "authored" },
+        { field: "bubbleLatestStart" }), "authored");
+    const overrides = renderDurationRows(Timeline, bubbleCalls, runtime, event, "event", {
+        bubbleLatestStart: "", bubbleEarliestEnd: "Until {earliestEnd}"
+    });
+    assert.equal(Object.hasOwn(overrides, "Latest Start"), false);
+    assert.equal(overrides["Earliest End"], "Until day-precise:9");
+});
+
+test("delegated minimum durations populate bubbles and preserve explicit templates and fields", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = makePlanningUnit();
+    let unitDurationCalls = 0;
+    unit.duration = () => { unitDurationCalls += 1; return 999; };
+    const currentTime = { semantic: "now" };
+    const durations = {
+        duration: { value: {}, text: "12 calendar months" },
+        minimumDuration: { value: {}, text: "6 calendar months" },
+        elapsed: { value: {}, text: "5 calendar months" },
+        minimumElapsed: { value: {}, text: "2 calendar months" },
+        remaining: { value: {}, text: "7 calendar months" },
+        minimumRemaining: { value: {}, text: "4 calendar months" }
+    };
+    const runtime = new Timeline.RepriseRuntime({
+        unit, readCurrentTime: () => currentTime,
+        deriveDurations(_event, context) {
+            assert.equal(context.currentTime, currentTime);
+            return durations;
+        }
+    });
+    const event = { start: 0, latestStart: 3, earliestEnd: 9, end: 12 };
+    const rows = renderDurationRows(Timeline, bubbleCalls, runtime, event);
+    assert.equal(rows["Shortest Elapsed"], durations.minimumElapsed.text);
+    assert.equal(rows["Shortest Remaining"], durations.minimumRemaining.text);
+    const overrides = renderDurationRows(Timeline, bubbleCalls, runtime, {
+        ...event, minimumElapsed: "authored elapsed", bubbleMinimumRemaining: "authored remaining"
+    }, "event", { bubbleMinimumElapsed: { range: "Minimum: {minimumElapsed}" } });
+    assert.equal(overrides["Shortest Elapsed"], "Minimum: authored elapsed");
+    assert.equal(overrides["Shortest Remaining"], "authored remaining");
+    assert.equal(unitDurationCalls, 0);
+});
+
+test.each(["minimumElapsed", "minimumRemaining"])("%s validates provider data and never retains stale context", field => {
+    const { Timeline } = loadTimeline();
+    let result = { [field]: { value: {}, text: "fresh" } };
+    const runtime = new Timeline.RepriseRuntime({
+        unit: makePlanningUnit(), deriveDurations: () => result
+    });
+    const context = { field: "title", [field]: { value: {}, text: "stale" } };
+    assert.equal(runtime.render(`{${field}}`, { start: 0, end: 12 }, context), "fresh");
+    result = {};
+    assert.equal(runtime.render(`{${field}}`, { start: 0, end: 12 }, context), "");
+    result = { [field]: { value: 1, text: 2 } };
+    assert.throws(() => runtime.deriveDurations({}), /text must be a string/);
 });
 
 test("open endpoint presentation and relative duration stay semantic across labels, captions, and bubbles", () => {
@@ -1407,7 +1586,7 @@ test("default bubble duration fields pass through selector extensions", () => {
     const { Timeline } = loadTimeline();
     const calls = [];
     const extension = {
-        hasSelector: name => name === "elapsed" || name === "remaining",
+        hasSelector: name => ["elapsed", "minimumElapsed", "remaining", "minimumRemaining"].includes(name),
         hasFormat: () => false,
         resolveSelector(name, formatName, _event, context) {
             calls.push({ name, formatName, context });
@@ -1427,7 +1606,7 @@ test("default bubble duration fields pass through selector extensions", () => {
         labeller: unit.createLabeller(),
         readCurrentTime: () => 4
     });
-    const event = { start: 0, end: 10 };
+    const event = { start: 0, latestStart: 2, earliestEnd: 8, end: 10 };
     const context = {
         target: "html",
         displayProfile: profile,
@@ -1448,9 +1627,13 @@ test("default bubble duration fields pass through selector extensions", () => {
         }),
         "domain remaining: 6"
     );
+    assert.equal(runtime.render(null, event, { ...context, field: "bubbleMinimumElapsed" }),
+        "domain minimumElapsed: 2");
+    assert.equal(runtime.render(null, event, { ...context, field: "bubbleMinimumRemaining" }),
+        "domain minimumRemaining: 4");
     assert.deepEqual(
         calls.map(call => [call.name, call.formatName]),
-        [["elapsed", null], ["remaining", null]]
+        [["elapsed", null], ["remaining", null], ["minimumElapsed", null], ["minimumRemaining", null]]
     );
 });
 

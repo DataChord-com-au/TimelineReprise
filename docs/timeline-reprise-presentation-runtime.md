@@ -24,7 +24,8 @@ A runtime is an object with:
 - `readCurrentTime()` - captures the runtime's current value. Injected runtimes
   may return an opaque semantic token; Reprise passes it through unchanged.
 - `deriveDurations(event, context)` - derives `duration`, `minimumDuration`,
-  `elapsed`, and `remaining` presentation values.
+  `elapsed`, `minimumElapsed`, `remaining`, and `minimumRemaining` presentation
+  values.
 - `render(template, event, context)` - returns text, HTML, or a DOM fragment for
   one field.
 
@@ -108,8 +109,8 @@ var runtime = new Timeline.RepriseRuntime({
 
 Native-date fallback duration text defaults to minute precision. Set
 `durationPrecision: "millisecond"` only when sub-minute detail is required.
-This option applies consistently to duration, minimum duration, elapsed, and
-remaining values; domain selector extensions may replace their text with
+This option applies consistently to duration, elapsed, remaining, and their
+minimum values; domain selector extensions may replace their text with
 their own named duration format.
 
 An injected derivation hook returns any applicable fields in this shape:
@@ -292,6 +293,20 @@ or unresolved start therefore omits `elapsed` while retaining a finite
 endpoint is resolved against the captured current value. Missing properties
 are treated as `null` by the bubble renderer and their rows are omitted.
 
+For an uncertain start, `elapsed` is the longest elapsed time and
+`minimumElapsed` runs from `latestStart` to the captured current value. For an
+uncertain end, `remaining` is the longest remaining time and
+`minimumRemaining` runs from the captured current value to `earliestEnd`.
+The minima are clamped to zero before the latest start or after the earliest
+end. The default provider omits each minimum when its corresponding endpoint
+is exact, and omits elapsed/remaining values outside the outer event range.
+
+The default calculations use the selected unit's `compare()` and `duration()`
+methods, including NativeDateUnit for JavaScript dates. An injected
+`deriveDurations()` provider supplies all available values and text instead;
+Reprise preserves opaque values and does not recalculate them from projected
+coordinates. Providers may omit any unavailable minimum.
+
 ## Rendering
 
 The complete render context is:
@@ -359,7 +374,8 @@ Bare selectors read generic event fields, including a scalar `context` field.
 For example, `{lines(context, comments)}` can compose both fields into a
 caption or bubble template. Reprise also supplies `eventTime`,
 `start`, `latestStart`, `earliestEnd`, `end`, `duration`, and
-`minimumDuration`, `elapsed`, `remaining`, and `relativeDuration`. The relative
+`minimumDuration`, `elapsed`, `minimumElapsed`, `remaining`,
+`minimumRemaining`, and `relativeDuration`. The relative
 selector resolves to total duration for a bounded range, elapsed for a
 concrete-start/open-end range, and remaining for an open-start/concrete-end
 range. Timeline endpoints are formatted through the active labeller.
@@ -372,6 +388,20 @@ event-time labels use `labelInterval()` and precise HTML/bubble values use
 `context.minimumDuration.text` for `bubbleMinimumDuration`. Explicit event
 `bubbleDuration`/`duration` and `bubbleMinimumDuration`/`minimumDuration`
 values take precedence over those derived defaults.
+
+`bubbleLatestStart` and `bubbleEarliestEnd` default to the corresponding
+canonical selectors when their bounds differ from the outer endpoints.
+Explicit event fields, templates, and `renderDefault()` retain precedence.
+These bounds select the frontmatter table even when the unit cannot derive
+durations. An explicit `bubbleByline` still replaces the table.
+
+`bubbleMinimumElapsed` and `bubbleMinimumRemaining` use the corresponding
+runtime selectors by default. They support explicit event values and
+DisplayProfile templates in the same way as `bubbleMinimumDuration`.
+Their rows are labelled `Shortest Elapsed` and `Shortest Remaining`; when a
+minimum is available, the matching maximum row is labelled `Longest Elapsed`
+or `Longest Remaining`. Exact ranges retain `Duration`, `Elapsed`, and
+`Remaining`, with no automatic uncertainty rows.
 
 An unspecified `bubbleElapsed` or `bubbleRemaining` field inherits the active
 range's complete `bubbleDuration` template. While rendering that inherited
@@ -424,7 +454,7 @@ retaining its own endpoint formatting:
 2 Jan 2020 - ?
 ```
 
-Default bubble duration, minimum-duration, elapsed, and remaining output also
+Default bubble duration, elapsed, remaining, and their minimum output also
 passes through these selectors. A domain extension can therefore apply its
 named duration styles to fresh Reprise values without requiring explicit
 templates for every bubble field.

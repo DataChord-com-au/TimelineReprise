@@ -9,7 +9,9 @@ const _DURATION_FIELDS = Object.freeze([
     "duration",
     "minimumDuration",
     "elapsed",
-    "remaining"
+    "minimumElapsed",
+    "remaining",
+    "minimumRemaining"
 ]);
 const _DURATION_PRECISIONS = new Set([
     "day",
@@ -338,6 +340,15 @@ function _durationValuesDiffer(unit, left, right) {
     }
 }
 
+function _hasDistinctAuxiliaryEndpoint(unit, eventTime, field) {
+    const value = eventTime?.[field];
+    if (value == null) return false;
+    const outer = eventTime.kind === "instant"
+        ? eventTime.value
+        : eventTime[field === "latestStart" ? "start" : "end"];
+    return _durationValuesDiffer(unit, outer, value);
+}
+
 function _endpointMarker(value) {
     if (typeof value !== "string") return null;
 
@@ -437,9 +448,11 @@ function _unitDurations(
         : null;
     const latestStart = eventTime.latestStart ?? start;
     const earliestEnd = eventTime.earliestEnd ?? end;
-    const imprecise =
-        _durationValuesDiffer(unit, start, latestStart) ||
+    const startImprecise = boundedStart &&
+        _durationValuesDiffer(unit, start, latestStart);
+    const endImprecise = boundedEnd &&
         _durationValuesDiffer(unit, end, earliestEnd);
+    const imprecise = startImprecise || endImprecise;
 
     let minimumDuration = null;
     if (imprecise && boundedStart && boundedEnd) {
@@ -493,11 +506,42 @@ function _unitDurations(
         )
         : null;
 
+    let minimumElapsed = null;
+    if (active && startImprecise) {
+        try {
+            minimumElapsed = _durationValue(
+                unit,
+                labeller,
+                unit.compare(latestStart, current) > 0 ? current : latestStart,
+                current,
+                durationPrecision
+            );
+        } catch {
+            minimumElapsed = null;
+        }
+    }
+    let minimumRemaining = null;
+    if (active && endImprecise) {
+        try {
+            minimumRemaining = _durationValue(
+                unit,
+                labeller,
+                current,
+                unit.compare(current, earliestEnd) > 0 ? current : earliestEnd,
+                durationPrecision
+            );
+        } catch {
+            minimumRemaining = null;
+        }
+    }
+
     return {
         ...(duration == null ? {} : { duration }),
         ...(minimumDuration == null ? {} : { minimumDuration }),
         ...(elapsed == null ? {} : { elapsed }),
-        ...(remaining == null ? {} : { remaining })
+        ...(minimumElapsed == null ? {} : { minimumElapsed }),
+        ...(remaining == null ? {} : { remaining }),
+        ...(minimumRemaining == null ? {} : { minimumRemaining })
     };
 }
 
@@ -697,7 +741,9 @@ function _readDisplayValue(event, field, context) {
         bubbleDuration: "duration",
         bubbleMinimumDuration: "minimumDuration",
         bubbleElapsed: "elapsed",
+        bubbleMinimumElapsed: "minimumElapsed",
         bubbleRemaining: "remaining",
+        bubbleMinimumRemaining: "minimumRemaining",
         bubbleLocation: "location",
         bubblePeople: "people",
         bubbleTags: "tags"
@@ -770,23 +816,11 @@ function _resolveTemplateSelector(name, event, context) {
             ? _normalizeRenderedValue(explicit.value)
             : context[durationName]?.text ?? "";
     }
-    if (name === "minimumDuration") {
-        const explicit = _readEventField(event, "minimumDuration");
+    if (_DURATION_FIELDS.includes(name)) {
+        const explicit = _readEventField(event, name);
         return explicit.found
             ? _normalizeRenderedValue(explicit.value)
-            : context.minimumDuration?.text ?? "";
-    }
-    if (name === "elapsed") {
-        const explicit = _readEventField(event, "elapsed");
-        return explicit.found
-            ? _normalizeRenderedValue(explicit.value)
-            : context.elapsed?.text ?? "";
-    }
-    if (name === "remaining") {
-        const explicit = _readEventField(event, "remaining");
-        return explicit.found
-            ? _normalizeRenderedValue(explicit.value)
-            : context.remaining?.text ?? "";
+            : context[name]?.text ?? "";
     }
     if (name === "relativeDuration") {
         const role = context.relativeDurationRole;
@@ -846,6 +880,17 @@ function _defaultRender(template, event, context) {
     const boundaries = eventTime?.kind === "range"
         ? _eventRangeBoundaries(event)
         : null;
+    if (
+        context.field === "bubbleLatestStart" ||
+        context.field === "bubbleEarliestEnd"
+    ) {
+        const name = context.field === "bubbleLatestStart"
+            ? "latestStart"
+            : "earliestEnd";
+        return _hasDistinctAuxiliaryEndpoint(context.unit, eventTime, name)
+            ? _renderDefaultSelector(this, name, event, context)
+            : "";
+    }
     if (context.field === "bubbleStart") {
         if (eventTime?.kind === "instant") {
             return _formatEndpoint(context, eventTime.value, true);
@@ -889,8 +934,14 @@ function _defaultRender(template, event, context) {
     if (context.field === "bubbleElapsed") {
         return _renderDefaultSelector(this, "elapsed", event, context);
     }
+    if (context.field === "bubbleMinimumElapsed") {
+        return _renderDefaultSelector(this, "minimumElapsed", event, context);
+    }
     if (context.field === "bubbleRemaining") {
         return _renderDefaultSelector(this, "remaining", event, context);
+    }
+    if (context.field === "bubbleMinimumRemaining") {
+        return _renderDefaultSelector(this, "minimumRemaining", event, context);
     }
 
     return "";
@@ -1085,7 +1136,9 @@ class RepriseRuntime {
             duration: _ignoredDuration,
             minimumDuration: _ignoredMinimumDuration,
             elapsed: _ignoredElapsed,
+            minimumElapsed: _ignoredMinimumElapsed,
             remaining: _ignoredRemaining,
+            minimumRemaining: _ignoredMinimumRemaining,
             relativeDurationRole: _ignoredRelativeDurationRole,
             ...inputContext
         } = context;
@@ -1241,6 +1294,9 @@ function fillRepriseBubble(
 ) {
     assertRepriseRuntime(runtime, "TimelineReprise.fillRepriseBubble runtime");
 
+    // SIMILE sets a fixed width after measuring. Refit when a scrollbar narrows the popup.
+    element.style.maxWidth = "100%";
+
     const doc = element.ownerDocument;
     const inputEventTime = eventTime === undefined
         ? runtime.readEventTime(event)
@@ -1308,7 +1364,9 @@ function fillRepriseBubble(
         ["bubbleDuration", "duration"],
         ["bubbleMinimumDuration", "minimumDuration"],
         ["bubbleElapsed", null],
+        ["bubbleMinimumElapsed", "minimumElapsed"],
         ["bubbleRemaining", null],
+        ["bubbleMinimumRemaining", "minimumRemaining"],
         ["bubbleLocation", "location"],
         ["bubblePeople", "people"],
         ...(visualTheme.showTags ? [["bubbleTags", "tags"]] : [])
@@ -1318,24 +1376,15 @@ function fillRepriseBubble(
         currentTime: capturedCurrentTime,
         durationPrecision: runtime.durationPrecision ?? "minute"
     });
-    const hasMinimumDuration =
-        derivedDurations.minimumDuration != null ||
-        _hasEventOrPresentationField(
-            event,
-            visualTheme,
-            "bubbleMinimumDuration",
-            "minimumDuration",
-            { surface: "bubble", eventTime: canonicalTime }
-        );
     const renderedContext = visualTheme.showContext === true
         ? render("context", "text")
         : null;
     const normalizedContext = String(renderedContext ?? "").trim();
     const showsContext = normalizedContext !== "";
     const hasStructuredBubble =
-        derivedDurations.duration != null ||
-        derivedDurations.elapsed != null ||
-        derivedDurations.remaining != null ||
+        _DURATION_FIELDS.some(field => derivedDurations[field] != null) ||
+        _hasDistinctAuxiliaryEndpoint(runtime.unit, canonicalTime, "latestStart") ||
+        _hasDistinctAuxiliaryEndpoint(runtime.unit, canonicalTime, "earliestEnd") ||
         showsContext ||
         structuredFields.some(([field, fallback]) =>
             _hasEventOrPresentationField(
@@ -1364,15 +1413,25 @@ function fillRepriseBubble(
             element.appendChild(bylineContainer);
         }
     } else {
+        const minimumValues = {
+            bubbleMinimumDuration: render("bubbleMinimumDuration"),
+            bubbleMinimumElapsed: render("bubbleMinimumElapsed"),
+            bubbleMinimumRemaining: render("bubbleMinimumRemaining")
+        };
+        const hasMinimumDuration = hasRenderedContent(minimumValues.bubbleMinimumDuration);
+        const hasMinimumElapsed = hasRenderedContent(minimumValues.bubbleMinimumElapsed);
+        const hasMinimumRemaining = hasRenderedContent(minimumValues.bubbleMinimumRemaining);
         const rows = [
             [canonicalTime?.kind === "range" ? "Start" : "When", "bubbleStart"],
             ["Latest Start", "bubbleLatestStart"],
             ["Earliest End", "bubbleEarliestEnd"],
             ["End", "bubbleEnd"],
-            ["Duration", "bubbleDuration"],
+            [hasMinimumDuration ? "Longest" : "Duration", "bubbleDuration"],
             ["Shortest", "bubbleMinimumDuration"],
-            ["Elapsed", "bubbleElapsed"],
-            ["Remaining", "bubbleRemaining"],
+            [hasMinimumElapsed ? "Longest Elapsed" : "Elapsed", "bubbleElapsed"],
+            ["Shortest Elapsed", "bubbleMinimumElapsed"],
+            [hasMinimumRemaining ? "Longest Remaining" : "Remaining", "bubbleRemaining"],
+            ["Shortest Remaining", "bubbleMinimumRemaining"],
             ["Location", "bubbleLocation"],
             ...(showsContext ? [["Context", "context"]] : []),
             ["People", "bubblePeople"]
@@ -1381,17 +1440,15 @@ function fillRepriseBubble(
         table.className = "timeline-event-bubble-byline-table";
 
         for (const [label, field] of rows) {
-            const value = field === "context" ? normalizedContext : render(field);
+            const value = field === "context"
+                ? normalizedContext
+                : _hasOwn(minimumValues, field) ? minimumValues[field] : render(field);
             if (!hasRenderedContent(value)) continue;
 
             const row = doc.createElement("tr");
             const heading = doc.createElement("th");
             const cell = doc.createElement("td");
-            heading.textContent =
-                field === "bubbleDuration" &&
-                hasMinimumDuration
-                    ? "Longest"
-                    : label;
+            heading.textContent = label;
             setRenderedContent(cell, value, field === "context" ? "text" : "html");
             row.appendChild(heading);
             row.appendChild(cell);

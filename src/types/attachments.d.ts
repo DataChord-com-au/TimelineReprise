@@ -17,8 +17,16 @@ declare namespace Timeline {
         tags?: readonly string[];
         duration?: RenderedContent;
         minimumDuration?: RenderedContent;
+        elapsed?: RenderedContent;
+        minimumElapsed?: RenderedContent;
+        remaining?: RenderedContent;
+        minimumRemaining?: RenderedContent;
         bubbleDuration?: RenderedContent;
         bubbleMinimumDuration?: RenderedContent;
+        bubbleElapsed?: RenderedContent;
+        bubbleMinimumElapsed?: RenderedContent;
+        bubbleRemaining?: RenderedContent;
+        bubbleMinimumRemaining?: RenderedContent;
         track?: number | string;
         trackExplicit?: boolean;
         labels?: boolean;

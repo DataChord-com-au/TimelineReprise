@@ -37,7 +37,9 @@ declare namespace Timeline {
         readonly duration?: RepriseDuration<T>;
         readonly minimumDuration?: RepriseDuration<T>;
         readonly elapsed?: RepriseDuration<T>;
+        readonly minimumElapsed?: RepriseDuration<T>;
         readonly remaining?: RepriseDuration<T>;
+        readonly minimumRemaining?: RepriseDuration<T>;
     }
 
     interface DurationDerivationContext<T = unknown> {
@@ -97,7 +99,9 @@ declare namespace Timeline {
         readonly duration?: RepriseDuration;
         readonly minimumDuration?: RepriseDuration;
         readonly elapsed?: RepriseDuration;
+        readonly minimumElapsed?: RepriseDuration;
         readonly remaining?: RepriseDuration;
+        readonly minimumRemaining?: RepriseDuration;
         readonly relativeDurationRole?:
             | "duration"
             | "elapsed"
