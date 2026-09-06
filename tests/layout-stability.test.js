@@ -1206,6 +1206,128 @@ function sparklineCrossLength(orientation, item) {
     return orientation === "horizontal" ? item.spark.height : item.spark.width;
 }
 
+function assertRangeConnectorsClear(orientation, labels, stagger) {
+    const main = orientation === "horizontal" ? "left" : "top";
+    const cross = orientation === "horizontal" ? "top" : "left";
+    const mainSize = orientation === "horizontal" ? "width" : "height";
+    const crossSize = orientation === "horizontal" ? "height" : "width";
+
+    for (const item of labels) {
+        assert.equal(isHidden(item), false);
+        assert.equal(item.spark[main], Math.round(item.data[main] + 2));
+        for (const other of labels) {
+            if (item === other) continue;
+            assert.ok(
+                item.data[main] + item.data[mainSize] <= other.data[main] ||
+                other.data[main] + other.data[mainSize] <= item.data[main] ||
+                item.data[cross] + item.data[crossSize] <= other.data[cross] ||
+                other.data[cross] + other.data[crossSize] <= item.data[cross],
+                `${item.evt.getID()} and ${other.evt.getID()} labels overlap`
+            );
+            const crossOverlap = item.spark[cross] < other.spark[cross] + other.spark[crossSize] &&
+                other.spark[cross] < item.spark[cross] + item.spark[crossSize];
+            if (crossOverlap) {
+                assert.ok(
+                    Math.abs(item.spark[main] - other.spark[main]) >= stagger,
+                    `${item.evt.getID()} and ${other.evt.getID()} connectors need ${stagger}px separation`
+                );
+            }
+            assert.ok(
+                item.spark[main] + 1 <= other.data[main] ||
+                item.spark[main] >= other.data[main] + other.data[mainSize] ||
+                item.spark[cross] + item.spark[crossSize] <= other.data[cross] ||
+                item.spark[cross] >= other.data[cross] + other.data[crossSize],
+                `${item.evt.getID()} connector crosses ${other.evt.getID()} label`
+            );
+        }
+    }
+}
+
+for (const orientation of ["vertical", "horizontal"]) {
+    for (const { starts, ends } of [
+        { starts: [60, 60, 60, 60], ends: [500, 460, 420, 380] },
+        { starts: [60, 62, 65, 69], ends: [500, 460, 420, 380] },
+        { starts: [60, 60, 60, 60], ends: [500, 500, 500, 500] },
+        { starts: [60, 62, 65, 69], ends: [420, 500, 460, 380] },
+        { starts: [40, 90, 90, 90], ends: [300, 600, 500, 400] }
+    ]) {
+        for (const stagger of [8, 17]) {
+            test(`${orientation} in-viewport range connectors stagger for ${starts} / ${ends} at ${stagger}px`, () => {
+                const painter = makeEventPainter(orientation, 300);
+                painter._visualTheme.range[orientation].sparklineStagger = stagger;
+                const labels = starts.map((start, index) => tapeLabel(
+                    untrackedEvent(`range-${index}`, start, ends[index]),
+                    start,
+                    80,
+                    orientation === "vertical" ? 60 : 16
+                ));
+                painter._repriseTapeLabels.push(...labels);
+                painter._repriseTapeBars.push(...labels.map((item) => tapeBar(item.evt)));
+                painter.paint();
+
+                const cross = orientation === "horizontal" ? "top" : "left";
+                assert.ok(new Set(labels.map((item) => item.data[cross])).size >= 3);
+                assertRangeConnectorsClear(orientation, labels, stagger);
+                for (const item of labels) {
+                    const bar = painter._repriseTapeBars.find((bar) => bar.evt === item.evt);
+                    const cross = orientation === "horizontal" ? "top" : "left";
+                    assert.equal(item.spark[cross], bar.data[cross] + 2);
+                }
+
+                const geometry = () => labels.map((item) => [
+                    item.data.left, item.data.top, item.spark.left, item.spark.top
+                ]);
+                const initial = geometry();
+                painter.softPaint();
+                assert.deepEqual(geometry(), initial);
+
+                for (const viewportStart of [55, 60, 64, 75, 100, 75, 64, 60, 55, 0]) {
+                    painter._band.getViewOffset = () => -viewportStart;
+                    painter.softPaint();
+                    assertRangeConnectorsClear(orientation, labels, stagger);
+                    if (viewportStart >= Math.max(...starts)) {
+                        assert.equal(
+                            Math.min(...labels.map((item) => sparklineMainPosition(orientation, item))),
+                            viewportStart + 2
+                        );
+                    }
+                }
+                assert.deepEqual(geometry(), initial);
+            });
+        }
+    }
+
+    test(`${orientation} in-viewport range staggering can be disabled`, () => {
+        const painter = makeEventPainter(orientation);
+        painter._visualTheme.range[orientation].sparklineStagger = 0;
+        const labels = [0, 1, 2].map((index) => tapeLabel(
+            untrackedEvent(`range-${index}`, 60, 300 + index * 40), 60, 80, 30
+        ));
+        painter._repriseTapeLabels.push(...labels);
+        painter.paint();
+        assert.deepEqual(labels.map((item) => sparklineMainPosition(orientation, item)), [62, 62, 62]);
+    });
+
+    test(`${orientation} in-viewport stacks use the default stagger and stay local`, () => {
+        const painter = makeEventPainter(orientation, 300);
+        delete painter._visualTheme.range[orientation].sparklineStagger;
+        const labels = [
+            tapeLabel(untrackedEvent("early-long", 40, 800), 40, 80, 30),
+            tapeLabel(untrackedEvent("early-short", 40, 700), 40, 80, 30),
+            tapeLabel(untrackedEvent("late-long", 180, 600), 180, 80, 30),
+            tapeLabel(untrackedEvent("late-short", 180, 500), 180, 80, 30)
+        ];
+        painter._repriseTapeLabels.push(...labels);
+        painter.paint();
+
+        assert.deepEqual(
+            labels.map((item) => sparklineMainPosition(orientation, item)),
+            [42, 54, 182, 194]
+        );
+        assertRangeConnectorsClear(orientation, labels, 12);
+    });
+}
+
 function buildStickySparklineFixture(orientation, edge) {
     const painter = makeEventPainter(orientation, 200);
     painter._visualTheme.range[orientation].sparklineStagger = 8;
@@ -3103,7 +3225,7 @@ test("vertical event duration labels use local side lanes", () => {
     assert.equal(crowdedTop.data.left, baselineTop.data.left);
     assert.equal(crowdedTop.data.top, baselineTop.data.top);
     assert.equal(new Set(lowerLabels.map((item) => item.data.left)).size, 3);
-    assert.deepEqual(lowerLabels.map((item) => item.data.top), [120, 120, 120]);
+    assertRangeConnectorsClear("vertical", lowerLabels, 12);
 });
 
 test("vertical stacked duration labels place the longest span outside", () => {
@@ -3115,7 +3237,8 @@ test("vertical stacked duration labels place the longest span outside", () => {
     painter.paint();
 
     assert.ok(long.data.left > short.data.left);
-    assert.equal(long.data.top, short.data.top);
+    assert.equal(long.data.top, 10);
+    assertRangeConnectorsClear("vertical", [long, short], 12);
 });
 
 function makeNarrative(orientation) {

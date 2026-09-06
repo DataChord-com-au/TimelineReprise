@@ -1449,7 +1449,7 @@ import { installCaptionTooltip } from "./tooltip.js";
             .sort((a, b) =>
                 a.item.endPixel - b.item.endPixel ||
                 a.item.startPixel - b.item.startPixel ||
-                a.routeIndex - b.routeIndex
+                b.routeIndex - a.routeIndex
             )) {
             const item = entry.item;
             const end = toFiniteNumber(item.endPixel);
@@ -1504,7 +1504,7 @@ import { installCaptionTooltip } from "./tooltip.js";
                 finiteOr(b.preferredTrack, -1) - finiteOr(a.preferredTrack, -1) ||
                 a.item.endPixel - b.item.endPixel ||
                 a.item.startPixel - b.item.startPixel ||
-                a.index - b.index
+                b.index - a.index
             )) {
             const item = entry.item;
             const end = toFiniteNumber(item.endPixel);
@@ -1562,6 +1562,81 @@ import { installCaptionTooltip } from "./tooltip.js";
             delete item._repriseSparkTop;
             item._repriseSparkTop = Math.round(item.data.top + 2);
         }
+    }
+
+    function staggerRangeLabelCollisions(painter, placements, main, size, trailing) {
+        const stagger = Math.max(0, getSparklineStagger(painter));
+        if (stagger === 0) return placements;
+
+        // Sticky placement supplies the leading-edge limits. Form additional
+        // stacks wherever connectors collide, including entirely visible starts.
+        const routeOrder = new Map(placements.map((entry, index) => [entry, index]));
+        const ordered = placements.slice().sort((a, b) => a[main] - b[main]);
+        const groups = [];
+        for (const entry of ordered) {
+            entry.stackStart = entry[main];
+            let group = groups[groups.length - 1];
+            if (!group || entry[main] >= group.tail + stagger) {
+                group = { entries: [], tail: entry[main], pinned: false };
+                groups.push(group);
+            }
+            group.entries.push(entry);
+            group.pinned ||= entry.pinnedStack;
+            entry.collisionGroup = group;
+            if (group.entries.length === 1) continue;
+
+            // Keep remembered outer columns ahead of inner columns, and retain
+            // the existing inner-first routing order for unpinned labels.
+            group.entries.sort((a, b) =>
+                finiteOr(b.preferredTrack, -1) - finiteOr(a.preferredTrack, -1) ||
+                (group.pinned ? a.item.endPixel - b.item.endPixel : 0) ||
+                (group.pinned ? a.item.startPixel - b.item.startPixel : 0) ||
+                routeOrder.get(b) - routeOrder.get(a)
+            );
+            let tail = null;
+            for (const member of group.entries) {
+                const start = tail == null
+                    ? member.stackStart
+                    : Math.max(member.stackStart, tail + stagger);
+                member[main] = Math.min(start, member.item.endPixel);
+                member[trailing] = member[main] + member[size];
+                tail = member[main];
+            }
+            group.tail = tail;
+        }
+
+        // Include intersecting label boxes in the routing group: a newly
+        // staggered connector must also clear labels next to its own stack.
+        const routingGroups = [];
+        for (const entry of ordered.slice().sort((a, b) => a[main] - b[main])) {
+            let group = routingGroups[routingGroups.length - 1];
+            if (!group || entry[main] >= group.end) {
+                group = { entries: [], end: entry[trailing], staggered: false };
+                routingGroups.push(group);
+            }
+            group.entries.push(entry);
+            group.end = Math.max(group.end, entry[trailing]);
+            group.staggered ||= entry.collisionGroup.entries.length > 1;
+            entry.routingGroup = group;
+        }
+
+        // Route affected boxes from the latest connector toward the earliest:
+        // outer connectors then pass before, rather than through, inner labels.
+        const routed = [];
+        const visited = new Set();
+        for (const entry of placements) {
+            const group = entry.routingGroup;
+            if (!group.staggered) {
+                routed.push(entry);
+                continue;
+            }
+            if (visited.has(group)) continue;
+            visited.add(group);
+            routed.push(...group.entries.slice().sort((a, b) =>
+                b[main] - a[main] || routeOrder.get(a) - routeOrder.get(b)
+            ));
+        }
+        return routed;
     }
 
     function alignShortRangeLabel(painter, item) {
@@ -1748,6 +1823,14 @@ import { installCaptionTooltip } from "./tooltip.js";
     function reserveInterval(tracks, track, left, right) {
         if (!tracks[track]) tracks[track] = [];
         tracks[track].push({ left, right });
+    }
+
+    function reserveRangeConnector(tracks, track, entry, main) {
+        if (!entry.routingGroup?.staggered) return;
+        const anchor = Math.round(entry[main] + 2);
+        for (let innerTrack = 0; innerTrack < track; innerTrack++) {
+            reserveInterval(tracks, innerTrack, anchor, anchor + 1);
+        }
     }
 
     function clearRoutingStateOnReverseScroll(painter, stateKey, viewportStart, mapNames) {
@@ -2067,17 +2150,8 @@ import { installCaptionTooltip } from "./tooltip.js";
             stickyBottom
         );
 
-        for (const entry of tapePlacements) {
-            entry.retained = rangeLabelBoxRetainedForRouting(
-                entry.top,
-                entry.height,
-                stickyTop,
-                stickyBottom
-            );
-        }
-
         const currentRangeRouteKeys = new Set();
-        const routedTapePlacements = tapePlacements.sort((a, b) =>
+        let routedTapePlacements = tapePlacements.sort((a, b) =>
             (a.pinnedStack && b.pinnedStack
                 ? b.item.endPixel - a.item.endPixel
                 : 0) ||
@@ -2085,8 +2159,14 @@ import { installCaptionTooltip } from "./tooltip.js";
             compareTapeLabelSpanInnerFirst(a, b) ||
             a.index - b.index
         );
+        routedTapePlacements = staggerRangeLabelCollisions(
+            painter, routedTapePlacements, "top", "height", "bottom"
+        );
 
         for (const entry of routedTapePlacements) {
+            entry.retained = rangeLabelBoxRetainedForRouting(
+                entry.top, entry.height, stickyTop, stickyBottom
+            );
             entry.routeKey = getRangeLabelRouteKey(entry.item, entry.index);
             if (entry.routeKey != null) currentRangeRouteKeys.add(entry.routeKey);
 
@@ -2103,6 +2183,7 @@ import { installCaptionTooltip } from "./tooltip.js";
                 continue;
             }
             reserveInterval(tracks, labelTrack, entry.top, entry.bottom);
+            reserveRangeConnector(tracks, labelTrack, entry, "top");
             painter._repriseRoutedRangeLaneState.set(entry.routeKey, labelTrack);
 
             const left = labelTrack === 0
@@ -2306,17 +2387,7 @@ import { installCaptionTooltip } from "./tooltip.js";
             stickyRight
         );
 
-        for (let index = tapePlacements.length - 1; index >= 0; index--) {
-            const entry = tapePlacements[index];
-            entry.retained = rangeLabelBoxRetainedForRouting(
-                entry.left,
-                entry.width,
-                stickyLeft,
-                stickyRight
-            );
-        }
-
-        const routedTapePlacements = tapePlacements.sort((a, b) =>
+        let routedTapePlacements = tapePlacements.sort((a, b) =>
             (a.pinnedStack && b.pinnedStack
                 ? b.item.endPixel - a.item.endPixel
                 : 0) ||
@@ -2324,8 +2395,14 @@ import { installCaptionTooltip } from "./tooltip.js";
             compareTapeLabelSpanInnerFirst(a, b) ||
             a.routeIndex - b.routeIndex
         );
+        routedTapePlacements = staggerRangeLabelCollisions(
+            painter, routedTapePlacements, "left", "width", "right"
+        );
 
         for (const entry of routedTapePlacements) {
+            entry.retained = rangeLabelBoxRetainedForRouting(
+                entry.left, entry.width, stickyLeft, stickyRight
+            );
             const placement = placeHorizontalRangeLabel(
                 entry.item,
                 entry.width,
@@ -2339,6 +2416,7 @@ import { installCaptionTooltip } from "./tooltip.js";
             entry.left = placement.left;
             entry.right = entry.left + entry.width;
             reserveInterval(tracks, track, entry.left, entry.right);
+            reserveRangeConnector(tracks, track, entry, "left");
             entry.item.labelTrack = track;
 
             setPaintedRect(entry.item.data, {
