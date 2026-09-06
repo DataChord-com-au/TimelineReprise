@@ -50,7 +50,7 @@ label tooltip when the selected VisualTheme enables tooltips.
 
 The `bubble` surface accepts:
 
-- `image`, `title`, `link`, and `description`;
+- `image`, `title`, `link`, `summary`, and `description`;
 - `bubbleByline`;
 - `bubbleStart`, `bubbleLatestStart`, `bubbleEarliestEnd`, and `bubbleEnd`;
 - `bubbleDuration`, `bubbleMinimumDuration`, `bubbleElapsed`, and
@@ -68,6 +68,30 @@ to format their runtime-derived values.
 Profile construction validates surface names, output fields, shape names,
 template syntax, formatter names, and formatted selector references. Instances
 are immutable.
+
+Normal event and Narrative bubbles render the event's `summary` field by
+default, after the frontmatter table or byline and before the description.
+`bubble.summary` overrides this HTML content using the same template syntax
+and instant/range selection as other fields:
+
+```js
+var summaryDisplay = new Timeline.DisplayProfile({
+    id: "summaryDisplay",
+    bubble: {
+        summary: {
+            instant: "{summary}",
+            range: "{lines(summary, prefix('Duration: ', duration))}"
+        }
+    }
+});
+```
+
+A missing summary template or shape uses the event field. Missing, empty, or
+whitespace-only rendered summaries produce no summary element. An explicit
+empty template (`bubble: { summary: "" }`) suppresses the section even when
+the event has a summary. Style the section with
+`.timeline-event-bubble-summary`. Summary content does not affect
+frontmatter/byline selection, description rendering, or tag behavior.
 
 `context` is a normal scalar event field and is available through the generic
 `{context}` selector in every template. For example, it may be composed with

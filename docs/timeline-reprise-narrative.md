@@ -74,6 +74,7 @@ Optional:
 
 - `title` - label text.
 - `caption` - tooltip text and bubble fallback.
+- `summary` - optional bubble summary, after frontmatter or byline and before the description.
 - `description` - bubble description.
 - `context` - scalar category available to templates and `showContext`.
 - `track` - preferred label track.
@@ -109,6 +110,7 @@ Optional:
 
 - `title` - label text.
 - `caption` - tooltip text and bubble fallback.
+- `summary` - optional bubble summary, after frontmatter or byline and before the description.
 - `description` - bubble description.
 - `context` - scalar category available to templates and `showContext`.
 - `track` - preferred label track.

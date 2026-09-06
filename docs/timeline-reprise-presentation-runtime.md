@@ -444,7 +444,18 @@ The wrapper is a full-width, non-floating block. The native SIMILE
 `imageStyler()` still styles the `img`, while Reprise constrains that image to
 the bubble content width, includes native image padding in its border-box
 sizing, and preserves its aspect ratio. The remaining bubble sections follow
-in this order: title, structured fields or byline, description, and tags.
+in this order: title, structured fields (frontmatter table) or byline, summary,
+description, and tags.
+
+The optional summary uses the event's `summary` field by default and renders
+HTML inside `.timeline-event-bubble-summary`, with the native `bodyStyler()`
+applied. Configure it through `bubble.summary` in the selected
+[`DisplayProfile`](timeline-reprise-display-profiles.md), including separate
+instant/range templates. Missing, empty, or whitespace-only rendered content
+omits the element entirely; an explicit empty template suppresses it. The
+summary leaves frontmatter/byline selection, description rendering (including
+the caption fallback), and tag behavior unchanged.
+
 `visualTheme.showContext` and `visualTheme.showTags` both default to `true`.
 Context is a regular structured field directly after Location; tags are badges
 at the bottom with a slightly smaller font than the body. Each switch controls

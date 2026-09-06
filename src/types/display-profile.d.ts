@@ -27,6 +27,7 @@ declare namespace Timeline {
         bubbleLocation?: DisplayTemplateSpec;
         bubblePeople?: DisplayTemplateSpec;
         bubbleTags?: DisplayTemplateSpec;
+        summary?: DisplayTemplateSpec;
         description?: DisplayTemplateSpec;
     }
 

@@ -1660,6 +1660,140 @@ for (const kind of ["event", "narrative"]) {
     });
 }
 
+function renderSummaryBubble(kind, shape, fields = {}, bubble) {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = makePlanningUnit();
+    const runtime = new Timeline.RepriseRuntime({ unit });
+    const config = bubble === undefined ? {} : {
+        presentation: new Timeline.DisplayProfile({ id: "summaryDisplay", bubble })
+    };
+    const event = {
+        ...(shape === "instant" ? { date: 1 } : { startDate: 1, endDate: 5 }),
+        title: "Event title",
+        ...fields
+    };
+
+    if (kind === "narrative") {
+        const { decorator } = paintNarrative(
+            Timeline, runtime,
+            shape === "range" ? [event] : [],
+            shape === "instant" ? [event] : [],
+            config
+        );
+        const record = shape === "range"
+            ? decorator._rangeRecords[0]
+            : decorator._instantRecords[0];
+        decorator._showBubble(record, { pageX: 10, pageY: 20 });
+    } else {
+        const nativeTheme = makeNativeTheme(new Timeline.VisualTheme(config));
+        const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme, runtime });
+        painter.initialize(
+            { _theme: nativeTheme, getLabeller: () => runtime.labeller },
+            { getDocument: () => makeDocument(), getUnit: () => unit,
+              isHorizontal: () => true, isVertical: () => false }
+        );
+        painter._showBubble(10, 20, event);
+    }
+    return bubbleCalls.at(-1)[0];
+}
+
+for (const kind of ["event", "narrative"]) {
+    test.each(["instant", "range"])(kind + " %s bubble places the default summary after frontmatter or byline", shape => {
+        const structured = { location: "Adelaide", tags: ["release", "planning"] };
+        for (const layout of ["frontmatter", "byline", "explicit byline"]) {
+            const fields = {
+                summary: "<em>Brief summary</em>",
+                description: "<p>Full description</p>",
+                ...(layout === "byline" ? {} : structured),
+                ...(layout === "explicit byline" ? { bubbleByline: "Authored byline" } : {})
+            };
+            const content = renderSummaryBubble(kind, shape, fields);
+            const title = childWithClass(content, "timeline-event-bubble-title");
+            const byline = childWithClass(content, "timeline-event-bubble-byline");
+            const summary = childWithClass(content, "timeline-event-bubble-summary");
+            const description = childWithClass(content, "timeline-event-bubble-description");
+            const tags = childWithClass(content, "timeline-event-bubble-tags");
+            const table = childWithClass(byline, "timeline-event-bubble-byline-table");
+
+            assert.equal(title.innerHTML, "Event title");
+            assert.equal(summary?.innerHTML, fields.summary);
+            assert.ok(hasClass(summary, "timeline-event-bubble-body"));
+            assert.equal(description.innerHTML, "<p>Full description</p>");
+            assert.equal(Boolean(table), layout === "frontmatter");
+            if (table) {
+                const rows = Object.fromEntries(table.childNodes.map(row =>
+                    [row.childNodes[0].textContent, row.childNodes[1].innerHTML]
+                ));
+                assert.equal(rows[shape === "instant" ? "When" : "Start"], "day-precise:1");
+                assert.equal(rows.Location, "Adelaide");
+                assert.deepEqual(tags.childNodes.map(chip => chip.textContent), structured.tags);
+                assert.equal(content.childNodes.at(-1), tags);
+            } else {
+                assert.equal(byline.innerHTML, layout === "explicit byline"
+                    ? "Authored byline"
+                    : shape === "instant" ? "day-precise:1" : "day-precise:1<br>day-precise:5");
+                assert.equal(tags, undefined);
+            }
+            assert.deepEqual(content.childNodes,
+                [title, byline, summary, description, ...(tags ? [tags] : [])]);
+        }
+    });
+
+    test.each(["instant", "range"])(kind + " %s bubble supports summary templates and missing shape defaults", shape => {
+        const fields = {
+            summary: "Source summary",
+            description: "<p>Full description</p>",
+            caption: "Caption fallback"
+        };
+        const templates = [
+            [undefined, "Source summary"],
+            ["{lines(title, prefix('Summary: ', summary))}", "Event title<br>Summary: Source summary"],
+            [{ instant: "Instant: {summary}", range: "Range: {summary}" },
+                shape === "instant" ? "Instant: Source summary" : "Range: Source summary"],
+            [{ [shape === "instant" ? "range" : "instant"]: "Other shape" }, "Source summary"]
+        ];
+        for (const [summaryTemplate, expected] of templates) {
+            const content = renderSummaryBubble(kind, shape, fields, {
+                ...(summaryTemplate === undefined ? {} : { summary: summaryTemplate }),
+                bubbleByline: "Byline: {title}",
+                description: "<section>{description}</section>"
+            });
+            assert.equal(childWithClass(content, "timeline-event-bubble-summary")?.innerHTML, expected);
+            assert.equal(childWithClass(content, "timeline-event-bubble-byline").innerHTML, "Byline: Event title");
+            assert.equal(childWithClass(content, "timeline-event-bubble-description").innerHTML,
+                "<section><p>Full description</p></section>");
+        }
+        const { description, ...captionFields } = fields;
+        const fallback = renderSummaryBubble(kind, shape, captionFields);
+        assert.equal(childWithClass(fallback, "timeline-event-bubble-description").innerHTML, "Caption fallback");
+    });
+
+    test.each(["instant", "range"])(kind + " %s bubble omits missing and empty summaries without changing other sections", shape => {
+        const cases = [
+            [{}, undefined],
+            ...[undefined, null, "", " \n\t ", []].map(summary => [{ summary }, undefined]),
+            ...["", " \n ", "{missing}", { [shape]: "" }].map(summary =>
+                [{ summary: "Suppressed field" }, { summary }])
+        ];
+        for (const [fields, bubble] of cases) {
+            const content = renderSummaryBubble(kind, shape, {
+                location: "Adelaide", tags: ["release"],
+                description: "<p>Full description</p>", ...fields
+            }, bubble);
+            assert.equal(childWithClass(content, "timeline-event-bubble-summary"), undefined);
+            assert.deepEqual(content.childNodes.map(node => node.className), [
+                "timeline-event-bubble-title",
+                "timeline-event-bubble-body timeline-event-bubble-byline",
+                "timeline-event-bubble-body timeline-event-bubble-description",
+                "timeline-event-bubble-body timeline-event-bubble-tags"
+            ]);
+            assert.equal(childWithClass(content, "timeline-event-bubble-description").innerHTML,
+                "<p>Full description</p>");
+            assert.equal(childWithClass(content, "timeline-event-bubble-tags").childNodes[0].textContent, "release");
+        }
+    });
+}
+
 test("TemplateRenderer validates and delegates formatted domain selectors", () => {
     const { Timeline } = loadTimeline();
     const calls = [];

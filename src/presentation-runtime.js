@@ -1407,6 +1407,15 @@ function fillRepriseBubble(
         }
     }
 
+    const summary = render("summary");
+    if (hasRenderedContent(typeof summary === "string" ? summary.trim() : summary)) {
+        const summaryContainer = doc.createElement("div");
+        setRenderedContent(summaryContainer, summary, "html");
+        _styleBubbleElement(nativeTheme, "bodyStyler", summaryContainer);
+        _appendClass(summaryContainer, "timeline-event-bubble-summary");
+        element.appendChild(summaryContainer);
+    }
+
     const description = render("description");
     if (hasRenderedContent(description)) {
         const descriptionContainer = doc.createElement("div");

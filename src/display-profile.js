@@ -22,6 +22,7 @@ const _FIELDS_BY_SURFACE = Object.freeze({
         "bubbleLocation",
         "bubblePeople",
         "bubbleTags",
+        "summary",
         "description"
     ])
 });
