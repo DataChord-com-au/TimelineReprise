@@ -1524,6 +1524,67 @@ test("DisplayProfile templates use Reprise macros, unit duration, and render tar
     );
 });
 
+test("range dots retain range display templates, captions, and bubble durations", () => {
+    const { Timeline, bubbleCalls } = loadTimeline();
+    const unit = Timeline.PlanningDayUnit;
+    const runtime = new Timeline.RepriseRuntime({ unit, labeller: unit.createLabeller() });
+    const visualTheme = new Timeline.VisualTheme({
+        range: { minDuration: { day: 1 } },
+        presentation: new Timeline.DisplayProfile({
+            id: "rangeDotDisplay",
+            label: {
+                title: { instant: "instant label", range: "range label: {duration}" },
+                caption: { instant: "instant caption", range: "range caption: {duration}" }
+            },
+            bubble: {
+                title: { instant: "instant bubble", range: "range bubble" },
+                bubbleDuration: { instant: "instant duration", range: "range duration: {duration}" }
+            }
+        })
+    });
+    const nativeTheme = makeNativeTheme(visualTheme);
+    const painter = new Timeline.OriginalEventPainter({ theme: nativeTheme, runtime });
+    let record;
+    const source = { id: "half-day", start: 10, end: 10.5, title: "Half day" };
+    Timeline.attachEvents({
+        width: "100%",
+        theme: nativeTheme,
+        eventPainter: painter,
+        eventSource: { _events: { getUnit: () => unit }, addMany(events) { [record] = events; } },
+        labeller: runtime.labeller
+    }, [source], { runtime });
+    painter.initialize({ _theme: nativeTheme, getLabeller: () => runtime.labeller }, {
+        getUnit: () => unit,
+        getDocument: () => makeDocument(),
+        isHorizontal: () => true,
+        isVertical: () => false
+    });
+    painter._prepareForPainting();
+    let painted;
+    painter.paintPreciseInstantEvent = function (event, metrics, theme) {
+        painted = event;
+        assert.equal(event.getText(), "range label: 0.5 days");
+        this._paintEventIcon(event, 0, 10, metrics, theme, 0);
+        const label = this._paintEventLabel(event, event.getText(), 20, 2, 80, 18, theme, "label", -1);
+        assert.equal(label.elmt._repriseCaptionTooltipBinding.renderCaption(), "range caption: 0.5 days");
+        this._showBubble(10, 20, event);
+    };
+    painter.paintEvent(record, {
+        trackOffset: 2, trackHeight: 20, trackIncrement: 22, iconWidth: 9, iconHeight: 9
+    }, nativeTheme, -1);
+
+    assert.equal(painted, record);
+    assert.equal(record.isInstant(), false);
+    assert.equal(record.eventTime.kind, "range");
+    assert.equal(record.getStart(), 10);
+    assert.equal(record.getEnd(), 10.5);
+    assert.deepEqual(source, { id: "half-day", start: 10, end: 10.5, title: "Half day" });
+    const content = bubbleCalls[0][0];
+    assert.equal(childWithClass(content, "timeline-event-bubble-title").innerHTML, "range bubble");
+    const table = content.childNodes.flatMap(node => node.childNodes).find(node => node.tagName === "TABLE");
+    assert.ok(table.childNodes.some(row => row.childNodes.some(cell => cell.innerHTML === "range duration: 0.5 days")));
+});
+
 for (const kind of ["event", "narrative"]) {
     test(kind + " bubble visibility is independent and preserves template selectors", () => {
         const { Timeline, bubbleCalls } = loadTimeline();

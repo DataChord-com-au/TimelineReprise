@@ -164,6 +164,7 @@ function loadEventPainter() {
 
     const Timeline = {
         OriginalEventPainter,
+        NativeDateUnit: { duration: (start, end) => Math.abs(Number(end) - Number(start)) },
         resolveVisualTheme: resolveTestVisualTheme,
         ThemeIcons: {
             getCssColor: (color) => color,
@@ -171,6 +172,7 @@ function loadEventPainter() {
         }
     };
     const context = vm.createContext({
+        SimileAjax: { DOM: { registerEvent() {} } },
         fillRepriseBubble: () => {},
         getAttachedEventContext: () => null,
         renderAttachedEventField: () => "",
@@ -180,6 +182,22 @@ function loadEventPainter() {
         window: { Timeline }
     });
     const filename = path.join(__dirname, "..", "src", "event-layout.js");
+
+    for (const module of ["units.js", "range-duration.js"]) {
+        const modulePath = path.join(__dirname, "..", "src", module);
+        vm.runInContext(
+            fs.readFileSync(modulePath, "utf8").replace(/export\s*\{[\s\S]*?\};?\s*$/m, ""),
+            context,
+            { filename: modulePath }
+        );
+    }
+    vm.runInContext("Object.assign(Timeline, { PlanningDayUnit, HistoricalYearUnit, MaUnit, HistoricalYear, Ma });", context);
+    const nativePath = path.join(__dirname, "..", "vendor", "SIMILE", "timeline-2.3.1", "timeline_js", "timeline-bundle.js");
+    const nativeSource = fs.readFileSync(nativePath, "utf8");
+    vm.runInContext(nativeSource.slice(
+        nativeSource.indexOf("Timeline.OriginalEventPainter.prototype.paintEvent="),
+        nativeSource.indexOf("Timeline.OriginalEventPainter.prototype._encodeEventElID=")
+    ), context, { filename: nativePath });
 
     vm.runInContext(sourceWithoutImports(filename), context, { filename });
     Timeline.OriginalEventPainter.prototype.paint =
@@ -705,6 +723,133 @@ function tapeLabel(evt, natural, width, height) {
         spark: paintedData(0, 0, 1, 0)
     };
 }
+
+function rangeRenderingPainter(orientation) {
+    const painter = makeEventPainter(orientation);
+    const Timeline = painter.constructor._testTimeline;
+    painter._runtime = { unit: Timeline.NativeDateUnit };
+    painter._timeline.getDocument = () => ({
+        getElementById: () => ({}),
+        createElement: () => element(0, 0)
+    });
+    painter._eventLayer = { appendChild() {} };
+    painter._frc = { computeSize: () => ({ width: 80, height: 16 }) };
+    painter._tracks = [];
+    painter._eventIdToElmt = {};
+    painter._repriseEventLaneStarts = [];
+    painter._getLabelDivClassName = () => "timeline-event-label";
+    painter._createHighlightDiv = () => null;
+    painter._fireEventPaintListeners = (_name, evt) => { painter.lastPaintedEvent = evt; };
+    return painter;
+}
+
+function renderRange(painter, start, end, overrides = {}) {
+    const evt = {
+        ...untrackedEvent("range", start, end),
+        getText: () => "Range label",
+        getColor: () => "green",
+        getIcon: () => null,
+        getProperty: () => null,
+        getLatestStart: () => start,
+        getEarliestEnd: () => end,
+        isImprecise: () => false,
+        ...overrides
+    };
+    painter.paintEvent(evt, painter._repriseMetrics, painter._params.theme, -1);
+    painter.softPaint();
+    return evt;
+}
+
+for (const orientation of ["horizontal", "vertical"]) {
+    test(`${orientation} minDuration selects dots before pixel-based short range and tape routing`, () => {
+        const day = 86400000;
+        for (const { duration, pixels, expected } of [
+            { duration: day - 1, pixels: 100, expected: "dot" },
+            { duration: day - 1, pixels: 1, expected: "dot" },
+            { duration: day, pixels: 1, expected: "short" },
+            { duration: day, pixels: 27, expected: "short" },
+            { duration: day, pixels: 28, expected: "tape" },
+            { duration: day * 2, pixels: 100, expected: "tape" }
+        ]) {
+            const painter = rangeRenderingPainter(orientation);
+            painter._visualTheme.range.minDuration = { day: 1 };
+            painter._visualTheme.range.short.minDisplayLength = 12;
+            painter._band.dateToPixelOffset = value => 40 + (Number(value) - day) * pixels / duration;
+            const start = new Date(day);
+            const end = new Date(day + duration);
+            const evt = renderRange(painter, start, end);
+
+            assert.equal(painter._reprisePointIcons.length, Number(expected === "dot"));
+            assert.equal(painter._reprisePointTapes.length, Number(expected === "short"));
+            assert.equal(painter._repriseTapeBars.length, Number(expected === "tape"));
+            assert.equal(painter._repriseTapeLabels.length, Number(expected === "tape"));
+            assert.equal(evt.isInstant(), false);
+            assert.equal(evt.getStart(), start);
+            assert.equal(evt.getEnd(), end);
+            assert.equal(painter.lastPaintedEvent, evt);
+            if (expected === "short" && pixels < 12) {
+                const mainSize = orientation === "horizontal" ? "width" : "height";
+                assert.equal(painter._reprisePointTapes[0].data[mainSize], Math.max(12, pixels));
+            }
+        }
+    });
+
+    test(`${orientation} collapsed range geometry follows instant dots and ignores range alignment`, () => {
+        const painter = rangeRenderingPainter(orientation);
+        painter._visualTheme.range.minDuration = { unit: 20 };
+        painter._visualTheme.label[orientation].rangeAlign = "center";
+        painter._visualTheme.label[orientation].toInstantGap = 7;
+        renderRange(painter, 40, 50);
+        const instantPainter = rangeRenderingPainter(orientation);
+        instantPainter._visualTheme.label[orientation].toInstantGap = 7;
+        renderRange(instantPainter, 40, 40, { isInstant: () => true });
+        const geometry = item => [item.data.left, item.data.top, item.data.width, item.data.height];
+        assert.deepEqual(geometry(painter._reprisePointIcons[0]), geometry(instantPainter._reprisePointIcons[0]));
+        assert.deepEqual(geometry(painter._reprisePointLabels[0]), geometry(instantPainter._reprisePointLabels[0]));
+        const initial = geometry(painter._reprisePointLabels[0]);
+        painter._band.getViewOffset = () => -45;
+        painter.softPaint();
+        assert.deepEqual(geometry(painter._reprisePointLabels[0]), initial);
+    });
+
+    test(`${orientation} minDuration uses the full imprecise range and remains opt-in`, () => {
+        for (const { minimum, end, dots, tapes } of [
+            { minimum: null, end: 50, dots: 0, tapes: 2 },
+            { minimum: { unit: 20 }, end: 50, dots: 1, tapes: 0 },
+            { minimum: { unit: 20 }, end: 70, dots: 0, tapes: 2 }
+        ]) {
+            const painter = rangeRenderingPainter(orientation);
+            painter._visualTheme.range.minDuration = minimum;
+            renderRange(painter, 40, end, {
+                isImprecise: () => true,
+                getLatestStart: () => 45,
+                getEarliestEnd: () => 46
+            });
+            assert.equal(painter._reprisePointIcons.length, dots);
+            assert.equal(painter._reprisePointTapes.length + painter._repriseTapeBars.length, tapes);
+        }
+    });
+}
+
+test("minDuration converts native, planning, historical, and Ma duration units", () => {
+    for (const fixture of [
+        { unit: "NativeDateUnit", minimum: { minute: 15 }, start: 0, end: 899999 },
+        { unit: "PlanningDayUnit", minimum: { hour: 12 }, start: 10, end: 10.25 },
+        { unit: "HistoricalYearUnit", minimum: { decade: 1 }, start: -2, end: 5 },
+        { unit: "MaUnit", minimum: { year: 1000000 }, start: 10, end: 9.5 }
+    ]) {
+        const painter = rangeRenderingPainter("horizontal");
+        const Timeline = painter.constructor._testTimeline;
+        const unit = Timeline[fixture.unit];
+        painter._runtime.unit = unit;
+        painter._visualTheme.range.minDuration = fixture.minimum;
+        const start = unit.parseFromObject?.(fixture.start) ?? new Date(fixture.start);
+        const end = unit.parseFromObject?.(fixture.end) ?? new Date(fixture.end);
+        painter._band.dateToPixelOffset = value => value === start ? 40 : 140;
+        renderRange(painter, start, end);
+        assert.equal(painter._reprisePointIcons.length, 1, fixture.unit);
+    }
+});
 
 function configureEventTrackCount(painter, orientation, count) {
     painter._visualTheme.track[orientation].count = count;

@@ -1,6 +1,7 @@
 import { assertColorString, normalizeColorString } from "./color.js";
 import { DisplayProfile } from "./display-profile.js";
 import { TIMELINE_ORIENTATIONS } from "./orientation.js";
+import { RANGE_DURATION_UNITS } from "./range-duration.js";
 
 const _MODULE_LABEL = "TimelineReprise";
 
@@ -64,7 +65,7 @@ function mergePlain(base, override) {
     for (const [key, value] of Object.entries(override)) {
         if (value === undefined) continue;
 
-        result[key] = _visualThemeIsPlainObject(value) &&
+        result[key] = key !== "minDuration" && _visualThemeIsPlainObject(value) &&
             _visualThemeIsPlainObject(result[key])
             ? mergePlain(result[key], value)
             : clonePlain(value);
@@ -147,6 +148,7 @@ const _RANGE_FIELDS = new Set([
     'offset',
     'size',
     'eventRoutingThreshold',
+    'minDuration',
     'tapeGap',
     'sparklineStagger',
     'toEventGap',
@@ -237,6 +239,7 @@ const _VISUAL_THEME_DEFAULTS = Object.freeze({
         offset: 0,
         cssClass: '',
         short: { minDisplayLength: 4 },
+        minDuration: null,
         horizontal: {
             eventRoutingThreshold: 28,
             tapeGap: 6,
@@ -407,6 +410,24 @@ class VisualTheme {
         this.#assertNumber(spec.offset, `${caller}.offset`);
         this.#assertNumber(spec.size, `${caller}.size`, { positive: true });
         this.#assertNumber(spec.eventRoutingThreshold, `${caller}.eventRoutingThreshold`, { positive: true });
+        if (spec.minDuration !== undefined) {
+            if (TIMELINE_ORIENTATIONS.some(orientation => caller.endsWith(`.${orientation}`))) {
+                throw new TypeError(`${caller}.minDuration belongs on range, outside the orientation specs.`);
+            }
+            if (spec.minDuration !== null) {
+                const path = `${caller}.minDuration`;
+                this.#assertPlainObject(spec.minDuration, path);
+                const names = Object.keys(spec.minDuration);
+                if (names.length !== 1 || !RANGE_DURATION_UNITS.includes(names[0])) {
+                    throw new TypeError(`${path} must contain exactly one supported duration unit.`);
+                }
+                const name = names[0];
+                if (spec.minDuration[name] === undefined) {
+                    throw new TypeError(`${path}.${name} must be a positive finite number.`);
+                }
+                this.#assertNumber(spec.minDuration[name], `${path}.${name}`, { positive: true });
+            }
+        }
         this.#assertNumber(spec.tapeGap, `${caller}.tapeGap`, { nonNegative: true });
         this.#assertNumber(spec.sparklineStagger, `${caller}.sparklineStagger`, { nonNegative: true });
         this.#assertNumber(spec.toEventGap, `${caller}.toEventGap`, { nonNegative: true });

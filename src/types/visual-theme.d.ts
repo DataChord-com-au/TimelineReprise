@@ -54,6 +54,8 @@ declare namespace Timeline {
     }
 
     interface OrientableRangeSpec extends RangeSpec {
+        /** Render shorter ranges as dots; event data and templates remain ranges. */
+        minDuration?: RangeDurationSpec | null;
         horizontal?: RangeSpec;
         vertical?: RangeSpec;
     }

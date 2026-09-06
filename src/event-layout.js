@@ -10,6 +10,7 @@ import {
     renderAttachedEventField
 } from "./attachments.js";
 import { installCaptionTooltip } from "./tooltip.js";
+import { resolveRangeMinDuration } from "./range-duration.js";
 
 (function () {
     if (!window.Timeline || !Timeline.OriginalEventPainter) return;
@@ -754,7 +755,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     }
 
     function getEventDurationWidth(painter, evt) {
-        if (!evt || typeof evt.isInstant !== "function" || evt.isInstant()) return 0;
+        if (!evt || typeof evt.isInstant !== "function" || isInstantGraphic(painter, evt)) return 0;
 
         const startPixel = Math.round(painter._band.dateToPixelOffset(evt.getStart()));
         const endPixel = Math.round(painter._band.dateToPixelOffset(evt.getEnd()));
@@ -764,6 +765,25 @@ import { installCaptionTooltip } from "./tooltip.js";
 
     function isTapeEvent(painter, evt) {
         return getEventDurationWidth(painter, evt) >= getEventRoutingThreshold(painter);
+    }
+
+    function isInstantGraphic(painter, evt) {
+        if (evt?.isInstant?.()) return true;
+        const spec = painter._visualTheme?.range?.minDuration;
+        if (spec == null || evt?.isInstant?.() !== false) return false;
+
+        const unit = painter._runtime?.unit ?? painter._timeline?.getUnit?.();
+        const minimum = resolveRangeMinDuration(unit, spec);
+        if (typeof unit?.duration !== "function") {
+            throw new TypeError("range.minDuration requires a runtime unit with duration(start, end).");
+        }
+        // Keep the event and its template context unchanged. Only geometry uses
+        // this classification, and imprecise ranges use their full outer span.
+        const start = evt.getStart();
+        const end = evt.getEnd();
+        if (start == null || end == null) return false;
+        const duration = unit.duration(start, end);
+        return Number.isFinite(duration) && duration >= 0 && duration < minimum;
     }
 
     function getOriginalPainterMetrics(painter) {
@@ -841,7 +861,7 @@ import { installCaptionTooltip } from "./tooltip.js";
         );
         const startPixel = Math.round(painter._band.dateToPixelOffset(evt.getStart()));
 
-        if (!evt?.isInstant?.()) {
+        if (!isInstantGraphic(painter, evt)) {
             const endPixel = Math.round(painter._band.dateToPixelOffset(evt.getEnd()));
             const top = Math.min(startPixel, endPixel);
             const height = Math.max(
@@ -889,7 +909,7 @@ import { installCaptionTooltip } from "./tooltip.js";
                         top: Number.POSITIVE_INFINITY,
                         bottom: Number.NEGATIVE_INFINITY
                     },
-                    isDuration: !item.evt?.isInstant?.(),
+                    isDuration: !isInstantGraphic(painter, item.evt),
                     fixedLane: item.evt.getTrackNum?.() == null
                         ? null
                         : normalizeLane(item.evt.getTrackNum())
@@ -1118,7 +1138,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     function getVerticalPointLabelLeft(painter, item, metrics, theme) {
         const laneLeft = getVerticalPointTrackLeft(painter, item, metrics, theme);
 
-        if (item.evt?.isInstant?.()) return laneLeft;
+        if (isInstantGraphic(painter, item.evt)) return laneLeft;
 
         return laneLeft +
             getRangeWidth(painter) +
@@ -1329,6 +1349,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     function rememberEventItem(painter, list, evt, track, metrics, data, { topOffset = 0 } = {}) {
         const item = {
             evt,
+            instantGraphic: isInstantGraphic(painter, evt),
             lane: getEventLane(painter, evt),
             trackTopOffset: data.top - getOriginalTrackTop(metrics, track) + topOffset,
             data
@@ -1640,7 +1661,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     }
 
     function alignShortRangeLabel(painter, item) {
-        if (item?.evt?.isInstant?.() !== false) return;
+        if (item?.evt?.isInstant?.() !== false || isInstantGraphic(painter, item.evt)) return;
 
         const startPixel = Math.round(painter._band.dateToPixelOffset(item.evt.getStart()));
         const endPixel = Math.round(painter._band.dateToPixelOffset(item.evt.getEnd()));
@@ -1682,7 +1703,9 @@ import { installCaptionTooltip } from "./tooltip.js";
     }
 
     function getHorizontalPointEventTopOffset(item) {
-        return item.evt?.isInstant?.() ? HORIZONTAL_INSTANT_EVENT_TOP_OFFSET : 0;
+        return (item.instantGraphic ?? item.evt?.isInstant?.())
+            ? HORIZONTAL_INSTANT_EVENT_TOP_OFFSET
+            : 0;
     }
 
     function getItemTopOffset(item) {
@@ -1772,7 +1795,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     }
 
     function alignInstantLabelToIcon(painter, item, metrics, theme) {
-        if (!item.evt?.isInstant?.()) return;
+        if (!isInstantGraphic(painter, item.evt)) return;
 
         const icon = findPointIconItem(painter, item.evt);
         if (!icon?.data) return;
@@ -1798,7 +1821,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     }
 
     function alignVerticalInstantLabelToIcon(painter, item, metrics, theme) {
-        if (!item.evt?.isInstant?.()) return;
+        if (!isInstantGraphic(painter, item.evt)) return;
 
         const icon = findPointIconItem(painter, item.evt);
         if (!icon?.data) return;
@@ -2537,6 +2560,7 @@ import { installCaptionTooltip } from "./tooltip.js";
     const originalPaintIcon = proto._paintEventIcon;
     const originalPaintTape = proto._paintEventTape;
     const originalPaintLabel = proto._paintEventLabel;
+    const originalPaintEvent = proto.paintEvent;
     const originalSoftPaint = proto.softPaint;
 
     proto.initialize = function (band, timeline) {
@@ -2720,11 +2744,18 @@ import { installCaptionTooltip } from "./tooltip.js";
         return lane;
     };
 
+    proto.paintEvent = function (evt, metrics, theme, highlightIndex) {
+        if (evt?.isInstant?.() === false && isInstantGraphic(this, evt)) {
+            return this.paintPreciseInstantEvent(evt, metrics, theme, highlightIndex);
+        }
+        return originalPaintEvent.apply(this, arguments);
+    };
+
     proto._paintEventIcon = function (evt, iconTrack, left, metrics, theme, tapeHeight) {
         this._repriseMetrics = metrics;
         const paintArguments = Array.from(arguments);
         const visualTheme = getPainterVisualTheme(this, evt);
-        paintArguments[0] = evt?.isInstant?.()
+        paintArguments[0] = isInstantGraphic(this, evt)
             ? getEventWithThemeIcon(evt, theme, visualTheme, metrics)
             : evt;
         const data = originalPaintIcon.apply(this, paintArguments);
@@ -2737,7 +2768,7 @@ import { installCaptionTooltip } from "./tooltip.js";
         }
         if (isVertical(this) && data?.elmt) {
             const verticalData = transposeVerticalPaintedRect(data);
-            if (evt?.isInstant?.()) {
+            if (isInstantGraphic(this, evt)) {
                 setPaintedRect(verticalData, {
                     top: verticalData.top + VERTICAL_INSTANT_ICON_BASELINE_TOP_OFFSET
                 });
@@ -2753,7 +2784,7 @@ import { installCaptionTooltip } from "./tooltip.js";
         }
         if (!isHorizontal(this) || !data?.elmt) return data;
 
-        if (evt?.isInstant?.()) {
+        if (isInstantGraphic(this, evt)) {
             setPaintedRect(data, {
                 left: data.left + HORIZONTAL_INSTANT_ICON_BASELINE_LEFT_OFFSET
             });
@@ -2987,7 +3018,7 @@ import { installCaptionTooltip } from "./tooltip.js";
         item.naturalLeft = left;
         item.width = getDataWidth(data, width);
         item.height = getDataHeight(data, height);
-        if (!evt.isInstant()) {
+        if (!isInstantGraphic(this, evt)) {
             item.trackTopOffset += getLabelToRangeGap(this);
         }
         alignInstantLabelToIcon(this, item, metrics, theme);

@@ -274,6 +274,33 @@ test("VisualTheme validates Narrative range graphic mode", () => {
     );
 });
 
+test("VisualTheme validates and replaces range.minDuration as a single duration", () => {
+    const Timeline = loadTimeline();
+    assert.equal(new Timeline.VisualTheme().range.minDuration, null);
+    const base = new Timeline.VisualTheme({ range: { minDuration: { day: 1 } } });
+    assert.equal(base.range.minDuration.day, 1);
+    assert.ok(Object.isFrozen(base.range.minDuration));
+    const derived = Timeline.deriveVisualTheme(base, { range: { minDuration: { minute: 15 } } });
+    assert.deepEqual({ ...derived.range.minDuration }, { minute: 15 });
+    assert.equal(Timeline.deriveVisualTheme(base, { range: { minDuration: null } }).range.minDuration, null);
+
+    for (const minDuration of [1, [], {}, { days: 1 }, { day: 1, hour: 2 }]) {
+        assert.throws(() => new Timeline.VisualTheme({ range: { minDuration } }), /minDuration/);
+    }
+    for (const amount of [0, -1, Infinity, NaN, "1", null, undefined]) {
+        assert.throws(
+            () => new Timeline.VisualTheme({ range: { minDuration: { day: amount } } }),
+            /minDuration.day must be a positive finite number/
+        );
+    }
+    for (const orientation of ["horizontal", "vertical"]) {
+        assert.throws(
+            () => new Timeline.VisualTheme({ range: { [orientation]: { minDuration: { day: 1 } } } }),
+            /minDuration belongs on range/
+        );
+    }
+});
+
 test("VisualTheme resolves label placement fields from label specs", () => {
     const Timeline = loadTimeline();
     const theme = new Timeline.VisualTheme({

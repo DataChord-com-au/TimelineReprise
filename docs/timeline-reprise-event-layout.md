@@ -298,6 +298,42 @@ Sets the visible vertical gap between an instant dot and its label. Defaults to
 
 ## `visualTheme.range`
 
+### `visualTheme.range.minDuration`
+Optional minimum duration for drawing an event as a range. Shorter ranges draw
+as instant dots at their start, in event tracks. The event remains a range:
+display templates, captions, bubbles, start/end values, and duration are unchanged.
+Exactly the minimum still draws as a range. Omitted or `null` disables this rule.
+
+Set this on the band's visual theme, outside the orientation specs:
+
+```javascript
+range: {
+    minDuration: { day: 1 }, // Or { minute: 15 } for a finer timeline.
+    horizontal: { eventRoutingThreshold: 28 },
+    vertical: { eventRoutingThreshold: 28 },
+    short: { minDisplayLength: 4 }
+}
+```
+
+The value must contain exactly one positive finite number. Native date and
+`PlanningDayUnit` timelines support `millisecond`, `second`, `minute`, `hour`,
+`day`, and `week`; a day is 24 elapsed hours. `HistoricalYearUnit` and `MaUnit`
+support `year`, `decade`, `century`, `millennium`, and `Ma`. Any runtime unit with
+`duration(start, end)` can use `{ unit: number }`, measured in that method's own
+units. Unsupported unit combinations are rejected. Derived themes replace the
+whole duration value, so overriding `{ day: 1 }` with `{ minute: 15 } is valid.
+
+The duration cutoff is independent of zoom and applies before pixel routing:
+
+| Condition | Drawing and placement |
+| --- | --- |
+| Duration below `minDuration` | Dot in an event track |
+| Otherwise, rendered length below `eventRoutingThreshold` | Short range bar in an event track |
+| Otherwise | Long range tape in a tape track |
+
+Imprecise ranges use their full outer start-to-end duration. The setting applies
+to the detailed event painter; it does not change Narrative range graphics.
+
 ### `visualTheme.range.width`
 Sets range tape thickness. Defaults to `4`.
 
@@ -309,7 +345,8 @@ use the timeline's native blue.
 ## `visualTheme.range.short`
 
 Short ranges are duration events whose rendered time-axis length is less than
-the active orientation's `eventRoutingThreshold`. They use point-event routing
+the active orientation's `eventRoutingThreshold`, after applying `minDuration`.
+They use point-event routing
 rather than long-range tape-label routing.
 
 ### `visualTheme.range.short.minDisplayLength`
